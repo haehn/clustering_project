@@ -1,0 +1,19 @@
+Files for running a simulation with ALF, generating 25 genes,
+10 belonging to class1 - simulated along one random tree
+15 belonging to class2 - simulated along another random tree
+
+Required files: 
+ALF_wrapper.py - functions to write ALF parameters and run simulation
+handleArgs.py - function to get command line arguments into program
+sequence_record.py - class and init function for handling sequences
+
+Script files:
+runsim.py - generates alignments and true trees using ALF
+runraxml - generates tree inferences for each gene using raxml, 
+           with -l cluster or -l local determining where the
+           raxml executable will run (cluster job does 10 reps to
+           improve tree)
+
+Currently workflow is run runsim.py, then run runraxml.py. These could
+be wrapped by another script, to give finer control over parameters which
+are currently hard-coded
