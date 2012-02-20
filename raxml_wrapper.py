@@ -5,7 +5,7 @@ import glob,os,shutil
 def run_RAxML(executable, sequence_file, model, run_name, nruns=1, random_tree=False, pthreads = False, bsub=False, nthreads = 2):
     import subprocess
     if bsub: executable = 'bsub -o /dev/null {0}'.format(executable)
-    if pthreads: args = (executable, '-T', str(nthreads), '-s', sequence_file, '-m', model, '-n', run_name, '-N', nruns)
+    if pthreads: args = (executable, '-T', str(nthreads), '-s', sequence_file, '-m', model, '-n', run_name, '-N', str(nruns))
     else: args = (executable, '-s', sequence_file, '-m', model, '-n', run_name, '-N', nruns)
     if random_tree: args = args + ('-d',)
     subprocess.call(args)
