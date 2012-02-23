@@ -4,7 +4,7 @@ from hcluster import single, complete, linkage, dendrogram
 from matplotlib.pyplot import show
 
 trees = glob.glob( "./trees/besttrees/*" )
-trees = sorted( trees, key = lambda name: int(name.split('/')[-1][4:6]) )
+#trees = sorted( trees, key = lambda name: int(name.split('/')[-1][4:6]) )
 num_trees = len(trees)
 taxa = dendropy.TaxonSet()
 
@@ -23,9 +23,8 @@ for i in range(len(trees)):
 
 
 numpy.set_printoptions(precision=2,linewidth=200)
-dendrogram( linkage(mix_matrix),orientation='right' )
-#dendrogram( single(mix_matrix),orientation='right' )
-#dendrogram( complete(mix_matrix),orientation='right' )
+print mix_matrix
+#dendrogram( linkage(mix_matrix),orientation='right' )
+#dendrogram( single(sym_matrix),orientation='right' )
+dendrogram( complete(mix_matrix),orientation='right' )
 show()
-
-

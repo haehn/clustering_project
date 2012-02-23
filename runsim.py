@@ -60,7 +60,7 @@ else:
     else: print "Output Directory already exists, by the way..."
 
 #DEBUG ARGS
-print "Type of G elements: ",type(G[0])
+#print "Type of G elements: ",type(G[0])
 
 
 MSA_path = "{}/MSA".format(OUT_DIR)
@@ -84,7 +84,7 @@ for i in range(C):
     for fi in class_msas: # Give MSA file a better name
         name_elements = fi.split('_')
         gene_number = int(name_elements[1]) + sum(G[:i]) #add on number of genes already named in previous classes
-        rename = "{0}/MSA_{1:0>2}.fa".format(MSA_path, gene_number)
+        rename = "{0}/MSA_{1:0>3}.fa".format(MSA_path, gene_number)
         print fi, rename
         os.rename(fi, rename)
 

@@ -66,5 +66,3 @@ def run_ALF(parameters):
     if os.path.isfile(parameters):
         os.system("alfsim {0}".format(parameters))
     else: print "Can't file file '{0}'".format(parameters)
-
-
