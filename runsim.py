@@ -84,7 +84,7 @@ for i in range(C):
     for fi in class_msas: # Give MSA file a better name
         name_elements = fi.split('_')
         gene_number = int(name_elements[1]) + sum(G[:i]) #add on number of genes already named in previous classes
-        rename = "{0}/MSA_{1:0>3}.fa".format(MSA_path, gene_number)
+        rename = "{0}/gene{1:0>3}.fa".format(MSA_path, gene_number)
         print fi, rename
         os.rename(fi, rename)
 
