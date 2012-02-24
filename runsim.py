@@ -67,8 +67,8 @@ MSA_path = "{}/MSA".format(OUT_DIR)
 if not os.path.isdir(MSA_path): os.mkdir(MSA_path)
 tree_path = "{}/trees".format(OUT_DIR)
 if not os.path.isdir(tree_path): os.mkdir(tree_path)
-
-TEMP_DIR = 'scratch'
+TEMP_DIR = 'alftmp'
+if not os.path.isdir(TEMP_DIR): os.mkdir(TEMP_DIR)
 
 for i in range(C):
     #Write parameters
