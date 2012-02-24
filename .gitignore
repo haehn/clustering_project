@@ -3,3 +3,4 @@ scratch/
 MSA/
 trees/
 *.drw
+*/.DS_store
