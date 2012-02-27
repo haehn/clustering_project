@@ -98,20 +98,22 @@ for i in range(len(trees)):
                 if matrix[i][j] < min_value:
                     min_value = matrix[i][j]
 
-print matrix
-print max_value, min_value
+#print matrix
+#print max_value, min_value
 
 if not os.path.exists("{0}/concats".format(INPUT_DIR)): os.mkdir("{0}/concats".format(INPUT_DIR))
 if not os.path.exists("{0}/concats/besttrees".format(INPUT_DIR)): os.mkdir("{0}/concats/besttrees".format(INPUT_DIR))
 if not os.path.exists("{0}/concats/info".format(INPUT_DIR)): os.mkdir("{0}/concats/info".format(INPUT_DIR))
 
+true_tree_known=False
 true1_treeobject = dendropy.Tree()
 try: true1_treeobject.read_from_path("{0}/trees/true1_sps.nwk".format(INPUT_DIR),'newick',taxon_set=taxa)
 except: true_tree_known = False
 true2_treeobject = dendropy.Tree()
 try: true2_treeobject.read_from_path("{0}/trees/true2_sps.nwk".format(INPUT_DIR),'newick',taxon_set=taxa)
 except: pass
-
+if true_tree_known: print "NAME\tsum_lnl\tconcat_lnl\tdiff\tmutual_rf\ttree1_concat_rf\ttree2_concat_rf\ttrue1_tree1\ttrue2_tree1\ttrue1_tree2\ttrue2_tree2\ttrue1_concat\ttrue2_concat"
+else: print "NAME\tsum_lnl\tconcat_lnl\tdiff\tmutual_rf\ttree1_concat_rf\ttree2_concat_rf"
 for i in range(len(trees)):
     name_tree_i = tree_files[i][1+tree_files[i].rindex('/'):tree_files[i].rindex('.')]
     for j in range(i+1,len(trees)):
@@ -123,7 +125,8 @@ for i in range(len(trees)):
         mutual_distance = matrix[i][j]
         if run_raxml:
             os.system( 'raxml -T 8 -m {2} -s {0}/concats/{1}.phy -n {1} -p 121 && mv RAxML_bestTree.{1} {0}/concats/besttrees/{1}.nwk && mv RAxML_info.{1} {0}/concats/info/{1}.info && rm *.{1} '.format(INPUT_DIR,name_concat, model) )
-        	#print 'raxml -T 8 -m {2} -s {0}/concats/{1}.phy -n {1} -p 121 && mv RAxML_bestTree.{1} {0}/concats/besttrees/{1}.nwk && mv RAxML_info.{1} {0}/concats/info/{1}.info && rm *.{1} '.format(INPUT_DIR,name_concat, model)
+        	continue
+            #print 'raxml -T 8 -m {2} -s {0}/concats/{1}.phy -n {1} -p 121 && mv RAxML_bestTree.{1} {0}/concats/besttrees/{1}.nwk && mv RAxML_info.{1} {0}/concats/info/{1}.info && rm *.{1} '.format(INPUT_DIR,name_concat, model)
         tree_i_object = trees[i]
         tree_j_object = trees[j]
         concat_tree_object = dendropy.Tree()
@@ -138,7 +141,7 @@ for i in range(len(trees)):
             dist_true2_tree_j = dendropy.treecalc.robinson_foulds_distance(true2_treeobject,trees[j])
             dist_true1_concat = dendropy.treecalc.robinson_foulds_distance(true1_treeobject,concat_tree_object)
             dist_true2_concat = dendropy.treecalc.robinson_foulds_distance(true2_treeobject,concat_tree_object)
-            print "{0}{1:15.4f}{2:15.4f}{3:15.4f}{4:10.4f}{5:10.4f}{6:10.4f}{7:10.4f}{8:10.4f}{9:10.4f}{10:10.4f}".format( name_concat, sum_lnl, concat_lnl, concat_lnl - sum_lnl, mutual_distance, dist_true1_tree_i, dist_true2_tree_i, dist_true1_tree_j, dist_true2_tree_j, dist_true1_concat, dist_true2_concat )
+            print "{0}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\t{6:.4f}\t{7:.4f}\t{8:.4f}\t{9:.4f}\t{10:.4f}\t{11:.4f}\t{12:.4f}".format( name_concat, sum_lnl, concat_lnl, concat_lnl - sum_lnl, mutual_distance, dist_tree1_concat, dist_tree2_concat, dist_true1_tree_i, dist_true2_tree_i, dist_true1_tree_j, dist_true2_tree_j, dist_true1_concat, dist_true2_concat )
         else: 
-            print "{0}{1:15.4f}{2:15.4f}{3:15.4f}{4:10.4f}{5:10.4f}{6:10.4f}".format( name_concat, sum_lnl, concat_lnl, concat_lnl - sum_lnl, mutual_distance, dist_tree1_concat, dist_tree2_concat )
+            print "{0}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\t{6:.4f}".format( name_concat, sum_lnl, concat_lnl, concat_lnl - sum_lnl, mutual_distance, dist_tree1_concat, dist_tree2_concat )
         
