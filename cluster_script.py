@@ -43,9 +43,6 @@ else: matrix_type = args['-m']
 tree_files = glob.glob( "{}/trees/besttrees/*".format(INPUT_DIR) )
 info_files = glob.glob( "{}/trees/info/*".format(INPUT_DIR) )
 msa_files = glob.glob( "{}/MSA/*.phy".format(INPUT_DIR))
-print tree_files
-print info_files
-print msa_files
 trees = [RAxML_object() for x in tree_files]
 num_trees = len(trees)
 taxa = dendropy.TaxonSet()
@@ -100,15 +97,16 @@ true2_treeobject = dendropy.Tree()
 true2_treeobject.read_from_path("{}/trees/true2_sps.nwk".format(INPUT_DIR),'newick',taxon_set=taxa)
 
 for i in range(len(trees)):
+    name_tree_i = tree_files[i][1+tree_files[i].rindex('/'):tree_files[i].rindex('.')]
     for j in range(i+1,len(trees)):
-        name_tree_i = tree_files[i][1+tree_files[i].rindex('/'):tree_files[i].rindex('.')]
         name_tree_j = tree_files[j][1+tree_files[j].rindex('/'):tree_files[j].rindex('.')]
         name_concat = name_tree_i + "_" + name_tree_j
         concat = concatenate_alignments(get_phylip_file(msa_files[i]),get_phylip_file(msa_files[j]),name=name_concat) # Get these function calls out of the loop!
         concat.write_phylip(outfile="{0}/concats/{1}.phy".format(INPUT_DIR,name_concat))
         sum_lnl = trees[i].lnl + trees[j].lnl
         mutual_distance = matrix[i][j]
-        #os.system( 'raxml -T 8 -m PROTGAMMAWAG -s {0}/concats/{1}.phy -n {1} -p 121 && mv RAxML_bestTree.{1} {0}/concats/besttrees/{1}.nwk && mv RAxML_info.{1} {0}/concats/info/{1}.info && rm *.{1} '.format(INPUT_DIR,name_concat) )
+        if len(glob.glob("{}/concats/besttrees".format(INPUT_DIR)))>0:
+            os.system( 'raxml -T 8 -m PROTGAMMAWAG -s {0}/concats/{1}.phy -n {1} -p 121 && mv RAxML_bestTree.{1} {0}/concats/besttrees/{1}.nwk && mv RAxML_info.{1} {0}/concats/info/{1}.info && rm *.{1} '.format(INPUT_DIR,name_concat) )
         tree_i_object = trees[i]
         tree_j_object = trees[j]
         concat_tree_object = dendropy.Tree()
@@ -119,6 +117,5 @@ for i in range(len(trees)):
         dist_true2_tree_j = dendropy.treecalc.robinson_foulds_distance(true2_treeobject,trees[j])
         dist_true1_concat = dendropy.treecalc.robinson_foulds_distance(true1_treeobject,concat_tree_object)
         dist_true2_concat = dendropy.treecalc.robinson_foulds_distance(true2_treeobject,concat_tree_object)
-        concat_lnl = re.compile( "(?<=Score of best tree ).+" ).search(open("{0}/concats/info/{1}.info".format(INPUT_DIR,name_concat)).read()).group()
-        print "trees: ", name_concat, sum_lnl, concat_lnl, float(concat_lnl) - sum_lnl, mutual_distance
-        print " distances: ", dist_true1_tree_i, dist_true2_tree_i, dist_true1_tree_j, dist_true2_tree_j, dist_true1_concat, dist_true2_concat
+        concat_lnl = float(re.compile( "(?<=Score of best tree ).+" ).search(open("{0}/concats/info/{1}.info".format(INPUT_DIR,name_concat)).read()).group())
+        print "{0}{1:15.4f}{2:15.4f}{3:15.4f}{4:10.4f}{5:10.4f}{6:10.4f}{7:10.4f}{8:10.4f}{9:10.4f}{10:10.4f}".format( name_concat, sum_lnl, concat_lnl, concat_lnl - sum_lnl, mutual_distance, dist_true1_tree_i, dist_true2_tree_i, dist_true1_tree_j, dist_true2_tree_j, dist_true1_concat, dist_true2_concat )

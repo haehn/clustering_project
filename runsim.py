@@ -9,6 +9,7 @@ Remaining ALF files are deleted
 from ALF_wrapper import *         # functions write_ALF_parameters() and run_ALF()
 from sequence_record import *     # classes Unaligned_Sequence_Record and Aligned_Sequence_Record, function get_fasta_file()
 from handleArgs import handleArgs
+from pam2sps import pam2sps
 import glob, os, re, shutil, sys
 
 args = handleArgs(sys.argv, help = '''
@@ -90,6 +91,7 @@ for i in range(C):
 
     #Gather tree files
     os.rename('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1), './{0}/true{1}.nwk'.format(tree_path,i+1))
+    pam2sps('./{0}/true{1}.nwk'.format(tree_path,i+1),conversion="pam2sps",'./{0}/true{1}_sps.nwk'.format(tree_path,i+1))
     
     #Delete unnecessary simulated filesls
     shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
