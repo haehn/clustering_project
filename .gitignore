@@ -2,6 +2,7 @@ alftmp/
 scratch/
 MSA/
 trees/
+yeast_data/concats
 *.drw
 */.DS_store
 RAxML*

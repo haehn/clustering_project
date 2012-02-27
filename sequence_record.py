@@ -1,5 +1,5 @@
 #/usr/bin/env python
-class Unaligned_Sequence_Record():
+class Unaligned_Sequence_Record(object):
     """ Class for holding a unaligned sequences """
     def __init__(self, name, headers, sequences):
         self.name = name
