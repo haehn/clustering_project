@@ -64,16 +64,16 @@ else:
 #print "Type of G elements: ",type(G[0])
 
 
-MSA_path = "{}/MSA".format(OUT_DIR)
+MSA_path = "{0}/MSA".format(OUT_DIR)
 if not os.path.isdir(MSA_path): os.mkdir(MSA_path)
-tree_path = "{}/trees".format(OUT_DIR)
+tree_path = "{0}/trees".format(OUT_DIR)
 if not os.path.isdir(tree_path): os.mkdir(tree_path)
 TEMP_DIR = 'alftmp'
 if not os.path.isdir(TEMP_DIR): os.mkdir(TEMP_DIR)
 
 for i in range(C):
     #Write parameters
-    write_ALF_parameters(simulation_name='class{}'.format(i+1), experiment_directory=TEMP_DIR, simulation_directory='', number_of_genes=G[i], min_gene_length=250, number_of_species=S, mutation_rate=250, indels=True, output_filename='{0}/class{1}-params.drw'.format(OUT_DIR,i+1))   
+    write_ALF_parameters(simulation_name='class{0}'.format(i+1), experiment_directory=TEMP_DIR, simulation_directory='', number_of_genes=G[i], min_gene_length=250, number_of_species=S, mutation_rate=250, indels=True, output_filename='{0}/class{1}-params.drw'.format(OUT_DIR,i+1))   
 
     #Run simulation
     run_ALF('{0}/class{1}-params.drw'.format(OUT_DIR,i+1))
@@ -90,9 +90,9 @@ for i in range(C):
         os.rename(fi, rename)
 
     #Gather tree files
+    pam2sps('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1),"pam2sps",'./{0}/true{1}_sps.nwk'.format(tree_path,i+1))
     os.rename('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1), './{0}/true{1}.nwk'.format(tree_path,i+1))
-    pam2sps('./{0}/true{1}.nwk'.format(tree_path,i+1),conversion="pam2sps",'./{0}/true{1}_sps.nwk'.format(tree_path,i+1))
-    
+        
     #Delete unnecessary simulated filesls
     shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
 #END LOOP
