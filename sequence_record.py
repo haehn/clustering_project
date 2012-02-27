@@ -66,7 +66,6 @@ class Unaligned_Sequence_Record():
             if print_to_screen: print s
 
 
-
 class Aligned_Sequence_Record(Unaligned_Sequence_Record):
     """ Class for holding a sequence alignment """
     def __str__(self):
@@ -128,8 +127,34 @@ def get_fasta_file(fasta_file, name = "no name"):
     if is_alignment: return Aligned_Sequence_Record(name, headers, sequences)
     else: return Unaligned_Sequence_Record(name, headers, sequences)
 
+def get_phylip_file(phylip_file,name=None):
+    """ PHYLIP format parser"""
+    headers = []
+    sequences = []
+    openfile = open(phylip_file,'r')
+    info = openfile.readline().split()
+    num_taxa = info[0]
+    seq_length = info[1]
 
+    while True:
+        line = openfile.readline().rstrip()
+        if not line:
+            break
+        line = line.split()
+        headers.append(line[0])
+        sequences.append(line[1])
 
+    return Aligned_Sequence_Record(name, headers, sequences)
 
-
-
+def concatenate_alignments(alignment1, alignment2,name=None):
+    try: assert set.intersection(set(alignment1.headers),set(alignment2.headers))==set(alignment1.headers)==set(alignment2.headers)
+    except AssertionError: 
+        print "Sequence labels do not match"
+        return
+    keys = alignment1.headers
+    dict1 = dict(zip(alignment1.headers,alignment1.sequences))
+    dict2 = dict(zip(alignment2.headers,alignment2.sequences))
+    new_sequences = []
+    for key in keys:
+        new_sequences.append(dict1[key]+dict2[key])
+    return Aligned_Sequence_Record(name,keys,new_sequences)
