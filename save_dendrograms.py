@@ -4,9 +4,9 @@ Quick write to disk of cluster dendrograms of all-against-all tree distance matr
 """
 
 import dendropy, glob, numpy, sys
-from scipy.cluster.hierarchy import single, complete, linkage, dendrogram
+from scipy.cluster.hierarchy import single, complete, linkage, dendrogram, fcluster
 from hcluster import squareform
-from matplotlib.pyplot import clf,savefig,show,title,xlabel,ylabel
+from matplotlib.pyplot import clf,savefig,show,title,xlabel,ylabel,axhline
 from handleArgs import handleArgs
 from Bio import Cluster
 from math import sqrt, trunc
@@ -15,7 +15,7 @@ args = handleArgs(sys.argv,help='''
 all_against_all arguments:
   -in = path to data directory (default = '.')
   -out = save prefix
-  -n = number of clusters to force data into
+  -cut [float 0 < cut < 1] = cutting point at which to separate clusters (default 0.25)
 ''')
 
 #Check arguments
@@ -40,6 +40,13 @@ elif not args['-out']:
     print "No save prefix specified, using 'out' ..."
     nclusters= None
 else: nclusters = int(args['-n'])
+
+if "-cut" not in args:
+    cut_proportion = 0.25
+elif not args['-in']:
+    print "Cutting point not specified, using 0.25..."
+    cut_proportion = 0.25
+else: cut_proportion = float(args['-cut'])
 
 taxa = dendropy.TaxonSet()
 tree_files = glob.glob( "{}/trees/besttrees/*".format(INPUT_DIR) )
@@ -75,10 +82,11 @@ for x in range(len(linkages)):
         except:
             Y = matrices[y]
             link = linkage(Y, linkages[x])
-        cut = (link[-1][2])*0.25
-        #dendrogram( link, color_threshold=cut, leaf_font_size=font_size, leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')]+"_"+str(k[0][leaf]),count_sort=True)
-        dendrogram( link, color_threshold=cut, leaf_font_size=font_size, leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')],count_sort=True)
+        cut = (link[-1][2])*cut_proportion
+        T = fcluster(link,cut,criterion="distance")
+        dendrogram( link, color_threshold=cut, leaf_font_size=font_size, leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')]+"_"+str(T[leaf]),count_sort=True)
         title("{0} linkage of {1} matrix".format(linkages[x],matrix_names[y]))
+        axhline(cut,color='grey',ls='dashed')
         xlabel('Gene')
         ylabel('Distance')
         savefig(filename,format='pdf',dpi=1600)

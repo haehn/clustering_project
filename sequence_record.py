@@ -5,6 +5,7 @@ class Unaligned_Sequence_Record(object):
         self.name = name
         self.headers = headers
         self.sequences = sequences
+        self.mapping = dict(zip(headers,sequences))
         self.get_alignment_columns()
         self.index = -1
         self.length = len(self.headers)
@@ -15,15 +16,13 @@ class Unaligned_Sequence_Record(object):
         if self.index == self.length: 
             self.index = -1
             raise StopIteration
-        #return "index =" + str(self.index)
-        #return self.iterator[self.index]
         return { 'header' : self.headers[self.index],
                  'sequence' : self.sequences[self.index]}
     def __str__(self):
         output_string = ""
         output_string += "Unaligned_Sequence_Record: {0}\n".format( self.name )
         for i in range(len(self.headers)):
-            output_string += ">{0}\n{1}...\n".format( self.headers[i], self.sequences[i][:50] )
+            output_string += ">{0}\n{1}...({2})\n".format( self.headers[i], self.sequences[i][:50],len(self.sequences[i]) )
         output_string += "{0} sequences in record".format(len(self))
         return output_string
     def __len__(self):
@@ -83,10 +82,12 @@ class Aligned_Sequence_Record(Unaligned_Sequence_Record):
         output_string = ""
         output_string += "Aligned_Sequence_Record: {0}\n".format( self.name )
         for i in range(len(self.headers)):
-            output_string += ">{0}\n{1}...\n".format( self.headers[i], self.sequences[i][:50] )
+            output_string += ">{0}\n{1}...({2})\n".format( self.headers[i], self.sequences[i][:50], len(self.sequences[i]) )
         output_string += "{0} sequences in record".format(len(self))
         return output_string
     def get_alignment_columns(self): 
+        if not len(self.sequences) > 0:
+            return
         self.columns = []
         for i in range(len(self.sequences[0])):
             column = ""
@@ -157,7 +158,7 @@ def get_phylip_file(phylip_file,name=None):
 
     return Aligned_Sequence_Record(name, headers, sequences)
 
-def concatenate_alignments(alignment1, alignment2,name=None):
+def concatenate_2_alignments(alignment1, alignment2,name=None):
     try: assert set.intersection(set(alignment1.headers),set(alignment2.headers))==set(alignment1.headers)==set(alignment2.headers)
     except AssertionError: 
         print "Sequence labels do not match"
@@ -169,3 +170,22 @@ def concatenate_alignments(alignment1, alignment2,name=None):
     for key in keys:
         new_sequences.append(dict1[key]+dict2[key])
     return Aligned_Sequence_Record(name,keys,new_sequences)
+
+def concatenate_alignments(alignment_list,name=None):
+    headers = alignment_list[0].headers
+    data = [dict(zip(headers,alignment_list[0].sequences))]
+    concatenation = ["" for x in headers]
+    for i in range(1,len(alignment_list)):
+        try: assert set.intersection(set(alignment_list[0].headers),set(alignment_list[i].headers))==set(alignment_list[0].headers)==set(alignment_list[i].headers)
+        except AssertionError: 
+            print "Sequence labels do not match between {0} and {1}".format(alignment_list[0],alignment_list[i])
+            return
+    
+        data.append(dict(zip(alignment_list[i].headers,alignment_list[i].sequences)))
+    
+    for i in range(len(headers)):
+        h = headers[i]
+        for j in range(len(data)):
+            concatenation[i]+=data[j][h]
+
+    return Aligned_Sequence_Record(name,headers,concatenation)

@@ -1,16 +1,19 @@
 #!/usr/bin/env python
-import dendropy, glob, numpy, re, sys
-from scipy.cluster.hierarchy import single, complete, linkage, dendrogram
+import dendropy, glob, numpy, os, re, sys
+from scipy.cluster.hierarchy import single, complete, linkage, dendrogram, fcluster
 from hcluster import squareform
-from matplotlib.pyplot import show,title,xlabel,ylabel
+from matplotlib.pyplot import show,title,xlabel,ylabel,axhline
 from handleArgs import handleArgs
-from Bio import Cluster
+from sequence_record import *
 
 args = handleArgs(sys.argv,help='''
 all_against_all arguments:
   -in = path to data directory (default = '.')
-  -m [rf, sym, mix*] = matrix: RF, symmetric differences, or mix of both (upper triangle = RF, lower = symm diff)
+  -m [rf, sym] = matrix: RF or symmetric differences
   -l [single*, complete, ward] = linkage method ()
+  -cut [float 0 < cut < 1] = cutting point at which to separate clusters (default 0.25)
+  -show = plot dendrogram
+  -cluster = concatenate sequences based on discovered clusters and write the result to in/clusters
 ''')
 
 #Check arguments
@@ -22,10 +25,10 @@ elif not args['-in']:
 else: INPUT_DIR = args['-in']
 
 if "-m" not in args:
-    matrix_type = 'mix'
+    matrix_type = 'rf'
 elif not args['-in']:
-    print "No matrix type specified, using 'mix' ..."
-    matrix_type = 'mix'
+    print "No matrix type specified, using 'rf' ..."
+    matrix_type = 'rf'
 else: matrix_type = args['-m']
 
 if "-l" not in args:
@@ -35,12 +38,28 @@ elif not args['-in']:
     linkage_method = 'single'
 else: linkage_method = args['-l']
 
+if "-cut" not in args:
+    cut = 0.25
+elif not args['-in']:
+    print "Cutting point not specified, using 0.25..."
+    cut = 0.25
+else: cut = float(args['-cut'])
+
+if "-show" not in args:
+    show_plot = False
+else: show_plot = True
+
+if "-cluster" not in args:
+    make_clusters = False
+else: make_clusters = True
+
 class RAxML_object(dendropy.Tree):
     lnl = None
 
 taxa = dendropy.TaxonSet()
-tree_files = glob.glob( "{}/trees/besttrees/*".format(INPUT_DIR) )
-info_files = glob.glob( "{}/trees/info/*".format(INPUT_DIR) )
+tree_files = glob.glob( "{0}/trees/besttrees/*".format(INPUT_DIR) )
+info_files = glob.glob( "{0}/trees/info/*".format(INPUT_DIR) )
+msa_files = glob.glob( "{0}/MSA/*.phy".format(INPUT_DIR) )
 likelihoods = [float( re.compile( "(?<=Score of best tree ).+" ).search(open(x).read()).group() ) for x in info_files]
 trees = [RAxML_object() for x in tree_files]
 num_trees = len(trees)
@@ -68,11 +87,37 @@ try:
     Y = squareform(matrix)
     link = linkage(Y, linkage_method)
 except: 
-    link = linkage(matrix, linkage_method)
+    Y = matrix
+    link = linkage(Y, linkage_method)
 
-cut = (link[-1][2])*0.25
-dendrogram( link, color_threshold=cut, leaf_font_size=10,leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')],count_sort=True)
-title("{0} linkage of {1} matrix".format(linkage_method,matrix_type))
-xlabel('Gene')
-ylabel('Distance')
-show()
+cut = (link[-1][2])*cut
+# Plot the clustering via dendrogram function - 'cut' parameter separates the trees into clusters at the given cut-point (set at 1/4 max branch length for convenience)
+# T gives a list recording the number of the cluster each gene is assigned to
+T = fcluster(link,cut,criterion="distance")
+if make_clusters:   
+    if not os.path.exists( "{0}/clusters".format(INPUT_DIR)): os.mkdir( "{0}/clusters".format(INPUT_DIR))
+    clusters = {}
+    for k in range(min(T),max(T)+1):
+        clusters[k] = []
+
+    for i in range(len(T)):
+        clusters[T[i]].append(get_phylip_file(msa_files[i]))
+
+    for key in clusters.keys():
+        seq_list = clusters[key]
+        conc = concatenate_alignments(seq_list)
+        conc.write_phylip( "{0}/clusters/cluster{1:0>2}.phy".format(INPUT_DIR,key))
+
+    assignments = zip(tree_files,T)
+    assignment_outfile = open( "{0}/clusters/cluster_assignments.txt".format(INPUT_DIR), "w")
+    for x in sorted(assignments, key=lambda tup: int(tup[1])): 
+        gene = x[0][x[0].rindex("/")+1:x[0].rindex(".")]
+        assignment_outfile.write("{0}\t{1}\n".format(gene,x[1]))
+
+if show_plot: 
+    dendrogram( link, color_threshold=cut, leaf_font_size=10,leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')]+"_"+str(T[leaf]),count_sort=True)
+    title("{0} linkage of {1} matrix".format(linkage_method,matrix_type))
+    axhline(cut,color='grey',ls='dashed')
+    xlabel('Gene')
+    ylabel('Distance')
+    show()
