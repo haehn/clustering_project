@@ -30,8 +30,19 @@ class Unaligned_Sequence_Record(object):
         return self.length
     def get_alignment_columns(self):
         pass
-    def write_fasta(self):
-        pass
+    def write_fasta(self,outfile="stdout",print_to_screen=False):
+        lines = [">{0}\n{1}".format(h,seq) for h,seq in zip(self.headers,self.sequences)]
+        s = '\n'.join(lines)
+        if outfile == "stdout":
+            print s
+            return s
+        elif outfile == "pipe":
+            if print_to_screen: print s
+            return s
+        else: 
+            open(outfile,'w').write(s)
+            if print_to_screen: print s
+
     def write_nexus(self,outfile="stdout",sequence_type='protein'):
         maxlen = len(max(self.sequences,key=len))
         lines = [ "{0:<14} {1:-<{2}}".format(x,y,maxlen) for (x,y) in zip(self.headers,self.sequences) ]

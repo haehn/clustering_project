@@ -105,7 +105,7 @@ if not os.path.exists("{0}/concats".format(INPUT_DIR)): os.mkdir("{0}/concats".f
 if not os.path.exists("{0}/concats/besttrees".format(INPUT_DIR)): os.mkdir("{0}/concats/besttrees".format(INPUT_DIR))
 if not os.path.exists("{0}/concats/info".format(INPUT_DIR)): os.mkdir("{0}/concats/info".format(INPUT_DIR))
 
-true_tree_known=False
+true_tree_known=False #SET THIS TO TRUE FOR SIMULATED DATA
 true1_treeobject = dendropy.Tree()
 try: true1_treeobject.read_from_path("{0}/trees/true1_sps.nwk".format(INPUT_DIR),'newick',taxon_set=taxa)
 except: true_tree_known = False
@@ -126,7 +126,6 @@ for i in range(len(trees)):
         if run_raxml:
             os.system( 'raxml -T 8 -m {2} -s {0}/concats/{1}.phy -n {1} -p 121 && mv RAxML_bestTree.{1} {0}/concats/besttrees/{1}.nwk && mv RAxML_info.{1} {0}/concats/info/{1}.info && rm *.{1} '.format(INPUT_DIR,name_concat, model) )
         	continue
-            #print 'raxml -T 8 -m {2} -s {0}/concats/{1}.phy -n {1} -p 121 && mv RAxML_bestTree.{1} {0}/concats/besttrees/{1}.nwk && mv RAxML_info.{1} {0}/concats/info/{1}.info && rm *.{1} '.format(INPUT_DIR,name_concat, model)
         tree_i_object = trees[i]
         tree_j_object = trees[j]
         concat_tree_object = dendropy.Tree()

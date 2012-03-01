@@ -68,7 +68,7 @@ matrix_names = ['rf','sym']
 for x in range(len(linkages)):
     for y in range(len(matrices)):
         filename = "{0}{1}_{2}_{3}.pdf".format(INPUT_DIR,save_prefix,linkages[x],matrix_names[y])
-        k = Cluster.kmedoids(matrices[y],npass=10,nclusters=nclusters)
+        #k = Cluster.kmedoids(matrices[y],npass=10,nclusters=nclusters)
         try: 
             Y = squareform(matrices[y])
             link = linkage(Y, linkages[x])
@@ -76,7 +76,8 @@ for x in range(len(linkages)):
             Y = matrices[y]
             link = linkage(Y, linkages[x])
         cut = (link[-1][2])*0.25
-        dendrogram( link, color_threshold=cut, leaf_font_size=font_size, leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')]+"_"+str(k[0][leaf]),count_sort=True)
+        #dendrogram( link, color_threshold=cut, leaf_font_size=font_size, leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')]+"_"+str(k[0][leaf]),count_sort=True)
+        dendrogram( link, color_threshold=cut, leaf_font_size=font_size, leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')],count_sort=True)
         title("{0} linkage of {1} matrix".format(linkages[x],matrix_names[y]))
         xlabel('Gene')
         ylabel('Distance')

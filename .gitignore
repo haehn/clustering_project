@@ -4,5 +4,6 @@ MSA/
 trees/
 yeast_data/concats
 *.drw
+*.pyc
 */.DS_store
 RAxML*
