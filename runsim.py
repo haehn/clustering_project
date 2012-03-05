@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-Quick & dirty script to run alfsim and generate G genes for 20 species, with genes
-from C classes (i.e. a mixture of defined histories).
+Script to run alfsim and generate G genes for 20 species, with genes from C classes (i.e. a mixture of defined histories).
 MSAs are put in MSA directory
 True trees are put in trees directory
 Remaining ALF files are deleted

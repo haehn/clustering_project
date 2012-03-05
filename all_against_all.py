@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-import dendropy, glob, numpy, os, re, sys
+import dendropy, glob, os, re, sys
+import numpy as np
 from scipy.cluster.hierarchy import single, complete, linkage, dendrogram, fcluster
 from hcluster import squareform
 from matplotlib.pyplot import show,title,xlabel,ylabel,axhline
@@ -10,7 +11,7 @@ args = handleArgs(sys.argv,help='''
 all_against_all arguments:
   -in = path to data directory (default = '.')
   -m [rf, sym] = matrix: RF or symmetric differences
-  -l [single*, complete, ward] = linkage method ()
+  -l [single*, complete, average, ward] = linkage method ()
   -cut [float 0 < cut < 1] = cutting point at which to separate clusters (default 0.25)
   -show = plot dendrogram
   -cluster = concatenate sequences based on discovered clusters and write the result to in/clusters
@@ -67,10 +68,10 @@ num_trees = len(trees)
 for i in range(num_trees): 
     trees[i].lnl = likelihoods[i]
 
-numpy.set_printoptions(precision=2,linewidth=200)
+np.set_printoptions(precision=2,linewidth=200)
 
 #Set up matrices
-matrix = numpy.zeros( (num_trees,num_trees),dtype='float' )
+matrix = np.zeros( (num_trees,num_trees),dtype='float' )
 
 for i in range(len(trees)):
     for j in range(i+1,len(trees)):

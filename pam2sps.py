@@ -7,9 +7,9 @@ def pam2sps(tree_file, conversion, outfile):
     convert_sps_to_pam = lambda b: str(100*float(b.group()))
 
     input_string = open(tree_file).read()
-    if conversion == '-pam2sps':
+    if conversion == 'pam2sps':
         output_string = reg_ex.sub(convert_pam_to_sps,input_string)
-    elif conversion == '-sps2pam':
+    elif conversion == 'sps2pam':
         output_string = reg_ex.sub(convert_sps_to_pam,input_string)
     else: output_string = reg_ex.sub(convert_pam_to_sps,input_string)
 

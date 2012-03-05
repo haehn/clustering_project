@@ -3,7 +3,9 @@ scratch/
 MSA/
 trees/
 yeast_data/concats
+yeast_data/.DS_Store
 *.drw
 *.pyc
-*/.DS_store
+.DS_Store
+*/.DS_Store
 RAxML*
