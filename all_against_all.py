@@ -9,39 +9,40 @@ from sequence_record import *
 
 args = handleArgs(sys.argv,help='''
 all_against_all arguments:
-  -in = path to data directory (default = '.')
+  -dir = path to data directory (default = '.')
   -m [rf, sym] = matrix: RF or symmetric differences
   -l [single*, complete, average, ward] = linkage method ()
   -cut [float 0 < cut < 1] = cutting point at which to separate clusters (default 0.25)
   -show = plot dendrogram
   -cluster = concatenate sequences based on discovered clusters and write the result to in/clusters
+  -norm = normalise matrix before clustering (i.e. divide throughout by maximum value)
 ''')
 
 #Check arguments
-if "-in" not in args:
+if "-dir" not in args:
     INPUT_DIR = '.'
-elif not args['-in']:
+elif not args['-dir']:
     print "No input directory specified, trying '.' ..."
     INPUT_DIR = ','
-else: INPUT_DIR = args['-in']
+else: INPUT_DIR = args['-dir']
 
 if "-m" not in args:
     matrix_type = 'rf'
-elif not args['-in']:
+elif not args['-m']:
     print "No matrix type specified, using 'rf' ..."
     matrix_type = 'rf'
 else: matrix_type = args['-m']
 
 if "-l" not in args:
     linkage_method = 'single'
-elif not args['-in']:
+elif not args['-l']:
     print "No linkage method specified, using 'single' ..."
     linkage_method = 'single'
 else: linkage_method = args['-l']
 
 if "-cut" not in args:
     cut = 0.25
-elif not args['-in']:
+elif not args['-cut']:
     print "Cutting point not specified, using 0.25..."
     cut = 0.25
 else: cut = float(args['-cut'])
@@ -53,6 +54,10 @@ else: show_plot = True
 if "-cluster" not in args:
     make_clusters = False
 else: make_clusters = True
+
+if "-norm" not in args:
+    normalise = False
+else: normalise = True
 
 class RAxML_object(dendropy.Tree):
     lnl = None
@@ -83,6 +88,9 @@ for i in range(len(trees)):
         elif matrix_type == 'sym':
             matrix[i][j]=matrix[j][i]=dendropy.treecalc.symmetric_difference(trees[i],trees[j])
 
+if normalise:
+    matrix = matrix / np.max(matrix)
+    
 print matrix
 try: 
     Y = squareform(matrix)
@@ -97,6 +105,8 @@ cut = (link[-1][2])*cut
 T = fcluster(link,cut,criterion="distance")
 if make_clusters:   
     if not os.path.exists( "{0}/clusters".format(INPUT_DIR)): os.mkdir( "{0}/clusters".format(INPUT_DIR))
+    if not os.path.exists( "{0}/clusters/MSA".format(INPUT_DIR)): os.mkdir( "{0}/clusters/MSA".format(INPUT_DIR))
+    if not os.path.exists( "{0}/clusters/trees".format(INPUT_DIR)): os.mkdir( "{0}/clusters/trees".format(INPUT_DIR))
     clusters = {}
     for k in range(min(T),max(T)+1):
         clusters[k] = []
@@ -107,7 +117,7 @@ if make_clusters:
     for key in clusters.keys():
         seq_list = clusters[key]
         conc = concatenate_alignments(seq_list)
-        conc.write_phylip( "{0}/clusters/cluster{1:0>2}.phy".format(INPUT_DIR,key))
+        conc.write_phylip( "{0}/clusters/MSA/cluster{1:0>2}.phy".format(INPUT_DIR,key))
 
     assignments = zip(tree_files,T)
     assignment_outfile = open( "{0}/clusters/cluster_assignments.txt".format(INPUT_DIR), "w")
