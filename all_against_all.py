@@ -59,39 +59,89 @@ if "-norm" not in args:
     normalise = False
 else: normalise = True
 
+if "-inv" not in args: #invert symmetric difference matrix s.t. each distance is subtracted from the maximum difference,
+    invert = False     #which is 2n - 6 where n = number of leaves on the tree
+else: invert = True
+
+# DEFINITIONS
+
 class RAxML_object(dendropy.Tree):
     lnl = None
+
+def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False):
+    """ all pairwise distances between trees in list: 'trees' """
+    num_trees = len(trees)
+    matrix = np.zeros( (num_trees,num_trees),dtype='float' )
+    for i in range(num_trees):
+        for j in range(i+1,num_trees):
+            if matrix_type == 'rf':
+                matrix[i][j]=matrix[j][i]=trees[i].robinson_foulds_distance(trees[j])
+            elif matrix_type == 'sym':
+                matrix[i][j]=matrix[j][i]=trees[i].symmetric_difference(trees[j])
+
+    if invert and matrix_type == 'sym':
+        matrix = max_symdiff - matrix
+
+    if normalise:
+        matrix = matrix / np.max(matrix)
+        
+    return matrix
+
+def linkage2newick(gene_list,linkage):
+    """ Generate a newick string from the cluster linkage (must supply list of taxon labels in gene_list) """
+    import re
+    d = {}
+    num_genes = len(gene_list)
+    for i in range(len(linkage)+len(gene_list)):
+        if i < num_genes:
+            d[i]=[gene_list[i],0]
+        else:
+            d[i] = [ (int(linkage[i-num_genes][0]),int(linkage[i-num_genes][1])),linkage[i-num_genes][2] ]
+
+    s = str(i)+":0.0;"
+
+    def quick_replace(s,d,i):
+        # Replace node i with the subtree it represents
+        subtree = d[i][0]
+        if type(subtree)==type( (1,) ): #check tuple-ness before unpacking
+            left, right = subtree
+            left_brlen = d[i][1] - d[left][1] #calculate branch lengths for the unpacked subtrees from the tuple
+            right_brlen = d[i][1] - d[right][1]
+            out = re.sub( "(?<![\w\d\:.]){0}(?!\w\d)".format(i), "({0}:{1}, {2}:{3})".format(left,left_brlen,right,right_brlen), s ) #replace node with subtree
+            return out
+        else: # if tuple-ness fails then this is a leaf node, so replace with leaf name from genelist
+            return re.sub( "(?<![\w\d\:.]){0}(?!\w\d)".format(i), "{0}".format(d[i][0]), s )
+
+    # i is set to the number of the final node in the tree - this represents the whole tree contracted to a single node
+    # iteratively replacing the node with the next-most contracted subtree will result in a fully expanded tree
+    while i >= 0: # take advantage of i's current value at len(linkage)+len(gene_list), i.e. max
+        s = quick_replace(s,d,i)
+        i -= 1 # repeatedly call quick_replace function to rename node
+
+    return s
+
+# COLLECT FILES AND SET OPTIONS
+
+np.set_printoptions(precision=2,linewidth=200)
 
 taxa = dendropy.TaxonSet()
 tree_files = glob.glob( "{0}/trees/besttrees/*".format(INPUT_DIR) )
 info_files = glob.glob( "{0}/trees/info/*".format(INPUT_DIR) )
 msa_files = glob.glob( "{0}/MSA/*.phy".format(INPUT_DIR) )
+names = [ filename[filename.rindex("/")+1:filename.rindex(".")] for filename in tree_files]
 likelihoods = [float( re.compile( "(?<=Score of best tree ).+" ).search(open(x).read()).group() ) for x in info_files]
 trees = [RAxML_object() for x in tree_files]
 num_trees = len(trees)
 [trees[i].read_from_path(tree_files[i],'newick',taxon_set=taxa) for i in range(num_trees)]
 for i in range(num_trees): 
     trees[i].lnl = likelihoods[i]
+num_taxa = len(taxa)
+max_symdiff = 2 * (num_taxa - 3)
 
-np.set_printoptions(precision=2,linewidth=200)
+#Set up matrix and clustering parameters
 
-#Set up matrices
-matrix = np.zeros( (num_trees,num_trees),dtype='float' )
-
-for i in range(len(trees)):
-    for j in range(i+1,len(trees)):
-        if matrix_type == 'mix':
-            matrix[i][j]=dendropy.treecalc.robinson_foulds_distance(trees[i],trees[j])
-            matrix[j][i]=dendropy.treecalc.symmetric_difference(trees[i],trees[j])
-        elif matrix_type == 'rf':
-            matrix[i][j]=matrix[j][i]=dendropy.treecalc.robinson_foulds_distance(trees[i],trees[j])
-        elif matrix_type == 'sym':
-            matrix[i][j]=matrix[j][i]=dendropy.treecalc.symmetric_difference(trees[i],trees[j])
-
-if normalise:
-    matrix = matrix / np.max(matrix)
-    
-print matrix
+matrix = get_distance_matrix(trees, matrix_type = matrix_type, invert = invert, normalise = normalise)
+# print matrix
 try: 
     Y = squareform(matrix)
     link = linkage(Y, linkage_method)
@@ -100,6 +150,9 @@ except:
     link = linkage(Y, linkage_method)
 
 cut = (link[-1][2])*cut
+nwk = linkage2newick(names, link)
+
+
 # Plot the clustering via dendrogram function - 'cut' parameter separates the trees into clusters at the given cut-point (set at 1/4 max branch length for convenience)
 # T gives a list recording the number of the cluster each gene is assigned to
 T = fcluster(link,cut,criterion="distance")
@@ -124,9 +177,14 @@ if make_clusters:
     for x in sorted(assignments, key=lambda tup: int(tup[1])): 
         gene = x[0][x[0].rindex("/")+1:x[0].rindex(".")]
         assignment_outfile.write("{0}\t{1}\n".format(gene,x[1]))
+    assignment_outfile.close()
+    dendrogram_outfile = open( "{0}/clusters/cluster_dendrogram.nwk".format(INPUT_DIR), "w")
+    dendrogram_outfile.write(nwk)
+    dendrogram_outfile.close()
 
-if show_plot: 
-    dendrogram( link, color_threshold=cut, leaf_font_size=10,leaf_rotation=90,leaf_label_func=lambda leaf: tree_files[leaf][1+tree_files[leaf].rindex('/'):tree_files[leaf].rindex('.')]+"_"+str(T[leaf]),count_sort=True)
+if show_plot:
+    print nwk
+    dendrogram( link, color_threshold=cut, leaf_font_size=10,leaf_rotation=90,leaf_label_func=lambda leaf: names[leaf]+"_"+str(T[leaf]),count_sort=True)
     title("{0} linkage of {1} matrix".format(linkage_method,matrix_type))
     axhline(cut,color='grey',ls='dashed')
     xlabel('Gene')

@@ -14,8 +14,9 @@ import glob, os, re, shutil, sys
 args = handleArgs(sys.argv, help = '''
 runsim.py arguments:
   -c  =  number of classes
-  -g  =  number of genes (total)
   -s  =  number of species
+  -g  =  number of genes per class
+  -r  =  rate per class (PAM units, default is 200)
   -dir = Output directory to place simulation into (default './')
 ''')
 
@@ -48,6 +49,18 @@ else:
         sys.exit()
     else: G = [int(x) for x in G]
 
+if not '-r' in args: 
+    R = [ 200 for each_class in range(C) ]
+elif not args['-r']:
+    print 'Mutation rate not specified. Rate set to 200 for each class'
+    R = [ 200 for each_class in range(C) ]
+else: 
+    R = regexp.findall(args['-r']) #Make sure we understand the list given in R
+    if not R: 
+        print "Didn't understand '-r' argument."
+        sys.exit()
+    else: R = [int(x) for x in R]
+
 if not '-dir' in args: 
     OUT_DIR = './'
 elif not args['-dir']: 
@@ -72,7 +85,7 @@ if not os.path.isdir(TEMP_DIR): os.mkdir(TEMP_DIR)
 
 for i in range(C):
     #Write parameters
-    write_ALF_parameters(simulation_name='class{0}'.format(i+1), experiment_directory=TEMP_DIR, simulation_directory='', number_of_genes=G[i], min_gene_length=250, number_of_species=S, mutation_rate=250, indels=True, output_filename='{0}/class{1}-params.drw'.format(OUT_DIR,i+1))   
+    write_ALF_parameters(simulation_name='class{0}'.format(i+1), experiment_directory=TEMP_DIR, simulation_directory='', number_of_genes=G[i], min_gene_length=250, number_of_species=S, mutation_rate=R[i], indels=True, output_filename='{0}/class{1}-params.drw'.format(OUT_DIR,i+1))   
 
     #Run simulation
     run_ALF('{0}/class{1}-params.drw'.format(OUT_DIR,i+1))
