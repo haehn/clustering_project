@@ -60,20 +60,22 @@ np.set_printoptions(precision=2,linewidth=200)
 #Set up matrices
 rf_matrix = np.zeros( (num_trees,num_trees),dtype='float' )
 sym_matrix = np.zeros( (num_trees,num_trees),dtype='float' )
+euc_matrix = np.zeros( (num_trees,num_trees),dtype='float' )
 
 for i in range(len(trees)):
     for j in range(i+1,len(trees)):          
         rf_matrix[i][j]=rf_matrix[j][i]=dendropy.treecalc.robinson_foulds_distance(trees[i],trees[j])
         sym_matrix[i][j]=sym_matrix[j][i]=dendropy.treecalc.symmetric_difference(trees[i],trees[j])  
-
+        euc_matrix[i][j]=euc_matrix[j][i]=dendropy.treecalc.euclidean_distance(trees[i],trees[j])
 #Normalise if specified (normalise here means subtract minimum value and divide by maximum to place each measurement in the range [0,1])
 if normalise:
     rf_matrix = rf_matrix / np.max(rf_matrix)
     sym_matrix = sym_matrix / np.max(sym_matrix)
+    euc_matrix = euc_matrix / np.max(euc_matrix)
 
 linkages = ['single','complete','average','weighted','ward']
-matrices = [rf_matrix, sym_matrix]
-matrix_names = ['rf','sym']
+matrices = [rf_matrix, sym_matrix, euc_matrix]
+matrix_names = ['rf','sym', 'euc']
 
 for x in range(len(linkages)):
     for y in range(len(matrices)):

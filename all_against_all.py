@@ -78,6 +78,8 @@ def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False)
                 matrix[i][j]=matrix[j][i]=trees[i].robinson_foulds_distance(trees[j])
             elif matrix_type == 'sym':
                 matrix[i][j]=matrix[j][i]=trees[i].symmetric_difference(trees[j])
+            elif matrix_type == 'euc':
+                matrix[i][j]=matrix[j][i]=trees[i].euclidean_distance(trees[j])
 
     if invert and matrix_type == 'sym':
         matrix = max_symdiff - matrix
