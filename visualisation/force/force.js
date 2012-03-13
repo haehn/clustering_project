@@ -1,7 +1,5 @@
 var width = 1024,
     height = 800,
-    node,
-    link,
     root;
     
 
@@ -32,7 +30,7 @@ function redraw() {
         return;
     }
     else {
-        console.log("here", d3.event.translate, d3.event.scale, d3.event.sourceEvent.target.nodeName );
+   //        console.log("here", d3.event.translate, d3.event.scale, d3.event.sourceEvent.target.nodeName );
         svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
     } 
 }
@@ -49,7 +47,7 @@ var force = d3.layout.force()
 
 d3.json("graph.json", function(json) {
   root = json;
-  link = svg.selectAll("line.link")
+  var link = svg.selectAll("line.link")
       .data(json.links)
       .enter().append("line")
       .attr("class", "link")
@@ -64,12 +62,11 @@ d3.json("graph.json", function(json) {
       .enter().append("span")
       .text(function(d,i) { return("Class "+(i+1))})
       .attr("class", "button")
-      .attr("classid",function(d,i){return(i+1)})
       .on("click",function(d,i) { 
            colorClasses([i+1]);
        });
 
-  node = svg.selectAll("g.node")
+  var node = svg.selectAll("g.node")
       .data(json.nodes)
       .enter().append("svg:g")
       .attr("class", "node")
@@ -105,9 +102,9 @@ d3.json("graph.json", function(json) {
              .attr("x2", function(d) { return d.target.x; })
              .attr("y2", function(d) { return d.target.y; });
      
-         node.attr("cx", function(d) { return d.x; })
-             .attr("cy", function(d) { return d.y; });
-        // node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+         //node.attr("cx", function(d) { return d.x; })
+         //    .attr("cy", function(d) { return d.y; });
+         node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
        })
      .start();
