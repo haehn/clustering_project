@@ -1,0 +1,36 @@
+circle.node {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+
+line.link {
+  stroke: #999;
+  stroke-opacity: .6;
+}
+
+.nodetext { 
+    pointer-events: none; 
+    font: 10px sans-serif; 
+    color: black;
+}
+
+.button, .buttondown {
+  margin:5px;
+  padding:5px;
+  border: 1px solid #666;
+  color:#000;
+  text-decoration:none;
+}
+
+.button:hover, .buttondown:hover {
+  background-color: #aaa;
+  cursor:pointer;
+}
+
+.button {
+  background-color: #dcdcdc;
+}
+
+.buttondown {
+  background-color: #aaa;
+}
