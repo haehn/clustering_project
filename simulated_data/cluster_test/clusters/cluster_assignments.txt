@@ -1,0 +1,10 @@
+gene006	1
+gene007	1
+gene008	1
+gene009	1
+gene010	1
+gene001	2
+gene002	2
+gene003	2
+gene004	2
+gene005	2
