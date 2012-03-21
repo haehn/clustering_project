@@ -9,7 +9,7 @@ from sequence_record import *
 
 args = handleArgs(sys.argv,help='''
 all_against_all arguments:
-  -dir = path to data directory (default = '.')
+  -dir = path to tree files (default = '.')
   -m [rf, sym] = matrix: RF or symmetric differences
   -l [single*, complete, average, ward] = linkage method ()
   -cut [float 0 < cut < 1] = cutting point at which to separate clusters (default 0.25)
@@ -89,6 +89,18 @@ def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False)
         
     return matrix
 
+def concat_distvars(outfile, filelist):
+    total = len(filelist)
+    current = 0
+    writer = open(outfile, 'w')
+    writer.write(str(total)+"\n")
+    for f in filelist:
+        current += 1
+        contents = open(f,'r').readlines()
+        writer.write( "{0} {0} {1}\n{2}".format(len(contents), current, "".join(contents) ))
+    writer.close()
+    return
+
 def linkage2newick(gene_list,linkage):
     """ Generate a newick string from the cluster linkage (must supply list of taxon labels in gene_list) """
     import re
@@ -127,16 +139,16 @@ def linkage2newick(gene_list,linkage):
 np.set_printoptions(precision=2,linewidth=200)
 
 taxa = dendropy.TaxonSet()
-tree_files = glob.glob( "{0}/trees/besttrees/*".format(INPUT_DIR) )
-info_files = glob.glob( "{0}/trees/info/*".format(INPUT_DIR) )
-msa_files = glob.glob( "{0}/MSA/*.phy".format(INPUT_DIR) )
+tree_files = glob.glob( "{0}/*.nwk".format(INPUT_DIR) )
+#info_files = glob.glob( "{0}/trees/info/*".format(INPUT_DIR) )
+msa_files = glob.glob( "{0}/../../MSA/*.phy".format(INPUT_DIR) )
 names = [ filename[filename.rindex("/")+1:filename.rindex(".")] for filename in tree_files]
-likelihoods = [float( re.compile( "(?<=Score of best tree ).+" ).search(open(x).read()).group() ) for x in info_files]
+#likelihoods = [float( re.compile( "(?<=Score of best tree ).+" ).search(open(x).read()).group() ) for x in info_files]
 trees = [RAxML_object() for x in tree_files]
 num_trees = len(trees)
 [trees[i].read_from_path(tree_files[i],'newick',taxon_set=taxa) for i in range(num_trees)]
-for i in range(num_trees): 
-    trees[i].lnl = likelihoods[i]
+#for i in range(num_trees): 
+#    trees[i].lnl = likelihoods[i]
 num_taxa = len(taxa)
 max_symdiff = 2 * (num_taxa - 3)
 
@@ -162,17 +174,23 @@ if make_clusters:
     if not os.path.exists( "{0}/clusters".format(INPUT_DIR)): os.mkdir( "{0}/clusters".format(INPUT_DIR))
     if not os.path.exists( "{0}/clusters/MSA".format(INPUT_DIR)): os.mkdir( "{0}/clusters/MSA".format(INPUT_DIR))
     if not os.path.exists( "{0}/clusters/trees".format(INPUT_DIR)): os.mkdir( "{0}/clusters/trees".format(INPUT_DIR))
-    clusters = {}
+    clusters = {} # collect lists of sequence records for concatenation
+    distvars = {} # collect separate dictionary for dv files for concatenation
     for k in range(min(T),max(T)+1):
         clusters[k] = []
+        distvars[k] = []
 
     for i in range(len(T)):
         clusters[T[i]].append(get_phylip_file(msa_files[i]))
+        distvars[T[i]].append(msa_files[i][:msa_files[i].rindex(".")]+".dv")
 
     for key in clusters.keys():
-        seq_list = clusters[key]
-        conc = concatenate_alignments(seq_list)
-        conc.write_phylip( "{0}/clusters/MSA/cluster{1:0>2}.phy".format(INPUT_DIR,key))
+        seq_list = clusters[key] # list of sequence records pertaining to current cluster
+        conc = concatenate_alignments(seq_list) # do concatenation of sequences
+        conc.write_phylip( "{0}/clusters/MSA/cluster{1:0>2}.phy".format(INPUT_DIR,key)) # write concatenation in phylip and fasta formats
+        conc.write_fasta( "{0}/clusters/MSA/cluster{1:0>2}.fas".format(INPUT_DIR,key))
+        dv_list = distvars[key] # list of dv files pertaining to current cluster
+        concat_distvars( "{0}/clusters/MSA/cluster{1:0>2}.dv".format(INPUT_DIR,key),dv_list) # write concatenation of dv matrices
 
     assignments = zip(tree_files,T)
     assignment_outfile = open( "{0}/clusters/cluster_assignments.txt".format(INPUT_DIR), "w")

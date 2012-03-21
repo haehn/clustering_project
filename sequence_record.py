@@ -5,13 +5,13 @@ class Unaligned_Sequence_Record(object):
         self.name = name
         self.headers = headers
         self.sequences = sequences
-        self.mapping = dict(zip(headers,sequences))
+        self.mapping = dict(zip(headers,sequences)) # Probably can lose this
         self.get_alignment_columns()
         self.index = -1
         self.length = len(self.headers)
-    def __iter__(self):
+    def __iter__(self): # Should do this with generators / yield
         return self
-    def next(self):
+    def next(self): # As above
         self.index += 1
         if self.index == self.length: 
             self.index = -1
@@ -27,11 +27,26 @@ class Unaligned_Sequence_Record(object):
         return output_string
     def __len__(self):
         return self.length
-    def get_alignment_columns(self):
+
+    def get_alignment_columns(self): # Probably can lose this
         pass
+
+    def sort_by_length(self):
+        # Sort by descending order of sequence length
+        # Uses zip as its own inverse [ zip(*zip(A,B)) == (A,B) ]
+        h, s = zip(*sorted(zip(self.headers,self.sequences), key = lambda item: len(item[1]),reverse=True))
+        self.headers = h
+        self.sequences = s
+
+    def sort_by_name(self):
+        h, s = zip(*sorted(zip(self.headers,self.sequences)))
+        self.headers = h
+        self.sequences = s
+
     def write_fasta(self,outfile="stdout",print_to_screen=False):
         lines = [">{0}\n{1}".format(h,seq) for h,seq in zip(self.headers,self.sequences)]
         s = '\n'.join(lines)
+        s += '\n'
         if outfile == "stdout":
             print s
             return s
@@ -51,7 +66,7 @@ class Unaligned_Sequence_Record(object):
         file_header += "    format datatype={0} interleave=no gap=-;\n".format(sequence_type)
         file_header += "    matrix\n\n"
 
-        file_footer = "    ;\n\nend;"
+        file_footer = "    ;\n\nend;\n"
 
         s = file_header + '\n'.join(lines) + file_footer
         if outfile == "stdout":
@@ -60,11 +75,13 @@ class Unaligned_Sequence_Record(object):
         elif outfile == "pipe":
             return s
         else: open(outfile,'w').write(s)
+
     def write_phylip(self,outfile="stdout",sequence_type='protein',print_to_screen=False):
         maxlen = len(max(self.sequences,key=len))
         lines = [ "{0:<14} {1:-<{2}}".format(x,y,maxlen) for (x,y) in zip(self.headers,self.sequences) ]
         file_header = " {0} {1}\n".format(self.length,maxlen)
         s = file_header + '\n'.join(lines)
+        s += '\n'
         if outfile == "stdout":
             print s
             return s
@@ -94,7 +111,10 @@ class Aligned_Sequence_Record(Unaligned_Sequence_Record):
             for seq in self.sequences:
                 column += seq[i]
             self.columns.append(column) 
-        
+    def sort_by_length(self):
+        h, s = zip(*sorted(zip(self.headers,self.sequences), key = lambda item: len(item[1].replace('-','')),reverse=True))
+        self.headers = h
+        self.sequences = s
     
 def get_fasta_file(fasta_file, name = "no name"):
     """ FASTA format parser: turns fasta file into Alignment_record object """

@@ -97,7 +97,7 @@ for i in range(C):
     for fi in class_msas: # Give MSA file a better name
         name_elements = fi.split('_')
         gene_number = int(name_elements[1]) + sum(G[:i]) #add on number of genes already named in previous classes
-        rename = "{0}/gene{1:0>3}.fa".format(MSA_path, gene_number)
+        rename = "{0}/gene{1:0>3}.fas".format(MSA_path, gene_number)
         print fi, rename
         os.rename(fi, rename)
 
@@ -106,7 +106,8 @@ for i in range(C):
     os.rename('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1), './{0}/true{1}.nwk'.format(tree_path,i+1))
         
     #Delete unnecessary simulated filesls
-    shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
+    #shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
+    shutil.rmtree("./{0}/".format(TEMP_DIR))
 #END LOOP
 
 #Convert fasta files to phylip files for use with raxml
