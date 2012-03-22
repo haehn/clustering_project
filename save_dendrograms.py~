@@ -48,7 +48,7 @@ if "-norm" not in args:
 else: normalise = True
 
 taxa = dendropy.TaxonSet()
-tree_files = glob.glob( "{0}/trees/phymltrees/*".format(INPUT_DIR) )
+tree_files = glob.glob( "{}/trees/besttrees/*".format(INPUT_DIR) )
 trees = [dendropy.Tree() for x in tree_files]
 num_trees = len(trees)
 [trees[i].read_from_path(tree_files[i],'newick',taxon_set=taxa) for i in range(num_trees)]

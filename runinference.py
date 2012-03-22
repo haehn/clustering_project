@@ -4,13 +4,13 @@ import glob,os,shlex,subprocess,sys
 from handleArgs import handleArgs
 
 def run_raxml(model, alignment, name, working_directory, tree_directory, info_directory): 
-    os.system( 'raxml -T 4 -m {0} -s {1} -n {2} -p 121 > /dev/null && mv RAxML_bestTree.{2} {3}/{2}.nwk > /dev/null && mv RAxML_info.{2} {4}/{2}.info && rm *.{2} '.format(model, alignment, name, tree_directory, info_directory) )
+    os.system( 'raxml -T 2 -m {0} -s {1} -n {2} -p 121 > /dev/null && mv RAxML_bestTree.{2} {3}/{2}.nwk > /dev/null && mv RAxML_info.{2} {4}/{2}.info && rm *.{2} '.format(model, alignment, name, tree_directory, info_directory) )
 
 def run_phyml(model, alignment, name, working_directory, tree_directory, info_directory, datatype):
     os.system( 'phyml -m {0} -i {1} -d {6} -a e -b 0 --sequential > /dev/null && mv {1}_phyml_tree.txt {4}/{2}.nwk && mv {1}_phyml_stats.txt {5}/{2}.info'.format( model, alignment, name, working_directory, tree_directory, info_directory, datatype))
 
 def run_treecollection(alignment, name, tree_directory, info_directory, datatype):
-    os.system( 'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\' ; ReadProgram(\'TC_wrapper.drw\');" | darwin > /dev/null'.format(alignment, datatype))
+    os.system( 'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\' ; ReadProgram(\'../TC_wrapper.drw\');" | darwin > /dev/null'.format(alignment, datatype))
     os.system( 'TreeCollection temp_distvar.txt temp_map.txt temp_labels.txt temp_tree.nwk {0}/{1}.nwk > {2}/{1}.txt'.format(tree_directory, name, info_directory))
     os.system( 'rm temp_*')
 
@@ -67,7 +67,7 @@ if not os.path.exists("{0}/trees".format(INPUT_DIR)): os.mkdir("{0}/trees".forma
 if not os.path.exists(treepaths[PROG_INDEX]): os.mkdir(treepaths[PROG_INDEX])
 if not os.path.exists(infopaths[PROG_INDEX]): os.mkdir(infopaths[PROG_INDEX])
 
-MSAs = glob.glob('{}/MSA/*.phy'.format(INPUT_DIR)) #all per-locus *.phy alignment files in a list
+MSAs = glob.glob('{0}/MSA/*.phy'.format(INPUT_DIR)) #all per-locus *.phy alignment files in a list
 models = [raxml_model, phyml_model, None]
 for alignment in MSAs:
     model = models[PROG_INDEX]

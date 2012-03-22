@@ -106,12 +106,12 @@ for i in range(C):
     os.rename('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1), './{0}/true{1}.nwk'.format(tree_path,i+1))
         
     #Delete unnecessary simulated filesls
-    #shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
-    shutil.rmtree("./{0}/".format(TEMP_DIR))
+    shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
+    #shutil.rmtree("./{0}/".format(TEMP_DIR))
 #END LOOP
 
 #Convert fasta files to phylip files for use with raxml
-for fasta in glob.glob("{0}/*.fa".format(MSA_path)):
+for fasta in glob.glob("{0}/*.fas".format(MSA_path)):
     phylip = fasta[:fasta.rindex('.')]+'.phy'
     seq_object = get_fasta_file(fasta)
     seq_object.headers = [x.split('/')[0] for x in seq_object.headers]
