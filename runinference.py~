@@ -14,7 +14,7 @@ def run_phyml(model, alignment, name, working_directory, tree_directory, info_di
     os.system( command )
 
 def run_treecollection(alignment, name, tree_directory, info_directory, datatype, verbose=False):
-    command = 'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\' ; ReadProgram(\'./TC_wrapper.drw\');" | darwin > /dev/null'.format(alignment, datatype)
+    command = 'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\' ; ReadProgram(\'../TC_wrapper.drw\');" | darwin > /dev/null'.format(alignment, datatype)
     if verbose: command = command.replace("> /dev/null","")
     os.system( command )
     os.system( 'TreeCollection temp_distvar.txt temp_map.txt temp_labels.txt temp_tree.nwk {0}/{1}.nwk > {2}/{1}.txt'.format(tree_directory, name, info_directory))

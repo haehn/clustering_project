@@ -87,7 +87,6 @@ num_clusters = len(cluster_trees)
 #    cluster_trees[i].lnl = cluster_likelihoods[i]
 
 true_tree_files = glob.glob( "{0}../*_sps.nwk".format(INPUT_DIR))
-print "{0}../*_sps.nwk".format(INPUT_DIR)
 true_trees = [RAxML_object() for x in true_tree_files]
 num_true_trees = len(true_trees)
 [true_trees[i].read_from_path(true_tree_files[i],'newick',taxon_set=taxa) for i in range(num_true_trees)]
