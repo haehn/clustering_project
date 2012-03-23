@@ -1,7 +1,6 @@
 alftmp/
 scratch/
-MSA/
-trees/
+simulated_data/
 yeast_data/concats
 yeast_data/.DS_Store
 *.pyc

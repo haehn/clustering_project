@@ -138,8 +138,13 @@ def linkage2newick(gene_list,linkage):
 
 np.set_printoptions(precision=2,linewidth=200)
 
+print "Working directory set to {0}".format(INPUT_DIR)
+
 taxa = dendropy.TaxonSet()
 tree_files = glob.glob( "{0}/*.nwk".format(INPUT_DIR) )
+if len(tree_files) == 0: 
+    print "Unable to find tree files"
+    sys.exit()
 #info_files = glob.glob( "{0}/trees/info/*".format(INPUT_DIR) )
 msa_files = glob.glob( "{0}/../../MSA/*.phy".format(INPUT_DIR) )
 names = [ filename[filename.rindex("/")+1:filename.rindex(".")] for filename in tree_files]
