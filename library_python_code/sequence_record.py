@@ -1,12 +1,12 @@
 #/usr/bin/env python
+
 class Unaligned_Sequence_Record(object):
-    """ Class for holding a unaligned sequences """
+    """ Class for holding unaligned sequences """
     def __init__(self, name, headers, sequences):
         self.name = name
         self.headers = headers
         self.sequences = sequences
         self.mapping = dict(zip(headers,sequences)) # Probably can lose this
-        self.get_alignment_columns()
         self.index = -1
         self.length = len(self.headers)
     def __iter__(self): # Should do this with generators / yield
@@ -28,11 +28,8 @@ class Unaligned_Sequence_Record(object):
     def __len__(self):
         return self.length
 
-    def get_alignment_columns(self): # Probably can lose this
-        pass
-
     def sort_by_length(self):
-        # Sort by descending order of sequence length
+        # Sort sequences by descending order of length
         # Uses zip as its own inverse [ zip(*zip(A,B)) == (A,B) ]
         h, s = zip(*sorted(zip(self.headers,self.sequences), key = lambda item: len(item[1]),reverse=True))
         self.headers = h
@@ -102,20 +99,14 @@ class Aligned_Sequence_Record(Unaligned_Sequence_Record):
             output_string += ">{0}\n{1}...({2})\n".format( self.headers[i], self.sequences[i][:50], len(self.sequences[i]) )
         output_string += "{0} sequences in record".format(len(self))
         return output_string
-    def get_alignment_columns(self): 
-        if not len(self.sequences) > 0:
-            return
-        self.columns = []
-        for i in range(len(self.sequences[0])):
-            column = ""
-            for seq in self.sequences:
-                column += seq[i]
-            self.columns.append(column) 
+ 
     def sort_by_length(self):
         h, s = zip(*sorted(zip(self.headers,self.sequences), key = lambda item: len(item[1].replace('-','')),reverse=True))
         self.headers = h
         self.sequences = s
-    
+ 
+############################################################################################################################# 
+
 def get_fasta_file(fasta_file, name = "no name"):
     """ FASTA format parser: turns fasta file into Alignment_record object """
     headers = []
@@ -209,3 +200,5 @@ def concatenate_alignments(alignment_list,name=None):
             concatenation[i]+=data[j][h]
 
     return Aligned_Sequence_Record(name,headers,concatenation)
+
+#############################################################################################################################

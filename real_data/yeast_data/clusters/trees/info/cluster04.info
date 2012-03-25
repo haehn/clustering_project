@@ -1,0 +1,68 @@
+
+
+This is RAxML version 7.3.0 released by Alexandros Stamatakis in June 2011.
+
+With greatly appreciated code contributions by:
+Andre Aberer (HITS)
+Simon Berger (HITS)
+Nick Pattengale (Sandia)
+Wayne Pfeiffer (SDSC)
+Akifumi S. Tanabe (Univ. Tsukuba)
+
+
+Alignment has 837 distinct alignment patterns
+
+Proportion of gaps and completely undetermined characters in this alignment: 0.03%
+
+RAxML rapid hill-climbing mode
+
+Using 1 distinct models/data partitions with joint branch length optimization
+
+
+Executing 1 inferences on the original alignment using 1 distinct randomized MP trees
+
+All free model parameters will be estimated by RAxML
+GAMMA model of rate heteorgeneity, ML estimate of alpha-parameter
+
+GAMMA Model parameters will be estimated up to an accuracy of 0.1000000000 Log Likelihood units
+
+Partition: 0
+Alignment Patterns: 837
+Name: No Name Provided
+DataType: DNA
+Substitution Matrix: GTR
+
+
+
+
+RAxML was called as follows:
+
+raxml -p 343 -T 8 -m GTRGAMMA -s cluster04.phy -n cluster04 
+
+
+Partition: 0 with name: No Name Provided
+Base frequencies: 0.297 0.184 0.196 0.324 
+
+Testing which likelihood implementation to use
+Standard Implementation full tree traversal time: 0.000738
+Subtree Equality Vectors for gap columns full tree traversal time: 0.001375
+... using standard implementation
+
+Inference[0]: Time 0.587729 GAMMA-based likelihood -17056.258625, best rearrangement setting 5
+alpha[0]: 0.352088 rates[0] ac ag at cg ct gt: 2.597789 6.451520 0.590346 1.134737 10.070470 1.000000 
+
+
+Conducting final model optimizations on all 1 trees under GAMMA-based models ....
+
+Inference[0] final GAMMA-based Likelihood: -17050.905603 tree written to file /Users/kgori/git/kevin/yeast_data/clusters/RAxML_result.cluster04
+
+
+Starting final GAMMA-based thorough Optimization on tree 0 likelihood -17050.905603 .... 
+
+Final GAMMA-based Score of best tree -17050.905603
+
+Program execution info written to /Users/kgori/git/kevin/yeast_data/clusters/RAxML_info.cluster04
+Best-scoring ML tree written to: /Users/kgori/git/kevin/yeast_data/clusters/RAxML_bestTree.cluster04
+
+Overall execution time: 0.832961 secs or 0.000231 hours or 0.000010 days
+

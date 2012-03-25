@@ -7,16 +7,16 @@ Remaining ALF files are deleted
 """
 from ALF_wrapper import *         # functions write_ALF_parameters() and run_ALF()
 from sequence_record import *     # classes Unaligned_Sequence_Record and Aligned_Sequence_Record, function get_fasta_file()
-from handleArgs import handleArgs
-from pam2sps import pam2sps
+from handleArgs import handleArgs # function to pass commandline arguments nicely as a dictionary
+from pam2sps import pam2sps       # function to convert newick trees between PAM distances and subs per site
 import glob, os, re, shutil, sys
 
 args = handleArgs(sys.argv, help = '''
 runsim.py arguments:
-  -c  =  number of classes
-  -s  =  number of species
-  -g  =  number of genes per class
-  -r  =  rate per class (PAM units, default is 200)
+  -c   =  number of classes
+  -s   =  number of species
+  -g   =  number of genes per class, e.g. [10,20,10]
+  -r   =  rate per class (PAM units, default is 200), eg [200,100,400]
   -dir = Output directory to place simulation into (default './')
 ''')
 

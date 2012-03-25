@@ -69,6 +69,7 @@ class RAxML_object(dendropy.Tree):
     lnl = None
 
 def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False):
+    import numpy as np
     """ all pairwise distances between trees in list: 'trees' """
     num_trees = len(trees)
     matrix = np.zeros( (num_trees,num_trees),dtype='float' )
@@ -209,6 +210,7 @@ if make_clusters:
 
 if show_plot:
     print nwk
+    print matrix
     dendrogram( link, color_threshold=cut, leaf_font_size=10,leaf_rotation=90,leaf_label_func=lambda leaf: names[leaf]+"_"+str(T[leaf]),count_sort=True)
     title("{0} linkage of {1} matrix".format(linkage_method,matrix_type))
     axhline(cut,color='grey',ls='dashed')
