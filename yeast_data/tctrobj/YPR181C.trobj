@@ -1,0 +1,5 @@
+Inference Result Object:
+Name:	YPR181C
+Program:	TreeCollection
+Score:	1.59487
+Tree:	((Scas:0.176484,Sklu:0.153516):0.00105434,(Calb:0.431282,(((Scer:0.0435762,Spar:0.0354238):0.0224559,Smik:0.0555251):0.010218,(Skud:0.0519643,Sbay:0.0810357):0.0123542):0.0711372):0.00105434);

@@ -1,0 +1,5 @@
+Inference Result Object:
+Name:	YLR389C
+Program:	TreeCollection
+Score:	6.73582
+Tree:	(((Sbay:0.0928947,(((Scer:0.0578116,Spar:0.0431884):0.0276434,Smik:0.0751017):0.0289678,Skud:0.0907248):0.0111624):0.115619,Scas:0.254335):0.0444993,(Calb:0.764239,Sklu:0.232761):0.0444993);

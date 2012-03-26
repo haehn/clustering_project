@@ -172,7 +172,7 @@ def get_linkage(matrix, linkage_method="ward"):
     try: 
         Y = squareform(matrix)
         link = linkage(Y, linkage_method)
-    except: 
+    except ValueError: 
         Y = matrix
         link = linkage(Y, linkage_method)
     return link
@@ -188,7 +188,7 @@ def cluster_linkage(link, threshold, criterion="maxclust"):
     T = fcluster(link, threshold, criterion=criterion)
     return T
 
-def assign_to_clusters(msa_files, T, output_dir=None):
+def assign_to_clusters(msa_files, T,output_dir=None):
     from sequence_record import *
     import os
     clusters    = {} # collect lists of sequence records for concatenation
@@ -202,22 +202,23 @@ def assign_to_clusters(msa_files, T, output_dir=None):
         assignments[k] = []
     for i in range(len(T)):
         clusters[T[i]].append(get_phylip_file(msa_files[i]))
+        assignments[T[i]].append(msa_files[i][msa_files[i].rindex("/")+1:msa_files[i].rindex(".")])
         distvars[T[i]].append(msa_files[i][:msa_files[i].rindex(".")]+"_dv.txt")
         maps[T[i]].append(msa_files[i][:msa_files[i].rindex(".")]+"_map.txt")
-        assignments[T[i]].append(msa_files[i][msa_files[i].rindex("/")+1:msa_files[i].rindex(".")])
 
     for key in clusters:
         seq_list   = clusters[key] # list of sequence records pertaining to current cluster
+        conc       = concatenate_alignments(seq_list) # do concatenation of sequences
         dv_list    = distvars[key] # list of dv files pertaining to current cluster
         map_list   = maps[key]
         labels     = dv_list[0][:dv_list[0].rindex("_")] + "_labels.txt"
         guidetree = dv_list[0][:dv_list[0].rindex("_")] + "_guidetree.nwk"
-        conc       = concatenate_alignments(seq_list) # do concatenation of sequences
+    
         if output_dir:
             if not os.path.isdir(output_dir): os.mkdir(output_dir)
             conc.write_phylip("{0}/cluster{1:0>2}.phy".format(output_dir, key))
             conc.write_fasta("{0}/cluster{1:0>2}.fas".format(output_dir, key))
-            conc_dvs   = concatenate_dvs(dv_list, map_list, labels, guidetree, "{0}/cluster{1:0>2}".format(output_dir,key))
+            conc_dvs = concatenate_dvs(dv_list, map_list, labels, guidetree, "{0}/cluster{1:0>2}".format(output_dir,key))
 
     return assignments
         

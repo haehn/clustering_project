@@ -16,6 +16,7 @@ runml.py arguments:
          -dir          = input directory
          -v            = verbose (include spawned process stdout) 
          -out          = directory to write gene trees to
+         -nclasses     = number of classes to cluster into
          --cluster-out = path to write clusters to
          --use-results = path to results directory if gene trees have already been calculated
          --use-cluster = path to cluster trees if already calculated
@@ -62,6 +63,11 @@ if '-out' in command_line_args:
         write_genetrees = False
 else: write_genetrees = False
 
+if '-nclasses' in command_line_args:
+    try: nclasses = command_line_args['-nclasses']
+    except KeyError: nclasses = 4
+else: nclasses = 4 
+
 if '--write-clusters' in command_line_args:
     try: 
         CLUSTER_DIR = command_line_args["--write-clusters"]
@@ -95,11 +101,17 @@ else: # if no results already, make trees
         prefix = fasta[:fasta.rindex(".")]
         phylip = prefix+".phy"
         dv = prefix+"_dv.txt"
-
-        if program == 'raxml':
-            if not os.path.isfile(phylip):
-                print "Making phylip for ", fasta
+        if dna:
+            datatype = 'DNA'
+        else: datatype = 'AA'  
+        if not os.path.isfile(phylip):
+                print "Making phylip file for ", fasta
                 populate_phylip_from_fasta(fasta) 
+        if not os.path.isfile(dv):
+                print "making TreeCollection input files for ", fasta
+                populate_dv_from_fasta(fasta,datatype)
+
+        if program == 'raxml':            
             if dna: model = "GTRGAMMA"
             else: model = "PROTGAMMAWAG"
             alignment = phylip
@@ -108,9 +120,6 @@ else: # if no results already, make trees
             gene_trees.append( run_raxml( model, alignment, name, nthreads=8 ) )
         
         elif program == 'phyml':
-            if not os.path.isfile(phylip):
-                print "Making phylip for ", fasta
-                populate_phylip_from_fasta(fasta)
             if dna:
                 model = 'GTR'
                 datatype = 'nt'
@@ -122,13 +131,7 @@ else: # if no results already, make trees
             print "Running PhyML on {0}".format(phylip)
             gene_trees.append( run_phyml( model, alignment, name, datatype) )
             
-        elif program == 'treecollection':
-            if dna:
-                datatype = 'DNA'
-            else: datatype = 'AA'
-            if not os.path.isfile(dv):
-                print "making dv for ", fasta
-                populate_dv_from_fasta(fasta,datatype)
+        elif program == 'treecollection':          
             map_file = prefix+"_map.txt"
             labels = prefix+"_labels.txt"
             guide_tree = prefix+"_guidetree.nwk"
@@ -142,9 +145,10 @@ if write_genetrees:
         tree.write_to_file("{0}/{1}.trobj".format(OUT_DIR,tree.name))
 
 """ Fourth: clustering """
-matrix = get_distance_matrix(gene_trees, normalise=True)
+matrix = get_distance_matrix(gene_trees)
 link = get_linkage(matrix,"single")
-clustering = cluster_linkage(link,4)
+clustering = cluster_linkage(link,nclasses)
+print clustering
 assignments = assign_to_clusters(phylip_files, clustering, CLUSTER_DIR)
 
 """ Fifth: generate some stats """
@@ -212,6 +216,7 @@ for key in assignments:
     print "Mean of all_against_all RF (topology) comparison: ",np.mean(dm[triu])
 
     # Get concat tree distance from true tree
+    tr_tree = False
     taxa = dpy.TaxonSet()
     cl_tree = dpy.Tree()
     cl_tree.read_from_string(cluster_trees[key-1].tree,'newick',taxon_set=taxa)

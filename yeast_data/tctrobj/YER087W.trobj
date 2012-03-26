@@ -1,0 +1,5 @@
+Inference Result Object:
+Name:	YER087W
+Program:	TreeCollection
+Score:	2.04655
+Tree:	((Scas:0.296567,Calb:0.416433):0.00988433,(Sklu:0.373415,((((Scer:0.0655353,Spar:0.0344647):0.0363887,Smik:0.0762844):0.0130614,Skud:0.100663):0.0132726,Sbay:0.101875):0.19813):0.00988433);

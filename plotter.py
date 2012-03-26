@@ -39,13 +39,14 @@ elif not args["-root"]:
     SHAPE = 'c'
 else: SHAPE = args["-shape"]
 
-tree_files = glob.glob( "{0}/trees/besttrees/*.nwk".format(INPUT_DIR))
+tree_files = glob.glob( "{0}/trees/raxmltrees/*.nwk".format(INPUT_DIR))
 small = [Tree( open(x).read() ) for x in tree_files]
 for x in small:
     x.set_outgroup(ROOT)
     x.ladderize()
 names = [x[1+x.rindex("/"):x.rindex(".")] for x in tree_files]
 big = Tree( open("{0}/clusters/cluster_dendrogram.nwk".format(INPUT_DIR)).read() )
+print names
 small_d = dict(zip(names,small))
 small_ts = TreeStyle()
 small_ts.tree_width = 100
@@ -61,4 +62,5 @@ if SHAPE == 'v':
 else: big_ts.mode = SHAPE
 
 
-big.show(tree_style=big_ts)
+# big.show(tree_style=big_ts)
+big.render("./treeoftrees.pdf",tree_style=big_ts)
