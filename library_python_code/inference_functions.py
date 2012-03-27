@@ -9,9 +9,9 @@ class Inference_Result(object):
         self.name = name
 
     def __str__(self):
-        s = "Inference Result Object:\n"
+        s = "[Inference Result Object:\n"
         if self.name: s += "Name:\t" + self.name + "\n"
-        s += "Program:\t{0}\nScore:\t{1}\nTree:\t{2}\n".format(self.program,self.score,self.tree)
+        s += "Program:\t{0}\nScore:\t{1}\nTree:\t]{2}\n".format(self.program,self.score,self.tree)
         return s
    
     def pam2sps(self, conversion="sps2pam"):
@@ -37,13 +37,15 @@ class Inference_Result(object):
         score = None
         self.name = name
         reader = open(infile)
-        for line in reader:
-            line = [l.rstrip() for l in line.split()]
-            if not name and line[0] == "Name:": self.name = line[1]
-            elif line[0] == "Program:": self.program = line[1]
-            elif line[0] == "Tree:": self.tree = line[1]
-            elif line[0] == "Score:": self.score = line[1]
-
+        try:
+            for line in reader:
+                line = [l.rstrip().replace("]","") for l in line.split()]
+                if not name and line[0] == "Name:": self.name = line[1]
+                elif line[0] == "Program:": self.program = line[1]
+                elif line[0] == "Tree:": self.tree = line[1]
+                elif line[0] == "Score:": self.score = line[1]
+        except IndexError: return
+            
     def write_to_file(self, outfile):
         writer = open(outfile,'w')
         writer.write(str(self))

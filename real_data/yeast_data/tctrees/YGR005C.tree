@@ -1,0 +1,5 @@
+[Inference Result Object:
+Name:	YGR005C
+Program:	TreeCollection
+Score:	5.0593
+Tree:	]((Sbay:0.0648822,Skud:0.0541178):0.00124128,((((Calb:0.506161,Sklu:0.157839):0.0555707,Scas:0.116936):0.0588631,(Scer:0.0489504,Spar:0.0310496):0.0228386):0.0080766,Smik:0.0482509):0.00124128);

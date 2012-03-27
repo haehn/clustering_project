@@ -57,7 +57,7 @@ def get_alignments(input_dir):
 def get_gene_trees(input_dir):
     # Returns a list of Inference_Result objects from files in input_dir
     import glob, inference_functions
-    result_files = glob.glob( "{0}/*.trobj".format(input_dir) ) # using file ext 'trobj' for now
+    result_files = glob.glob( "{0}/*.tree".format(input_dir) ) # using file ext '.tree' for Inference_Result objects (also standard newick compatible)
     for result_file in result_files:
         result = inference_functions.Inference_Result()
         result.read_from_file(result_file)
@@ -144,9 +144,7 @@ def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False)
     num_trees = len(trees)
     matrix = np.zeros( (num_trees,num_trees),dtype='float' )
     taxa = dpy.TaxonSet()
-    dpytrees = [dpy.Tree() for tree in trees]
-    for i in range(num_trees):
-        dpytrees[i].read_from_string(trees[i].tree,'newick',taxon_set=taxa)
+    dpytrees = [dpy.Tree.get_from_string(tree.tree,'newick',taxon_set=taxa) for tree in trees]
     for i in range(num_trees):
         for j in range(i+1,num_trees):
             if matrix_type == 'rf':
@@ -189,7 +187,7 @@ def cluster_linkage(link, threshold, criterion="maxclust"):
     return T
 
 def assign_to_clusters(msa_files, T,output_dir=None):
-    from sequence_record import *
+    import sequence_record as sr
     import os
     clusters    = {} # collect lists of sequence records for concatenation
     distvars    = {} # collect separate dictionary for dv files for concatenation
@@ -201,14 +199,14 @@ def assign_to_clusters(msa_files, T,output_dir=None):
         maps[k]        = []
         assignments[k] = []
     for i in range(len(T)):
-        clusters[T[i]].append(get_phylip_file(msa_files[i]))
+        clusters[T[i]].append( sr.get_phylip_file(msa_files[i]) )
         assignments[T[i]].append(msa_files[i][msa_files[i].rindex("/")+1:msa_files[i].rindex(".")])
         distvars[T[i]].append(msa_files[i][:msa_files[i].rindex(".")]+"_dv.txt")
         maps[T[i]].append(msa_files[i][:msa_files[i].rindex(".")]+"_map.txt")
 
     for key in clusters:
         seq_list   = clusters[key] # list of sequence records pertaining to current cluster
-        conc       = concatenate_alignments(seq_list) # do concatenation of sequences
+        conc       = sr.concatenate_alignments(seq_list) # do concatenation of sequences
         dv_list    = distvars[key] # list of dv files pertaining to current cluster
         map_list   = maps[key]
         labels     = dv_list[0][:dv_list[0].rindex("_")] + "_labels.txt"
@@ -221,5 +219,29 @@ def assign_to_clusters(msa_files, T,output_dir=None):
             conc_dvs = concatenate_dvs(dv_list, map_list, labels, guidetree, "{0}/cluster{1:0>2}".format(output_dir,key))
 
     return assignments
+
+def calc_distinct_groups(matrix):
+    nclusters = len(matrix)
+    indices = range(nclusters)
+    for i in range(nclusters):
+        if i in indices:
+            for j in range(i+1, nclusters):
+                if matrix[i][j] == 0:
+                    print indices,
+                    indices.remove(j)
+                    print indices
+    return len(indices)
+
+def showplot(matrix, T, link,names):
+    import scipy.cluster.hierarchy as hchy
+    import matplotlib.pyplot as plt
+    cut = (link[-1][2])*0.25
+    hchy.dendrogram( link, color_threshold=cut, leaf_font_size=10,leaf_rotation=90,leaf_label_func=lambda leaf: names[leaf]+"_"+str(T[leaf]),count_sort=True)
+    plt.title("Dendrogram")
+    plt.axhline(cut,color='grey',ls='dashed')
+    plt.xlabel('Gene')
+    plt.ylabel('Distance')
+    plt.show()
+    plt.clf()
         
 ##################################################################################################

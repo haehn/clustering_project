@@ -1,0 +1,5 @@
+Inference Result Object:
+Name:	YDL195W
+Program:	TreeCollection
+Score:	3.69279
+Tree:	((Sklu:0.190198,Calb:0.688802):0.0320603,(Scas:0.295105,(((Scer:0.0435779,Spar:0.0434221):0.0197608,Smik:0.0666584):0.0155966,(Skud:0.0730037,Sbay:0.0749963):0.0180314):0.103244):0.0320603);

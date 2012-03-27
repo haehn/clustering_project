@@ -1,5 +1,0 @@
-Inference Result Object:
-Name:	YOL145C
-Program:	TreeCollection
-Score:	4.36579
-Tree:	(((((((Scer:0.0615973,Spar:0.0504027):0.032076,Smik:0.0794584):0.00607427,Skud:0.0877144):0.0141447,Sbay:0.0959874):0.103148,Sklu:0.243518):0.0292732,Scas:0.239439):0.38578,Calb:0.38578);

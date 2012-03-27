@@ -1,0 +1,5 @@
+Inference Result Object:
+Name:	cluster10
+Program:	TreeCollection
+Score:	3.37905
+Tree:	((Scas:0.171233,Calb:0.298767):0.0046705,(Sklu:0.206714,(((Skud:0.082145,Sbay:0.0966309):0.0172239,Smik:0.0762062):0.00386621,(Scer:0.0471566,Spar:0.0560426):0.0341607):0.0796665):0.0046705);
