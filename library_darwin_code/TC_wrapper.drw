@@ -196,17 +196,17 @@ for i to length(tri) do
     line := ConcatStrings( tri[i], ' ');
     dv := ConcatStrings( [ dv, line ], '\n');
 od;
-WriteData(dv,'temp_distvar.txt');
+WriteData(dv, ConcatStrings([fpath,'temp_distvar.txt']));
 # PRINT Tree.nwk ##############################################################
 print('Tree.nwk');
 tree_out := ConcatStrings( [Tree_Newick(tree), ';'] );
-WriteData(tree_out, 'temp_tree.nwk');
+WriteData(tree_out, ConcatStrings([fpath,'temp_tree.nwk']));
 # PRINT Labels.txt ############################################################
 print('Labels.txt');
 labels := ConcatStrings(labs, ' ');
-WriteData(ConcatStrings( [length(labs), labels], '\n' ), 'temp_labels.txt');
+WriteData(ConcatStrings( [length(labs), labels], '\n' ), ConcatStrings([fpath,'temp_labels.txt']));
 # PRINT GenomeMap.txt##########################################################
 print('GenomeMap.txt');
 map_out := ConcatStrings( ['1 ', length(map), '\n', ConcatStrings( map, ' ' ) ] );
-WriteData(map_out, 'temp_map.txt');
+WriteData(map_out, ConcatStrings([fpath,'temp_map.txt']));
 quit;

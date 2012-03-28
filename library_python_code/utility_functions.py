@@ -23,6 +23,33 @@ def handleArgs(argv,help="no arguments given\n"):
             except IndexError: flagDic[argv[i]] = None
     return flagDic
 
+def check_args_bool( arg, argDic ):
+    if arg in argDic: 
+        return True
+    else:
+        return False
+
+def check_args_filepath( arg, argDic, alternative ):
+    import os
+    if arg in argDic: 
+        if argDic[arg]:
+            filepath = argDic[arg]
+            while filepath.endswith("/"): filepath = filepath[:-1] # Trim off trailing "/"s
+        else: filepath = alternative
+    else: filepath = alternative
+    if filepath:  
+        if not os.path.isdir( filepath):
+            os.mkdir( filepath )
+    return filepath
+
+def check_args_value( arg, argDic, alternative ):
+    if arg in argDic: 
+        if argDic[arg]:
+            value = argDic[arg]
+        else: value = alternative
+    else: value = alternative
+    return value
+
 def pam2sps(tree_file, conversion, outfile=None):
     """ Take in a newick file, change branch lengths by factor 100, write output file
         (i.e. convert between PAM units and substitutions per site) """
@@ -68,10 +95,12 @@ def populate_phylip_from_fasta(fastafile):
     phylip_name = fastafile[:fastafile.rindex(".")] + ".phy"
     sequence_record.get_fasta_file(fastafile).write_phylip(phylip_name)
 
-def populate_dv_from_fasta(fastafile, datatype, helper="./library_darwin_code/TC_wrapper.drw"):
+def populate_dv_from_fasta(fastafile, datatype, helper="./library_darwin_code/TC_wrapper.drw", fpath="./"):
     import os
+    if not fpath.endswith("/"): fpath += "/"
+    if not os.path.isdir(fpath): os.mkdir(fpath)
     prefix = fastafile[:fastafile.rindex(".")]
-    command = 'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\' ; ReadProgram(\'{2}\');" | darwin > /dev/null'.format(fastafile, datatype, helper)
+    command = 'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\'; fpath := \'{2}\'; ReadProgram(\'{3}\');" | darwin > /dev/null'.format(fastafile, datatype, fpath, helper)
     os.system( command )
     os.rename( "temp_distvar.txt", prefix+"_dv.txt")
     os.rename( "temp_map.txt", prefix+"_map.txt")

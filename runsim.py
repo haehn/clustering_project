@@ -7,8 +7,7 @@ Remaining ALF files are deleted
 """
 from ALF_wrapper import *         # functions write_ALF_parameters() and run_ALF()
 from sequence_record import *     # classes Unaligned_Sequence_Record and Aligned_Sequence_Record, function get_fasta_file()
-from handleArgs import handleArgs # function to pass commandline arguments nicely as a dictionary
-from pam2sps import pam2sps       # function to convert newick trees between PAM distances and subs per site
+from utility_functions import * 
 import glob, os, re, shutil, sys
 
 args = handleArgs(sys.argv, help = '''
@@ -17,25 +16,20 @@ runsim.py arguments:
   -s   =  number of species
   -g   =  number of genes per class, e.g. [10,20,10]
   -r   =  rate per class (PAM units, default is 200), eg [200,100,400]
-  -dir = Output directory to place simulation into (default './')
+  -dir =  Output directory to place simulation into (default './')
+  -tmp =  temporary files from alfsim go here (keep separate when running more than one instance)
 ''')
 
 #Check arguments: -c should give an integer number of classes, -s an integer number of species, -g a list of number of genes for each class
 # NB This currently doesn't check input type for errors
-if not '-c' in args: 
-    C = 2
-elif not args['-c']: 
-    print 'Number of classes not specified. Classes set to 2'
-    C = 2
-else: C = int(args['-c'])
 
-if not '-s' in args: 
-    S = 20
-elif not args['-s']:
-    print 'Number of species not specified. Species set to 20'
-    S = 20
-else: S = int(args['-s'])
+C = int(check_args_value( '-c', args, 2  ))
+S = int(check_args_value( '-s', args, 20 ))
+OUT_DIR = check_args_filepath( '-dir', args, "./" )
+TEMP_DIR = check_args_filepath( '-tmp', args, "alftmp" )
+print TEMP_DIR
 
+# More complicated cases - no function for this
 if not '-g' in args: 
     G = [ 10 for each_class in range(C) ]
 elif not args['-g']:
@@ -61,27 +55,13 @@ else:
         sys.exit()
     else: R = [int(x) for x in R]
 
-if not '-dir' in args: 
-    OUT_DIR = './'
-elif not args['-dir']: 
-    print 'Output directory not specified. Directory set to current (./)'
-    OUT_DIR = './'
-else: 
-    OUT_DIR = args['-dir']
-    if not os.path.isdir(args['-dir']):
-        os.mkdir(OUT_DIR)
-    else: print "Output Directory already exists, by the way..."
-
 #DEBUG ARGS
 #print "Type of G elements: ",type(G[0])
-
 
 MSA_path = "{0}/MSA".format(OUT_DIR)
 if not os.path.isdir(MSA_path): os.mkdir(MSA_path)
 tree_path = "{0}/trees".format(OUT_DIR)
 if not os.path.isdir(tree_path): os.mkdir(tree_path)
-TEMP_DIR = 'alftmp'
-if not os.path.isdir(TEMP_DIR): os.mkdir(TEMP_DIR)
 
 for i in range(C):
     #Write parameters
@@ -106,8 +86,8 @@ for i in range(C):
     os.rename('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1), './{0}/true{1}.nwk'.format(tree_path,i+1))
         
     #Delete unnecessary simulated filesls
-    shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
-    #shutil.rmtree("./{0}/".format(TEMP_DIR))
+    #shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
+    shutil.rmtree("./{0}/".format(TEMP_DIR))
 #END LOOP
 
 #Convert fasta files to phylip files for use with raxml
