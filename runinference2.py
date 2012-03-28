@@ -56,8 +56,14 @@ if '-trees' in command_line_args:
 else: write_genetrees = False
 
 if '-nclasses' in command_line_args:
-    try: nclasses = command_line_args['-nclasses']
+    try: 
+        nclasses = int(command_line_args['-nclasses'])
+        assert nclasses > 0
     except KeyError: nclasses = 4
+    except AssertionError: nclasses = 1
+    except ValueError: 
+        print "{0} is not a valid choice for number of classes".format(command_line_args['-nclasses'])
+        sys.exit(0)
 else: nclasses = 4 
 
 if '-clusters' in command_line_args:
@@ -140,7 +146,7 @@ for fasta in fasta_files:
                 tree = Inference_Result()
                 tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
                 print "Found pre-existing tree in output directory"
-                assert tree.program == program                    # 
+                assert tree.program.lower() == program                    # 
             except IOError:
                 print "Running RAxML on {0}".format(phylip)
                 tree = run_raxml( model, alignment, name, nthreads=8 )
@@ -167,7 +173,7 @@ for fasta in fasta_files:
                 tree = Inference_Result()
                 tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
                 print "Found pre-existing tree in output directory"
-                assert tree.program == program                    # 
+                assert tree.program.lower() == program                    # 
             except IOError:
                 print "Running PhyML on {0}".format(phylip)
                 tree = run_phyml( model, alignment, name, datatype)
@@ -189,8 +195,8 @@ for fasta in fasta_files:
             try: 
                 tree = Inference_Result()
                 tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
-                print "Found pre-existing tree in output directory"
-                assert tree.program == program                    # 
+                print "Found pre-existing tree in output directory: {0}.tree".format( name )
+                assert tree.program.lower() == program                    # 
             except IOError:
                 print "Running TreeCollection on {0}".format(dv)
                 tree = run_treecollection(dv, map_file, labels, guide_tree, name)
@@ -211,9 +217,8 @@ link = get_linkage(matrix,linkage_type)
 if randomise_clustering:
     clustering = list(np.random.randint(1,int(nclasses)+1,size=len(gene_trees)))
 else:
-    clustering = cluster_linkage(link,nclasses)
-print clustering
-if show: showplot(matrix,clustering,link,names)
+    clustering = cluster_linkage(link,nclasses,criterion='distance')
+if show: showplot(matrix, clustering, link, names, nclasses)
 assignments = assign_to_clusters(phylip_files, clustering, CLUSTER_DIR)
 
 print "OBTAINING CLUSTER TREES"
@@ -236,7 +241,7 @@ for cluster in cluster_files:
                 tree = Inference_Result()
                 tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
                 print "Found pre-existing tree in output directory"
-                assert tree.program == program                    # 
+                assert tree.program.lower() == program                    # 
             except IOError:
                 print "Running RAxML on {0}".format(phylip)
                 tree = run_raxml( model, alignment, name, nthreads=8 )
@@ -263,7 +268,7 @@ for cluster in cluster_files:
                 tree = Inference_Result()
                 tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
                 print "Found pre-existing tree in output directory"
-                assert tree.program == program                    # 
+                assert tree.program.lower() == program                    # 
             except IOError:
                 print "Running PhyML on {0}".format(phylip)
                 tree = run_phyml( model, alignment, name, datatype)
@@ -299,11 +304,9 @@ for cluster in cluster_files:
         cluster_trees.append( tree )
 
 """ Check for any matching cluster trees """
-cl_matrix = get_distance_matrix(cluster_trees,"sym")
+cl_matrix = get_distance_matrix(cluster_trees,"sym",normalise=True)
 print cl_matrix
-
 groups = calc_distinct_groups(cl_matrix)
-
 
 """ Fifth: generate some stats """ #  - MESSY CODE
 print "STATS"
@@ -321,7 +324,7 @@ for key in assignments:
     # Get average within cluster difference
     dm = get_distance_matrix(trees)
     triu = np.triu_indices(len(dm),1)
-    print "Mean of all_against_all RF (topology) comparison: ",np.mean(dm[triu])
+    print "Mean of all against all RF (topology) comparison: ",np.mean(dm[triu])
 
     # Get concat tree distance from true tree
     tr_tree = False
@@ -347,7 +350,7 @@ for key in assignments:
     meancomps = []
     for dpytree in dpytrees:
         meancomps.append(dpytree.symmetric_difference(cl_tree))
-    print "Average RF (topology) distance from concat tree: {0}\n\n".format(np.mean(meancomps))
+    print "Average RF (topology) distance from concat tree: {0}\n".format(np.mean(meancomps))
 
 # Get sum of likelihood scores
 individual_score = sum([float(tr.score) for tr in gene_trees])
@@ -355,7 +358,7 @@ final_score = sum([float(tr.score) for tr in cluster_trees])
 print "Of {0} clusters, {1} are distinct".format(len (cl_matrix), groups)
 print "Individual score: {0}".format(individual_score)
 print "Final score: {0}".format(final_score)
-cluster_link = get_linkage(cl_matrix,"ward")
-cluster_clustering = cluster_linkage(cluster_link,0.25,criterion="distance")
-print cluster_clustering
-if show: showplot(cl_matrix,cluster_clustering,cluster_link,cluster_names)
+if len(cl_matrix) > 1:    
+    cluster_link = get_linkage(cl_matrix,"ward")
+    cluster_clustering = cluster_linkage(cluster_link, groups, criterion="distance")
+    if show: showplot(cl_matrix,cluster_clustering,cluster_link,cluster_names, groups)

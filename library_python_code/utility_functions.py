@@ -182,8 +182,18 @@ def cluster_linkage(link, threshold, criterion="maxclust"):
                                into clusters (threshold in range float(0,1)) """
     from scipy.cluster.hierarchy import fcluster, maxinconsts
     if criterion == "distance":
-        threshold = (link[-1][2])*threshold
+        link_size = len(link)
+        if threshold <= 1:
+            br_top = link[link_size-threshold][2]
+        else:
+            br_top = link[link_size-threshold+1][2]
+        if threshold  >= len(link):
+            br_bottom = 0
+        else: 
+            br_bottom = link[link_size-threshold][2]
+        threshold = 0.5 * (br_top + br_bottom)
     T = fcluster(link, threshold, criterion=criterion)
+
     return T
 
 def assign_to_clusters(msa_files, T,output_dir=None):
@@ -227,15 +237,24 @@ def calc_distinct_groups(matrix):
         if i in indices:
             for j in range(i+1, nclusters):
                 if matrix[i][j] == 0:
-                    print indices,
                     indices.remove(j)
-                    print indices
     return len(indices)
 
-def showplot(matrix, T, link,names):
+def showplot(matrix, T, link, names, nclasses=None):
     import scipy.cluster.hierarchy as hchy
     import matplotlib.pyplot as plt
-    cut = (link[-1][2])*0.25
+    if nclasses: 
+        link_size = len(link)
+        if nclasses <= 1:
+            br_top = link[link_size-nclasses][2]+0.01
+        else:
+            br_top    = link[link_size-nclasses+1][2]
+        if nclasses  >= len(link):
+            br_bottom = 0
+        else: 
+            br_bottom = link[link_size-nclasses][2]
+        cut = 0.5 * (br_top + br_bottom)
+    else: cut = (link[-1][2])*0.25
     hchy.dendrogram( link, color_threshold=cut, leaf_font_size=10,leaf_rotation=90,leaf_label_func=lambda leaf: names[leaf]+"_"+str(T[leaf]),count_sort=True)
     plt.title("Dendrogram")
     plt.axhline(cut,color='grey',ls='dashed')
