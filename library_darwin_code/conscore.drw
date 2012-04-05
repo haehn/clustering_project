@@ -1,0 +1,39 @@
+# Darwin Script to compute the MST_Qual score of an input distance variance matrix
+# on a constrained tree topology
+
+SplitOnChar := proc(s:string, c:string)
+# Based on SplitLines function from Darwin std lib
+r:=[]:
+s1 := s:
+while length(s1) > 0 do
+   i := SearchString( c, s1 ):
+   if i=-1 then r:=append(r,s1): break fi:
+   r := append(r, s1[1..i]):
+   s1 := i+1+s1:
+od:
+r 
+end:
+
+ParseTextMatrix := proc(s:string)
+mtx := []:
+lines:= SplitOnChar(s,'\n'):
+for i to length(lines) do
+    elements := SplitOnChar(lines[i],' '):
+    for j to length(elements) do elements[j] := parse(elements[j]) od:
+    mtx := append(mtx, elements):
+od:
+mtx
+end:
+ntax := length(labels):
+df := (ntax - 2) * (ntax - 3) / 2:
+d := ParseTextMatrix(dm_raw_text):
+v := ParseTextMatrix(vm_raw_text):
+LeastSquaresTree(d,v,labels,tree,'KeepTopology'):
+print(MST_Qual * df);
+print(MST_Qual);
+
+
+
+
+
+quit;

@@ -52,9 +52,22 @@ names = [x[x.rindex("/")+1:x.rindex(".")] for x in fasta_files]
 
 if not quiet: print "OBTAINING GENE TREES"
 
-gene_trees = []
+def sanitise_fasta(fasta):
+    import sequence_record as sr
+    s = sr.get_fasta_file(fasta)
+    s.sort_by_name()
+    l = []
+    for h in s.headers:
+        while h.startswith(' '): h = h[1:]
+        h = h.replace(' ','_')
+        l.append(h)
+    s.headers=l
+    s.write_fasta(fasta)
 
+
+gene_trees = []
 for fasta in fasta_files:
+    sanitise_fasta(fasta)
     prefix = fasta[:fasta.rindex(".")]
     phylip = prefix+".phy"
     dv = prefix+"_dv.txt"
@@ -236,13 +249,14 @@ for cluster in cluster_files:
         cluster_trees.append( tree )
 
 """ Check for any matching cluster trees """
-cl_matrix = get_distance_matrix(cluster_trees,"sym",normalise=True)
+cl_matrix = get_distance_matrix(cluster_trees,"sym")
 if not quiet: print cl_matrix
 groups = calc_distinct_groups(cl_matrix)
 
 """ Fifth: generate some stats """ #  - MESSY CODE
 print "STATS"
-gtdict = {}
+print "Method: ", program
+gtdict = {}                  # Use tree name to pull out tree object
 for tree in gene_trees:
     gtdict[tree.name]=tree
 
@@ -256,7 +270,7 @@ for key in assignments:
     # Get average within cluster difference
     dm = get_distance_matrix(trees)
     triu = np.triu_indices(len(dm),1)
-    print "Mean of all against all RF (topology) comparison: ",np.mean(dm[triu])
+    print "Mean, variance of all against all RF (topology) comparison: ",np.mean(dm[triu]), np.var(dm[triu])
 
     # Get concat tree distance from true tree
     tr_tree = False
@@ -282,7 +296,7 @@ for key in assignments:
     meancomps = []
     for dpytree in dpytrees:
         meancomps.append(dpytree.symmetric_difference(cl_tree))
-    print "Average RF (topology) distance from concat tree: {0}\n".format(np.mean(meancomps))
+    print "Mean, variance of RF (topology) distance from concat tree: {0} {1}\n".format(np.mean(meancomps),np.var(meancomps))
 
 # Get sum of likelihood scores
 individual_score = sum([float(tr.score) for tr in gene_trees])
@@ -294,3 +308,5 @@ if len(cl_matrix) > 1:
     cluster_link = get_linkage(cl_matrix,"ward")
     cluster_clustering = cluster_linkage(cluster_link, groups, criterion="distance")
     if show: showplot(cl_matrix,cluster_clustering,cluster_link,cluster_names, groups)
+
+        

@@ -97,7 +97,7 @@ def run_treecollection_from_fasta(alignment_file, name, datatype, helper="./TC_w
 
 def run_treecollection(distvar_file, map_file, label_file, guide_tree_file, name, binary="TreeCollection", verbose=False):
     # Requires that TC input files already exist
-    import subprocess
+    import subprocess, sys
     command = '{0} {1} {2} {3} {4}'.format(binary, distvar_file, map_file, label_file, guide_tree_file)
     process = subprocess.Popen( command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
     stdout, stderr = process.communicate()

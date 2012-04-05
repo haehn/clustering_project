@@ -79,7 +79,10 @@ for i in range(C):
         gene_number = int(name_elements[1]) + sum(G[:i]) #add on number of genes already named in previous classes
         rename = "{0}/gene{1:0>3}.fas".format(MSA_path, gene_number)
         print fi, rename
-        os.rename(fi, rename)
+        seq_object = get_fasta_file(fi)
+        seq_object.headers = [x.split('/')[0] for x in seq_object.headers]
+        seq_object.write_fasta(rename)
+        os.remove(fi)
 
     #Gather tree files
     pam2sps('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1),"pam2sps",'./{0}/true{1}_sps.nwk'.format(tree_path,i+1))
@@ -89,10 +92,3 @@ for i in range(C):
     #shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
     shutil.rmtree("./{0}/".format(TEMP_DIR))
 #END LOOP
-
-#Convert fasta files to phylip files for use with raxml
-for fasta in glob.glob("{0}/*.fas".format(MSA_path)):
-    phylip = fasta[:fasta.rindex('.')]+'.phy'
-    seq_object = get_fasta_file(fasta)
-    seq_object.headers = [x.split('/')[0] for x in seq_object.headers]
-    seq_object.write_phylip(outfile=phylip, print_to_screen = False)

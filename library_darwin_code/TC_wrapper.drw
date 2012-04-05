@@ -175,6 +175,7 @@ end:
 
 alignedSeqs := CreateArray(1..length(fil[1])):
 labs := TrimLabels(fil[2]):
+ntaxa := length(labs):
 print(labs);
 unalignedSeqs := CreateArray(1..length(fil[1])):
 for i to length(fil[1]) do
@@ -184,7 +185,8 @@ od:
 MSA := MAlignment(unalignedSeqs,alignedSeqs,labs):
 dvm := RobustEstimateDistVarM(MSA,seqtype):
 tri := Tri(dvm[1],dvm[2]):
-tree:= MinSquareTree(dvm[1],dvm[2],labs):
+tree:= LeastSquaresTree(dvm[1],dvm[2],labs):
+tree_score := MST_Qual * (ntaxa - 2) * (ntaxa - 3) / 2:
 map := []:
 for i to length(labs) do
     map := append(map, i):
@@ -199,14 +201,18 @@ od;
 WriteData(dv, ConcatStrings([fpath,'temp_distvar.txt']));
 # PRINT Tree.nwk ##############################################################
 print('Tree.nwk');
-tree_out := ConcatStrings( [Tree_Newick(tree), ';'] );
+tree_out := ConcatStrings( [Tree_Newick(tree), ';\n'] );
 WriteData(tree_out, ConcatStrings([fpath,'temp_tree.nwk']));
 # PRINT Labels.txt ############################################################
 print('Labels.txt');
 labels := ConcatStrings(labs, ' ');
+print(ConcatStrings(['Labels: ',labels, '\n']));
 WriteData(ConcatStrings( [length(labs), labels], '\n' ), ConcatStrings([fpath,'temp_labels.txt']));
 # PRINT GenomeMap.txt##########################################################
 print('GenomeMap.txt');
 map_out := ConcatStrings( ['1 ', length(map), '\n', ConcatStrings( map, ' ' ) ] );
 WriteData(map_out, ConcatStrings([fpath,'temp_map.txt']));
+# PRINT tree_score ############################################################
+print(ConcatStrings( ['Score: ', tree_score] ));
+printf(ConcatStrings( ['Tree: ', Tree_Newick(tree), ';\n'] ));
 quit;

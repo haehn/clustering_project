@@ -23,12 +23,6 @@ def handleArgs(argv,help="no arguments given\n"):
             except IndexError: flagDic[argv[i]] = None
     return flagDic
 
-def check_args_bool( arg, argDic ):
-    if arg in argDic: 
-        return True
-    else:
-        return False
-
 def check_args_filepath( arg, argDic, alternative ):
     import os
     if arg in argDic: 
@@ -41,6 +35,12 @@ def check_args_filepath( arg, argDic, alternative ):
         if not os.path.isdir( filepath):
             os.mkdir( filepath )
     return filepath
+
+def check_args_bool( arg, argDic ):
+    if arg in argDic: 
+        return True
+    else:
+        return False
 
 def check_args_value( arg, argDic, alternative ):
     if arg in argDic: 
@@ -71,15 +71,20 @@ def pam2sps(tree_file, conversion, outfile=None):
         writer.close()
     else: print output_string
 
-def get_alignments(input_dir):
+def get_alignments(input_dir, format='fasta'):
     # Returns a list of fasta files in a given directory (provided the file extension is .fa or .fas)
     # Doesn't allow for a mix of .fa and .fas
     import glob
-    fasta_files = glob.glob( "{0}/*.fa".format(input_dir) )
-    if len(fasta_files) == 0:
-        fasta_files = glob.glob( "{0}/*.fas".format(input_dir) )
-    fasta_files = sorted(fasta_files)
-    return fasta_files
+    if format=='fasta':
+        fasta_files = glob.glob( "{0}/*.fa".format(input_dir) )
+        if len(fasta_files) == 0:
+            fasta_files = glob.glob( "{0}/*.fas".format(input_dir) )
+        fasta_files = sorted(fasta_files)
+        return fasta_files
+    elif format=='dv':
+        dv_files = glob.glob( "{0}/*dv.txt".format(input_dir))
+        return dv_files
+    else: return []
 
 def get_gene_trees(input_dir):
     # Returns a list of Inference_Result objects from files in input_dir
@@ -95,49 +100,68 @@ def populate_phylip_from_fasta(fastafile):
     phylip_name = fastafile[:fastafile.rindex(".")] + ".phy"
     sequence_record.get_fasta_file(fastafile).write_phylip(phylip_name)
 
+def sanitise_fasta(fasta):
+    import sequence_record as sr
+    s = sr.get_fasta_file(fasta)
+    s.sort_by_name()
+    l = []
+    for h in s.headers:
+        while h.startswith(' '): h = h[1:]
+        h = h.replace(' ','_')
+        l.append(h)
+    s.headers=l
+    s.write_fasta(fasta)
+
 def populate_dv_from_fasta(fastafile, datatype, helper="./library_darwin_code/TC_wrapper.drw", fpath="./"):
-    import os
+    import os, re
+    from subprocess import Popen, PIPE
     if not fpath.endswith("/"): fpath += "/"
     if not os.path.isdir(fpath): os.mkdir(fpath)
     prefix = fastafile[:fastafile.rindex(".")]
-    command = 'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\'; fpath := \'{2}\'; ReadProgram(\'{3}\');" | darwin > /dev/null'.format(fastafile, datatype, fpath, helper)
-    os.system( command )
+    command = 'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\'; fpath := \'{2}\'; ReadProgram(\'{3}\');" | darwin'.format(fastafile, datatype, fpath, helper)
+    process = Popen( command, shell=True, stdout=PIPE, stderr=PIPE )
+    stdout,stderr = process.communicate()
+    score = float(re.search("(?<=Score: )[0-9.]+",stdout).group())
+    tree = re.search("(?<=Tree: ).+(?=\n)",stdout).group()
+    labels = re.search("(?<=Labels: ).+(?=\n)",stdout).group()
     os.rename( "temp_distvar.txt", prefix+"_dv.txt")
     os.rename( "temp_map.txt", prefix+"_map.txt")
     os.rename( "temp_labels.txt", prefix+"_labels.txt")
     os.rename( "temp_tree.nwk", prefix+"_guidetree.nwk")
+    return score, tree, labels
 
 ############
 # Concatenating TreeCollection input files:
 # Two helper functions and the main one
-
-def _parse_dv(distvar_file):
-    raw = [line.rstrip() for line in open(distvar_file).readlines()]
-    while '' in raw: raw.remove('')
-    num_matrices = int(raw.pop(0))
-    matrices = []
-    read_records = 0
-    while read_records < num_matrices:
-        dims = raw.pop(0).split()
-        size = int(dims[0])
-        index = dims[-1]
-        c = 0
-        matrix = ''
-        while c < size:
-            matrix += raw.pop(0) + "\n"
-            c += 1
-        matrices.append(matrix)
-        read_records += 1
-    return matrices
-
-def _parse_maps(map_file):
-    raw = open(map_file).readlines()
-    while '' in raw: raw.remove('')
-    header = raw.pop(0)
-    maps = ''.join(raw)
-    return maps
     
 def concatenate_dvs(distvar_files, map_files, labels, tree, outprefix=None):
+    
+    def _parse_dv(distvar_file):
+        raw = [line.rstrip() for line in open(distvar_file).readlines()]
+        while '' in raw: raw.remove('')
+        num_matrices = int(raw.pop(0))
+        matrices = []
+        read_records = 0
+        while read_records < num_matrices:
+            dims = raw.pop(0).split()
+            size = int(dims[0])
+            index = dims[-1]
+            c = 0
+            matrix = ''
+            while c < size:
+                matrix += raw.pop(0) + "\n"
+                c += 1
+            matrices.append(matrix)
+            read_records += 1
+        return matrices
+
+    def _parse_maps(map_file):
+        raw = open(map_file).readlines()
+        while '' in raw: raw.remove('')
+        header = raw.pop(0)
+        maps = ''.join(raw)
+        return maps
+
     input_files = zip(distvar_files, map_files)
     dvstring    = ''
     mapstring   = ''
@@ -259,6 +283,35 @@ def assign_to_clusters(msa_files, T,output_dir=None):
 
     return assignments
 
+def assign_to_clusters_optimiser(msa_files, T, output_dir=None):
+    import sequence_record as sr
+    import os
+    distvars    = {} # collect separate dictionary for dv files for concatenation
+    maps        = {}
+    assignments = {}
+    for k in range(min(T),max(T)+1):
+        distvars[k]    = []
+        maps[k]        = []
+        assignments[k] = []
+    for i in range(len(T)):
+        assignments[T[i]].append(msa_files[i][msa_files[i].rindex("/")+1:msa_files[i].rindex(".")])
+        distvars[T[i]].append(msa_files[i][:msa_files[i].rindex(".")]+"_dv.txt")
+        maps[T[i]].append(msa_files[i][:msa_files[i].rindex(".")]+"_map.txt")
+
+    for key in assignments:
+        dv_list    = distvars[key] # list of dv files pertaining to current cluster
+        map_list   = maps[key]
+        try: 
+            labels     = dv_list[0][:dv_list[0].rindex("_")] + "_labels.txt"
+            guidetree = dv_list[0][:dv_list[0].rindex("_")] + "_guidetree.nwk"
+        except IndexError: continue
+    
+        if output_dir:
+            if not os.path.isdir(output_dir): os.mkdir(output_dir)
+            conc_dvs = concatenate_dvs(dv_list, map_list, labels, guidetree, "{0}/cluster{1:0>2}".format(output_dir,key))
+
+    return assignments
+
 def calc_distinct_groups(matrix):
     nclusters = len(matrix)
     indices = range(nclusters)
@@ -291,5 +344,189 @@ def showplot(matrix, T, link, names, nclasses=None):
     plt.ylabel('Distance')
     plt.show()
     plt.clf()
+
+def compute_constrained_score( dist_mat, var_mat, labels, cluster_tree, helper="./library_darwin_code/conscore.drw"):
+    from subprocess import PIPE, Popen
+    import os, re
+    import numpy as np
+    np.savetxt( "tmp_dv.txt", dist_mat, fmt='%.2f')
+    np.savetxt( "tmp_var.txt", var_mat, fmt='%.4f')
+    cmd = ' echo " dm_raw_text := ReadRawFile(\'tmp_dv.txt\'): labels := [{0}]: vm_raw_text := ReadRawFile(\'tmp_var.txt\'): tree := ParseNewickTree(\'{1}\'): ReadProgram(\'{2}\'): " | darwin '.format( labels, cluster_tree, helper )
+    process = Popen( cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    stdout, stderr = process.communicate()
+    #print stdout
+    scores = re.search("(?<=fitting index )([0-9.]+)\n([0-9.]+)\n([0-9.]+)",stdout)
+    os.remove("tmp_dv.txt")
+    os.remove("tmp_var.txt")
+    return [float(x) for x in scores.groups()] # Dimensionless fitting index,  Sum of Squares,  MST_Qual (sum of squares / degrees of freedom)
+
+def compute_weighted_robinson_foulds( gene_tree, cluster_tree ):
+    import dendropy as dpy
+    g = dpy.Tree().get_from_string(gene_tree, 'newick')
+    c = dpy.Tree().get_from_string(cluster_tree, 'newick')
+    return g.robinson_foulds_distance(c)
+
+def compute_robinson_foulds( gene_tree, cluster_tree ):
+    import dendropy as dpy
+    g = dpy.Tree().get_from_string(gene_tree, 'newick')
+    c = dpy.Tree().get_from_string(cluster_tree, 'newick')
+    return g.symmetric_difference(c)
+
+def separate_dv_matrix( dv_file ):
+    import numpy as np
+    np.set_printoptions(suppress=True, precision=2)
+    dv = open( dv_file ).readlines()[1:]
+    length = int(dv.pop(0).split()[0])
+    a = np.zeros( (length, length) )
+    i = 0
+    while dv:
+        row = [float(n) for n in dv.pop(0).rstrip().split()]
+        a[i] = row
+        i += 1
+    d = np.triu(a)
+    v = np.tril(a)
+
+    for i in range(length):
+        v[i] = v.T[i]
+        d.T[i] = d[i]
+
+    return d,v
+
+def draw_rand():
+    import random
+    return random.random()
+
+def probs(l):
+    import math
+    l2 = [math.exp(-x) for x in l]
+    s = sum(l2)
+    prev = 0
+    p = []
+    for v in l2:
+        v = v/s + prev
+        p.append(v)
+        prev = v
+    return p
+
+def probs2(l):
+    l2 = [1/x for x in l]
+    s = sum(l2)
+    prev = 0
+    p = []
+    for v in l2:
+        v = v/s + prev
+        p.append(v)
+        prev = v
+    return p
+
+def choice(move_probs):
+    import random
+    n = random.random()
+    for k in range(len(move_probs)):
+        if n > move_probs[k]: continue
+        else: 
+            move_to = k+1
+            break
+    return move_to
+
+def get_cluster_trees( cluster_tree_dir, quiet=False ):
+    import glob
+    from inference_functions import run_treecollection
+    cluster_files = glob.glob( "{0}/*_dv.txt".format(cluster_tree_dir) )
+    cluster_names = [ x[x.rindex("/")+1:x.rindex("_")] for x in cluster_files]
+    cluster_trees = []
+    for cluster in cluster_files:
+        prefix = cluster[:cluster.rindex("_")]
+        dv = prefix+"_dv.txt"       
+        map_file = prefix+"_map.txt"
+        labels = prefix+"_labels.txt"
+        guide_tree = prefix+"_guidetree.nwk"
+        name = prefix[prefix.rindex("/")+1:]
+        if not quiet: print "Running TreeCollection on {0}".format(dv)
+        tree = run_treecollection(dv, map_file, labels, guide_tree, name)
+        cluster_trees.append( tree )
+    return cluster_trees
+
+def optimise_sample(clustering, gene_trees, sample_size, max_reassignments, INPUT_DIR, CLUSTER_DIR, fasta_files, best_score, greedy=False):
+    import copy, random
+    new_clustering = copy.copy(clustering)
+    dic = {}
+    sample = random.sample(range(len(gene_trees)), sample_size)
+    for i in sample:
+        test_tree = gene_trees[i]
+        dv_file  = "{0}/{1}_dv.txt".format(INPUT_DIR,test_tree.name)
+        labels = open("{0}/{1}_labels.txt".format(INPUT_DIR,test_tree.name)).readlines()[1].rstrip()
+        labels = ', '.join(["'{0}'".format(x) for x in labels.split()])
+        d,v = separate_dv_matrix( dv_file )
+        belongs_to = clustering[i]
+        scores = []
+        for j in range(len(cluster_trees)):
+            topology = cluster_trees[j].tree
+            score = compute_constrained_score( d, v, labels, topology )[1]
+            scores.append( score )
+        if belongs_to != choice(probs(scores)):
+            dic[i] = (choice(probs(scores)))   
+    for k in random.sample(dic.keys(),min(max_reassignments,len(dic))):
+        new_clustering[k] = dic[k]
+    assignments = assign_to_clusters_optimiser(fasta_files, new_clustering, CLUSTER_DIR)
+    new_cluster_trees = get_cluster_trees(CLUSTER_DIR, quiet=True)
+    new_score = sum([float(tr.score) for tr in new_cluster_trees])
+    
+    # Acceptance decision
+    if greedy:
+        if new_score < best_score: # greedy
+            return new_clustering, new_score
+        else:
+            os.system( "rm {0}/*".format(CLUSTER_DIR) )
+            assignments = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
+            return clustering, best_score
         
+    else:
+        if random.random() > (new_score / (new_score + best_score)): # stochastic
+            return new_clustering, new_score
+        else:
+            os.system( "rm {0}/*".format(CLUSTER_DIR) )
+            assignments = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
+            return clustering, best_score
+
+def optimise_sample_rf(clustering, gene_trees, cluster_trees, sample_size, max_reassignments, INPUT_DIR, CLUSTER_DIR, fasta_files, best_score, greedy=False):
+    import copy, os, random
+    new_clustering = copy.copy(clustering)
+    dic = {}
+    sample = random.sample(range(len(gene_trees)), sample_size)
+    for i in sample:
+        test_tree = gene_trees[i]
+        belongs_to = clustering[i]
+        scores = []
+        for j in range(len(cluster_trees)):
+            topology = cluster_trees[j].tree
+            score = compute_robinson_foulds(test_tree.tree, topology)
+            scores.append( score )
+        moves_to = choice(probs(scores))
+        #print scores, probs(scores)
+        if belongs_to != moves_to:
+            dic[i] = moves_to
+    for k in random.sample(dic.keys(),min(max_reassignments,len(dic))):
+        new_clustering[k] = dic[k]
+    assignments = assign_to_clusters_optimiser(fasta_files, new_clustering, CLUSTER_DIR)
+    new_cluster_trees = get_cluster_trees(CLUSTER_DIR, quiet=True)
+    new_score = sum([float(tr.score) for tr in new_cluster_trees])
+    
+    # Acceptance decision
+    if greedy:
+        if new_score < best_score: # greedy
+            return new_clustering, new_score
+        else:
+            os.system( "rm {0}/*".format(CLUSTER_DIR) )
+            assignments = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
+            return clustering, best_score
+        
+    else:
+        if random.random() > (new_score / (new_score + best_score)): # stochastic
+            return new_clustering, new_score
+        else:
+            os.system( "rm {0}/*".format(CLUSTER_DIR) )
+            assignments = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
+            return clustering, best_score
+
 ##################################################################################################
