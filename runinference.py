@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import glob,os,sys
+import argparse,glob,os,sys
 import numpy as np
 import dendropy as dpy
 from utility_functions import *
@@ -9,61 +9,57 @@ from sequence_record import *
 
 ##################################################################################################
 
-command_line_args = handleArgs(sys.argv,help='''
-runml.py arguments:
-         -program   = raxml, phyml or treecollection
-         -dna       = invokes GTRGAMMA model in RAxML (default is PROTGAMMAWAG)
-         -dir       = input directory
-         -v         = verbose (include spawned process stdout)
-         -q         = quiet mode: suppress (most) print statements
-         -trees     = directory to write gene trees to
-         -clusters  = path to write clusters to
-         -nclasses  = number of classes to cluster into
-         -distance  = sym, rf or euc - tree distance measures
-         -rand      = generate random cluster assignment
-''')
+#===========================================#
+# Get command line arguments with argparse #
+#=========================================#
 
-#Check command line arguments
+metrics  = ['euc', 'rf', 'sym']
+linkages = ['average', 'complete', 'median', 'single', 'ward', 'weighted']
+programs = ["raxml", "phyml", "treecollection"]
+parser = argparse.ArgumentParser(description='Optimise partitioning')
+parser.add_argument('-d',   '--directory',          dest='MSA_DIR',         type=fpath, default='./MSA',    metavar='DIRECTORY',    help='Path to MSA files')
+parser.add_argument('-t',   '--tree-directory',     dest='TREES_DIR',       type=fpath, default='./tr',     metavar='DIRECTORY',    help='Directory to save output tree files')
+parser.add_argument('-c',   '--cluster-directory',  dest='CLUSTER_DIR',     type=fpath, default='./cl',     metavar='DIRECTORY',    help='Directory to save output cluster files')
+parser.add_argument('-tmp', '--temp-directory',     dest='TEMP_DIR',        type=fpath, default='.',        metavar='DIRECTORY',    help='Directory to save temp files')
+parser.add_argument('-r',   '--results-directory',  dest='RESULTS_DIR',     type=fpath, default='./results',metavar='DIRECTORY',    help='Directory to save output result files')
+parser.add_argument('-n',   '--number-of-classes',  dest='nclasses',        type=int,   default=4,                                  help='Number of classes to partition into')
+parser.add_argument('-dist','--distance-measure',   dest='distance_metric', type=str,   default='sym',      choices = metrics,      help='Tree distance measure')
+parser.add_argument('-l',   '--linkage-type',       dest='linkage_type',    type=str,   default='ward',     choices = linkages,     help='Linkage criterion')
+parser.add_argument('-program',                     dest='program',         type=str,   default='ward',     choices = programs,     help='Program to use')
+parser.add_argument('-dna',                         dest='dna',             action='store_true',                                    help='Nucleotide data')
+parser.add_argument('-v',   '--verbose',            dest='verbose',         action='store_true',                                    help='Lots of printing to stdout')
+parser.add_argument('-q',   '--quiet',              dest='quiet',           action='store_true',                                    help='Not much printing to stdout')
+parser.add_argument('-s',   '--show',               dest='show',            action='store_true',                                    help='Plot dendrograms with pylab')
+parser.add_argument('-rand','--randomise',          dest='rand',            action='store_true',                                    help='Start with random partitioning')
+args = vars(parser.parse_args())
 
-INPUT_DIR               = check_args_filepath( "-dir", command_line_args, "./MSA" )
-OUT_DIR                 = check_args_filepath( "-trees", command_line_args, None )
-CLUSTER_DIR             = check_args_filepath( "-clusters", command_line_args, None ) 
-TMP_DIR                 = check_args_filepath( "-temp", command_line_args, "./" )
-dna                     = check_args_bool('-dna', command_line_args)
-verbose                 = check_args_bool('-v', command_line_args)
-show                    = check_args_bool('-show', command_line_args)
-randomise_clustering    = check_args_bool('-rand', command_line_args) 
-quiet                   = check_args_bool('-q', command_line_args)
-nclasses                = int(check_args_value('-nclasses', command_line_args, 4 ))
-matrix_type             = check_args_value('-m', command_line_args, 'sym')
-linkage_type            = check_args_value('-l', command_line_args, 'ward')
-program                 = check_args_value('-program', command_line_args, 'treecollection')
-if quiet: show = False
-assert nclasses >= 1
-assert matrix_type in ["rf","euc","sym"]
-assert linkage_type in ["average","single","complete","ward","weighted","centroid","median"]
-assert program in ["raxml", "phyml", "treecollection"]
+MSA_DIR         = args['MSA_DIR']
+TREES_DIR       = args['TREES_DIR']
+CLUSTER_DIR     = args['CLUSTER_DIR']
+TEMP_DIR        = args['TEMP_DIR']
+RESULTS_DIR     = args['RESULTS_DIR']
+nclasses        = args['nclasses']
+distance_metric = args['distance_metric']
+linkage_type    = args['linkage_type']
+dna             = args['dna']
+verbose         = args['verbose']
+quiet           = args['quiet']
+show            = args['show']
+rand            = args['rand']
+program         = args['program']
+
+for each in [TREES_DIR, CLUSTER_DIR, TEMP_DIR, RESULTS_DIR]:
+    if not os.path.isdir(each): os.mkdir(each)
+
+#=#
 
 ##################################################################################################
 
-fasta_files = get_alignments(INPUT_DIR) # we'll need access to the sequence alignments (fasta format)
+fasta_files = get_alignments(MSA_DIR) # we'll need access to the sequence alignments (fasta format)
 phylip_files = [x[:x.rindex(".")]+".phy" for x in fasta_files]
 names = [x[x.rindex("/")+1:x.rindex(".")] for x in fasta_files]
 
 if not quiet: print "OBTAINING GENE TREES"
-
-def sanitise_fasta(fasta):
-    import sequence_record as sr
-    s = sr.get_fasta_file(fasta)
-    s.sort_by_name()
-    l = []
-    for h in s.headers:
-        while h.startswith(' '): h = h[1:]
-        h = h.replace(' ','_')
-        l.append(h)
-    s.headers=l
-    s.write_fasta(fasta)
-
 
 gene_trees = []
 for fasta in fasta_files:
@@ -86,16 +82,16 @@ for fasta in fasta_files:
         else: model = "PROTGAMMAWAG"
         alignment = phylip
         name = prefix[prefix.rindex("/")+1:]
-        if OUT_DIR:                                       # check for pre-calculated tree result
+        if TREES_DIR:                                       # check for pre-calculated tree result
             try: 
                 tree = Inference_Result()
-                tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
+                tree.read_from_file("{0}/{1}.tree".format(TREES_DIR,name))
                 if not quiet: print "Found pre-existing tree in output directory"
                 assert tree.program.lower() == program                    # 
             except IOError:
                 if not quiet: print "Running RAxML on {0}".format(phylip)
                 tree = run_raxml( model, alignment, name, nthreads=8 )
-                tree.write_to_file( "{0}/{1}.tree".format(OUT_DIR,tree.name) )
+                tree.write_to_file( "{0}/{1}.tree".format(TREES_DIR,tree.name) )
             except AssertionError:
                 if not quiet: print "This tree was generated by", tree.program
         else: 
@@ -113,16 +109,16 @@ for fasta in fasta_files:
             datatype = 'aa' 
         alignment = phylip
         name = prefix[prefix.rindex("/")+1:]
-        if OUT_DIR:                                       # check for pre-calculated tree result
+        if TREES_DIR:                                       # check for pre-calculated tree result
             try: 
                 tree = Inference_Result()
-                tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
+                tree.read_from_file("{0}/{1}.tree".format(TREES_DIR,name))
                 if not quiet: print "Found pre-existing tree in output directory"
                 assert tree.program.lower() == program                    # 
             except IOError:
                 if not quiet: print "Running PhyML on {0}".format(phylip)
                 tree = run_phyml( model, alignment, name, datatype)
-                tree.write_to_file( "{0}/{1}.tree".format(OUT_DIR,tree.name) )
+                tree.write_to_file( "{0}/{1}.tree".format(TREES_DIR,tree.name) )
             except AssertionError:
                 if not quiet: print "This tree was generated by", tree.program
         else: 
@@ -136,16 +132,16 @@ for fasta in fasta_files:
         labels = prefix+"_labels.txt"
         guide_tree = prefix+"_guidetree.nwk"
         name = prefix[prefix.rindex("/")+1:]
-        if OUT_DIR:                                       # check for pre-calculated tree result
+        if TREES_DIR:                                       # check for pre-calculated tree result
             try: 
                 tree = Inference_Result()
-                tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
+                tree.read_from_file("{0}/{1}.tree".format(TREES_DIR,name))
                 if not quiet: print "Found pre-existing tree in output directory: {0}.tree".format( name )
                 assert tree.program.lower() == program                    # 
             except IOError:
                 if not quiet: print "Running TreeCollection on {0}".format(dv)
                 tree = run_treecollection(dv, map_file, labels, guide_tree, name)
-                tree.write_to_file( "{0}/{1}.tree".format(OUT_DIR,tree.name) )
+                tree.write_to_file( "{0}/{1}.tree".format(TREES_DIR,tree.name) )
             except AssertionError:
                 if not quiet: print "This tree was generated by", tree.program
         else: 
@@ -157,9 +153,9 @@ for fasta in fasta_files:
 """ Fourth: clustering """
 if not quiet: print "CLUSTERING GENE TREES"
 
-matrix = get_distance_matrix(gene_trees,matrix_type,normalise=True)
+matrix = get_distance_matrix(gene_trees,distance_metric,normalise=True)
 link = get_linkage(matrix,linkage_type)
-if randomise_clustering:
+if rand:
     clustering = list(np.random.randint(1,int(nclasses)+1,size=len(gene_trees)))
 else:
     clustering = cluster_linkage(link,nclasses,criterion='distance')
@@ -181,16 +177,16 @@ for cluster in cluster_files:
         else: model = "PROTGAMMAWAG"
         alignment = phylip
         name = prefix[prefix.rindex("/")+1:]
-        if OUT_DIR:                                       # check for pre-calculated tree result
+        if TREES_DIR:                                       # check for pre-calculated tree result
             try: 
                 tree = Inference_Result()
-                tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
+                tree.read_from_file("{0}/{1}.tree".format(TREES_DIR,name))
                 if not quiet: print "Found pre-existing tree in output directory"
                 assert tree.program.lower() == program                    # 
             except IOError:
                 if not quiet: print "Running RAxML on {0}".format(phylip)
                 tree = run_raxml( model, alignment, name, nthreads=8 )
-                tree.write_to_file( "{0}/{1}.tree".format(OUT_DIR,tree.name) )
+                tree.write_to_file( "{0}/{1}.tree".format(TREES_DIR,tree.name) )
             except AssertionError:
                 if not quiet: print "This tree was generated by", tree.program
         else: 
@@ -208,16 +204,16 @@ for cluster in cluster_files:
             datatype = 'aa' 
         alignment = phylip
         name = prefix[prefix.rindex("/")+1:]
-        if OUT_DIR:                                       # check for pre-calculated tree result
+        if TREES_DIR:                                       # check for pre-calculated tree result
             try: 
                 tree = Inference_Result()
-                tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
+                tree.read_from_file("{0}/{1}.tree".format(TREES_DIR,name))
                 if not quiet: print "Found pre-existing tree in output directory"
                 assert tree.program.lower() == program                    # 
             except IOError:
                 if not quiet: print "Running PhyML on {0}".format(phylip)
                 tree = run_phyml( model, alignment, name, datatype)
-                tree.write_to_file( "{0}/{1}.tree".format(OUT_DIR,tree.name) )
+                tree.write_to_file( "{0}/{1}.tree".format(TREES_DIR,tree.name) )
             except AssertionError:
                 if not quiet: print "This tree was generated by", tree.program
         else: 
@@ -231,16 +227,16 @@ for cluster in cluster_files:
         labels = prefix+"_labels.txt"
         guide_tree = prefix+"_guidetree.nwk"
         name = prefix[prefix.rindex("/")+1:]
-        if OUT_DIR:                                       # check for pre-calculated tree result
+        if TREES_DIR:                                       # check for pre-calculated tree result
             try: 
                 tree = Inference_Result()
-                tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
+                tree.read_from_file("{0}/{1}.tree".format(TREES_DIR,name))
                 if not quiet: print "Found pre-existing tree in output directory"
                 assert tree.program.lower() == program                    # 
             except IOError:
                 if not quiet: print "Running TreeCollection on {0}".format(dv)
                 tree = run_treecollection(dv, map_file, labels, guide_tree, name)
-                tree.write_to_file( "{0}/{1}.tree".format(OUT_DIR,tree.name) )
+                tree.write_to_file( "{0}/{1}.tree".format(TREES_DIR,tree.name) )
             except AssertionError:
                 if not quiet: print "This tree was generated by", tree.program
         else: 
@@ -277,7 +273,7 @@ for key in assignments:
     taxa = dpy.TaxonSet()
     cl_tree = dpy.Tree()
     cl_tree.read_from_string(cluster_trees[key-1].tree,'newick',taxon_set=taxa)
-    true_trees = glob.glob( "{0}/../trees/true*_sps.nwk".format(INPUT_DIR))
+    true_trees = glob.glob( "{0}/../trees/true*_sps.nwk".format(MSA_DIR))
     trcomps = []
     for tr_tree in true_trees:
         tr_tree_dpy = dpy.Tree()

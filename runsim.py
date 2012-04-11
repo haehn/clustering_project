@@ -8,60 +8,44 @@ Remaining ALF files are deleted
 from ALF_wrapper import *         # functions write_ALF_parameters() and run_ALF()
 from sequence_record import *     # classes Unaligned_Sequence_Record and Aligned_Sequence_Record, function get_fasta_file()
 from utility_functions import * 
-import glob, os, re, shutil, sys
+import argparse, glob, os, re, shutil, sys
 
-args = handleArgs(sys.argv, help = '''
-runsim.py arguments:
-  -c   =  number of classes
-  -s   =  number of species
-  -g   =  number of genes per class, e.g. [10,20,10]
-  -r   =  rate per class (PAM units, default is 200), eg [200,100,400]
-  -dir =  Output directory to place simulation into (default './')
-  -tmp =  temporary files from alfsim go here (keep separate when running more than one instance)
-''')
+####################################################################################################
 
-#Check arguments: -c should give an integer number of classes, -s an integer number of species, -g a list of number of genes for each class
-# NB This currently doesn't check input type for errors
+#=============================#
+# get command line arguments #
+#===========================#
 
-C = int(check_args_value( '-c', args, 2  ))
-S = int(check_args_value( '-s', args, 20 ))
-OUT_DIR = check_args_filepath( '-dir', args, "./" )
-TEMP_DIR = check_args_filepath( '-tmp', args, "alftmp" )
-print TEMP_DIR
+parser = argparse.ArgumentParser(prog='runsim.py', description='Run ALF simulator to generate different topological classes')
+parser.add_argument('-c','--classes', help='Number of classes', type=int, default=2)
+parser.add_argument('-s','--species', help='Number of species', type=int, default=20)
+parser.add_argument('-g','--genes', help='Number of genes per class', nargs='*', default=[])
+parser.add_argument('-r','--rates', help='Tree length per class (PAM units)', nargs='*', default=[])
+parser.add_argument('-d','-dir','--directory', help='Base output directory', type=fpath, default='.')
+parser.add_argument('-tmp','--temp-directory', help='Directory to use for temp files', type=fpath, default='./alftmp')
+args = vars(parser.parse_args())
 
-# More complicated cases - no function for this
-if not '-g' in args: 
-    G = [ 10 for each_class in range(C) ]
-elif not args['-g']:
-    print 'Number of genes not specified. Genes set to 10 per class'
-    G = [ 10 for each_class in range(C) ]
-else: 
-    regexp=re.compile('(?<=[\[,])[0-9]+')
-    G = regexp.findall(args['-g']) #Make sure we understand the list given in G
-    if not G: 
-        print "Didn't understand '-g' argument."
-        sys.exit()
-    else: G = [int(x) for x in G]
+# Do some tidying up
+while len(args['genes']) < args['classes']: # Make sure each class has a number of genes associated with it
+    args['genes'].append(10)
+while len(args['rates']) < args['classes']: # Make sure each class has a rate
+    args['rates'].append(200)
 
-if not '-r' in args: 
-    R = [ 200 for each_class in range(C) ]
-elif not args['-r']:
-    print 'Mutation rate not specified. Rate set to 200 for each class'
-    R = [ 200 for each_class in range(C) ]
-else: 
-    R = regexp.findall(args['-r']) #Make sure we understand the list given in R
-    if not R: 
-        print "Didn't understand '-r' argument."
-        sys.exit()
-    else: R = [int(x) for x in R]
+# Shorter variable names (CAPS = command line args)
+C = args['classes']
+S = args['species']
+G = [int(x) for x in args['genes']]
+R = [int(y) for y in args['rates']]
+OUT_DIR = args['directory']
+TEMP_DIR = args['temp_directory']
+MSA_path = fpath("{0}/MSA".format(OUT_DIR))
+tree_path = fpath("{0}/trees".format(OUT_DIR))
 
-#DEBUG ARGS
-#print "Type of G elements: ",type(G[0])
+####################################################################################################
 
-MSA_path = "{0}/MSA".format(OUT_DIR)
-if not os.path.isdir(MSA_path): os.mkdir(MSA_path)
-tree_path = "{0}/trees".format(OUT_DIR)
-if not os.path.isdir(tree_path): os.mkdir(tree_path)
+#============#
+# MAIN LOOP #
+#==========#
 
 for i in range(C):
     #Write parameters
@@ -88,7 +72,7 @@ for i in range(C):
     pam2sps('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1),"pam2sps",'./{0}/true{1}_sps.nwk'.format(tree_path,i+1))
     os.rename('./{0}/class{1}/RealTree.nwk'.format(TEMP_DIR,i+1), './{0}/true{1}.nwk'.format(tree_path,i+1))
         
-    #Delete unnecessary simulated filesls
-    #shutil.rmtree("./{0}/class{1}".format(TEMP_DIR,i+1))
+    #Delete temporary files
     shutil.rmtree("./{0}/".format(TEMP_DIR))
-#END LOOP
+
+####################################################################################################

@@ -1,0 +1,121 @@
+Output of GeoMeTree v1.0
+
+2 Trees of 8 taxa given:
+T1=((Sklu:0.108725,Calb:0.265275):0.0277828,(Scas:0.158472,(((Scer:0.0450565,Spar:0.0369435):0.0162121,Smik:0.0590673):0.00811824,(Skud:0.0611291,Sbay:0.0698709):0.0127535):0.0524007):0.0277828);
+T2=((((((Scer:0.0595007,Spar:0.0474993):0.0187251,Skud:0.0707168):0.00577251,Smik:0.072157):0.0182499,Sbay:0.0965307):0.0914178,Scas:0.17221):0.00586058,(Calb:0.514447,Sklu:0.233553):0.00586058);
+
+Trees have been decomposed at common splits, the following dummy taxa are used:
+d1	Sbay*Scer*Skud*Smik*Spar
+d2	Scas*Calb*Sklu
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 1:
+
+Splits only in T1:
+
+Splits only in T2:
+
+Splits common to both trees and branch length in T1 and T2:
+1/1	d1	0.052401	0.091418
+1/2	Sklu	0.108725	0.233553
+1/3	Scas	0.158472	0.172210
+1/4	Calb*Sklu	0.055566	0.011721
+1/5	Calb	0.265275	0.514447
+
+The geodesic path:
+There are no different splits, it equals the branch score.
+
+Transition points:
+Splits:     (    1/1,    1/2,    1/3,    1/4,    1/5 )
+g(0.0000) = ( 0.0524, 0.1087, 0.1585, 0.0556, 0.2653 )
+g(1.0000) = ( 0.0914, 0.2336, 0.1722, 0.0117, 0.5144 )
+
+
+Results for all splits:
+Branch score 0.285135
+Geodesic distance 0.285135
+Cone distance 0.285135
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0000 s
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 2:
+
+Splits only in T1:
+2/1	Sbay*Skud*d2	0.008118
+2/2	Sbay*Skud	0.012753
+
+Splits only in T2:
+2/3	Sbay*d2	0.018250
+2/4	Sbay*Smik*d2	0.005773
+
+Splits common to both trees and branch length in T1 and T2:
+2/5	Spar	0.036943	0.047499
+2/6	Smik	0.059067	0.072157
+2/7	Skud	0.061129	0.070717
+2/8	Scer	0.045056	0.059501
+2/9	Scer*Spar	0.016212	0.018725
+2/10	Sbay	0.069871	0.096531
+
+The geodesic path:
+t	L	R
+0.000000	-	-
+0.411358	2/2	2/3
+0.584435	2/1	2/4
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,   2/10,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0081, 0.0128, 0.0000, 0.0000, 0.0699, 0.0369, 0.0591, 0.0611, 0.0451, 0.0162 )
+g(0.4114) = ( 0.0024, 0.0000, 0.0000, 0.0000, 0.0808, 0.0413, 0.0645, 0.0651, 0.0510, 0.0172 )
+g(0.5844) = ( 0.0000, 0.0000, 0.0054, 0.0000, 0.0855, 0.0431, 0.0667, 0.0667, 0.0535, 0.0177 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0182, 0.0058, 0.0965, 0.0475, 0.0722, 0.0707, 0.0595, 0.0187 )
+
+
+Results for the different splits:
+Branch score 0.024391
+Geodesic distance 0.033973
+Cone distance 0.034259
+
+Results for all splits:
+Branch score 0.043535
+Geodesic distance 0.049543
+Cone distance 0.049740
+
+Complete graph enumerated: 2 path(s) found!
+
+Computation time for geodesic path: 0.0010 s
+
+--------------------------------------------------------------------------------
+
+The complete geodesic path:
+t	L	R
+0.000000	-	-
+0.411358	2/2	2/3
+0.584435	2/1	2/4
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,    1/1,    1/2,    1/3,    1/4,    1/5,   2/10,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0081, 0.0128, 0.0000, 0.0000, 0.0524, 0.1087, 0.1585, 0.0556, 0.2653, 0.0699, 0.0369, 0.0591, 0.0611, 0.0451, 0.0162 )
+g(0.4114) = ( 0.0024, 0.0000, 0.0000, 0.0000, 0.0685, 0.1601, 0.1641, 0.0375, 0.3678, 0.0808, 0.0413, 0.0645, 0.0651, 0.0510, 0.0172 )
+g(0.5844) = ( 0.0000, 0.0000, 0.0054, 0.0000, 0.0752, 0.1817, 0.1665, 0.0299, 0.4109, 0.0855, 0.0431, 0.0667, 0.0667, 0.0535, 0.0177 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0182, 0.0058, 0.0914, 0.2336, 0.1722, 0.0117, 0.5144, 0.0965, 0.0475, 0.0722, 0.0707, 0.0595, 0.0187 )
+
+Results for the different splits:
+Branch score 0.024391
+Geodesic distance 0.033973
+Decomposed cone distance 0.034259
+
+Results for all splits:
+Branch score 0.288440
+Geodesic distance 0.289407
+Decomposed cone distance 0.289441
+
+Complete graphs enumerated: with independent decompositions 2 path(s) found!
+
+Computation time for all geodesic paths: 0.0010 s

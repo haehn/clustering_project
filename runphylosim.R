@@ -3,7 +3,7 @@ library(phylosim)
 library(multicore)
 library(phangorn)
 PSIM_FAST=TRUE
-basetree <- rcoal(12,c("SE001","SE002","SE003","SE004","SE005","SE006","SE007","SE008","SE009","SE010","SE011","SE012"))
+basetree <- rcoal(13,c("SE001","SE002","SE003","SE004","SE005","SE006","SE007","SE008","SE009","SE010","SE011","SE012","SE013"))
 p <- WAG()
 s <- AminoAcidSequence(length=200, processes=list(list(p)))
 sampleStates(s)
@@ -29,10 +29,16 @@ sim.replicate <- function(i) {
 
 
 
-rep.size <- 5
+rep.size <- 6
 lower <- 1
 upper <- lower + rep.size - 1
 t <- rNNI(basetree,1)
+res.objects <- mclapply(lower:upper, sim.replicate)
+print(res.objects)
+
+lower <- upper + 1
+upper <- lower + rep.size - 1
+t <- rNNI(basetree,5)
 res.objects <- mclapply(lower:upper, sim.replicate)
 print(res.objects)
 

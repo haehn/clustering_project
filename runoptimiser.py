@@ -1,52 +1,56 @@
 #!/usr/bin/env python
 
-import glob,os,sys
+import argparse,glob,os,sys
 import numpy as np
 import dendropy as dpy
 from utility_functions import *
 from inference_functions import *
 from sequence_record import *
 
-##################################################################################################
+###################################################################################################
 
-command_line_args = handleArgs(sys.argv,help='''
-runml.py arguments:
-         -dna       = invokes GTRGAMMA model in RAxML (default is PROTGAMMAWAG)
-         -dir       = input directory
-         -v         = verbose (include spawned process stdout)
-         -q         = quiet mode: suppress (most) print statements
-         -trees     = directory to write gene trees to
-         -clusters  = path to write clusters to
-         -nclasses  = number of classes to cluster into
-         -distance  = sym, rf or euc - tree distance measures
-         -rand      = generate random cluster assignment
-''')
+#===========================================#
+# Get command line arguments with argparse #
+#=========================================#
 
-#Check command line arguments
+metrics = ['euc', 'rf', 'sym']
+linkages = ['average', 'complete', 'median', 'single', 'ward', 'weighted']
+parser = argparse.ArgumentParser(description='Optimise partitioning')
+parser.add_argument('-d',   '--directory',          dest='MSA_DIR',         type=fpath, default='./MSA',    metavar='DIRECTORY',    help='Path to MSA files')
+parser.add_argument('-t',   '--tree-directory',     dest='TREES_DIR',       type=fpath, default='./tr',     metavar='DIRECTORY',    help='Directory to save output tree files')
+parser.add_argument('-c',   '--cluster-directory',  dest='CLUSTER_DIR',     type=fpath, default='./cl',     metavar='DIRECTORY',    help='Directory to save output cluster files')
+parser.add_argument('-tmp', '--temp-directory',     dest='TEMP_DIR',        type=fpath, default='.',        metavar='DIRECTORY',    help='Directory to save temp files')
+parser.add_argument('-r',   '--results-directory',  dest='RESULTS_DIR',     type=fpath, default='./results',metavar='DIRECTORY',    help='Directory to save output result files')
+parser.add_argument('-n',   '--number-of-classes',  dest='nclasses',        type=int,   default=4,                                  help='Number of classes to partition into')
+parser.add_argument('-dist','--distance-measure',   dest='distance_metric', type=str,   default='sym',      choices = metrics,      help='Tree distance measure')
+parser.add_argument('-l',   '--linkage-type',       dest='linkage_type',    type=str,   default='ward',     choices = linkages,     help='Linkage criterion')
+parser.add_argument('-dna',                         dest='dna',             action='store_true',                                    help='Nucleotide data')
+parser.add_argument('-v',   '--verbose',            dest='verbose',         action='store_true',                                    help='Lots of printing to stdout')
+parser.add_argument('-q',   '--quiet',              dest='quiet',           action='store_true',                                    help='Not much printing to stdout')
+parser.add_argument('-s',   '--show',               dest='show',            action='store_true',                                    help='Plot dendrograms with pylab')
+parser.add_argument('-rand','--randomise',          dest='rand',            action='store_true',                                    help='Start with random partitioning')
+args = vars(parser.parse_args())
 
-INPUT_DIR               = check_args_filepath( "-dir", command_line_args, "./MSA" )
-OUT_DIR                 = check_args_filepath( "-trees", command_line_args, None )
-CLUSTER_DIR             = check_args_filepath( "-clusters", command_line_args, None ) 
-TMP_DIR                 = check_args_filepath( "-temp", command_line_args, "./" )
-RESULTS_DIR             = check_args_filepath( "-results", command_line_args, None )
-dna                     = check_args_bool('-dna', command_line_args)
-verbose                 = check_args_bool('-v', command_line_args)
-show                    = check_args_bool('-show', command_line_args)
-randomise_clustering    = check_args_bool('-rand', command_line_args) 
-quiet                   = check_args_bool('-q', command_line_args)
-nclasses                = int(check_args_value('-nclasses', command_line_args, 4 ))
-matrix_type             = check_args_value('-m', command_line_args, 'sym')
-linkage_type            = check_args_value('-l', command_line_args, 'ward')
-if quiet: show = False
-try:    
-    assert nclasses >= 1
-    assert matrix_type in ["rf","euc","sym"]
-    assert linkage_type in ["average","single","complete","ward","weighted","centroid","median"]
-except: sys.exit(1)
+MSA_DIR         = args['MSA_DIR']
+TREES_DIR       = args['TREES_DIR']
+CLUSTER_DIR     = args['CLUSTER_DIR']
+TEMP_DIR        = args['TEMP_DIR']
+RESULTS_DIR     = args['RESULTS_DIR']
+nclasses        = args['nclasses']
+distance_metric = args['distance_metric']
+linkage_type    = args['linkage_type']
+dna             = args['dna']
+verbose         = args['verbose']
+quiet           = args['quiet']
+show            = args['show']
+rand            = args['rand']
 
-##################################################################################################
+for each in [TREES_DIR, CLUSTER_DIR, TEMP_DIR, RESULTS_DIR]:
+    if not os.path.isdir(each): os.mkdir(each)
 
-fasta_files = get_alignments(INPUT_DIR) # we'll need access to the sequence alignments (fasta format)
+###################################################################################################
+
+fasta_files = get_alignments(MSA_DIR) # we'll need access to the sequence alignments (fasta format)
 names = [x[x.rindex("/")+1:x.rindex(".")] for x in fasta_files]
 
 if not quiet: print "OBTAINING GENE TREES"
@@ -54,7 +58,7 @@ if not quiet: print "OBTAINING GENE TREES"
 gene_trees = []
 
 for fasta in fasta_files:
-    sanitise_fasta(fasta)
+    sanitise_fasta(fasta) # Reorders sequences into alphabetical order, and replaces whitespace with underscores
     prefix      = fasta[:fasta.rindex(".")]
     name        = prefix[prefix.rindex("/")+1:]
     dv          = prefix+"_dv.txt"
@@ -70,15 +74,15 @@ for fasta in fasta_files:
         if not quiet: print "Making TreeCollection input files for {0}...".format(fasta)
         populate_dv_from_fasta(fasta,datatype)       
               
-    if OUT_DIR:                                       # check for pre-calculated tree result
+    if TREES_DIR:                                       # check for pre-calculated tree result
         try: 
             tree = Inference_Result()
-            tree.read_from_file("{0}/{1}.tree".format(OUT_DIR,name))
+            tree.read_from_file("{0}/{1}.tree".format(TREES_DIR,name))
             if not quiet: print "Found pre-existing tree in output directory: {0}.tree".format( name )
         except IOError:
             if not quiet: print "Running TreeCollection on {0}".format(dv)
             tree = run_treecollection(dv, map_file, labels, guide_tree, name)
-            tree.write_to_file( "{0}/{1}.tree".format(OUT_DIR,tree.name) )
+            tree.write_to_file( "{0}/{1}.tree".format(TREES_DIR,tree.name) )
     else: 
         if not quiet: print "Running TreeCollection on {0}".format(dv)
         tree = run_treecollection(dv, map_file, labels, guide_tree, name)
@@ -87,12 +91,13 @@ for fasta in fasta_files:
 
 """ Fourth: clustering """
 if not quiet: print "CLUSTERING GENE TREES"
-matrix = get_distance_matrix(gene_trees,matrix_type,normalise=True)
+matrix = get_distance_matrix(gene_trees,distance_metric,normalise=True)
 link = get_linkage(matrix,linkage_type)
-if randomise_clustering:
+if rand:
     clustering = list(np.random.randint(1,int(nclasses)+1,size=len(gene_trees)))
 else:
     clustering = cluster_linkage(link,nclasses,criterion='distance')
+t = cluster_linkage(link,nclasses,criterion='distance')
 if show: showplot(matrix, clustering, link, names, nclasses)
 print clustering
 
@@ -120,14 +125,18 @@ writer = open("{0}/result{1}.txt".format(RESULTS_DIR, suffix),'w')
 print "OPTIMISING"
 print '0', best_score, clustering
 
-
 global_best = (best_score, clustering)
 done_worse = 0
 stayed_put = 0
 i=0
+resets = 0
 while stayed_put < 10:
+    if resets == 4:
+        print "Reset limit reached ({0})".format(resets)
+        break
     if done_worse == 5:
         print "wandered off, resetting..."
+        resets+=1
         done_worse = 0
         best_score = global_best[0]
         clustering = global_best[1]
@@ -136,8 +145,6 @@ while stayed_put < 10:
     #     print 'stayed put 10 times, exitting...'
     #     break
     assignments   = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
-    print assignments
-    sys.exit()
     cluster_trees = get_cluster_trees(CLUSTER_DIR, quiet=True)
     best_score    = sum([float(tr.score) for tr in cluster_trees])
     cluster_files = glob.glob("{0}/*".format(CLUSTER_DIR))
@@ -145,7 +152,7 @@ while stayed_put < 10:
         os.remove(fi)
 
     clustering, best_score=optimise_sample_rf(clustering, gene_trees,\
-        cluster_trees, len(gene_trees)/2, len(gene_trees)/2, INPUT_DIR,\
+        cluster_trees, len(gene_trees)/2 ,len(gene_trees)/10, MSA_DIR,\
         CLUSTER_DIR, fasta_files, best_score, greedy=False)
 
     if best_score < global_best[0]:
@@ -158,8 +165,8 @@ while stayed_put < 10:
     else:
         stayed_put = 0
         done_worse += 1
-    print i+1, best_score, clustering
-    writer.write("{0} {1} {2}\n".format(i+1, best_score, clustering))
+    print i+1, best_score, sc(clustering,t)
+    writer.write("{0} {1} {2}\n".format(i+1, best_score, sc(clustering,t)))
     i+=1
 writer.close()
 #assignments = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
@@ -170,4 +177,13 @@ print "Best clustering: {0}".format(global_best[1])
 
 for tr in cluster_trees:
     tr.write_to_file("{0}/{1}.tree".format(CLUSTER_DIR, tr.name))
+
+# pl<-function(df) {
+#       plot(df[,1],df[,2],type='l',col='black',lwd=4)
+#       par(new=T)
+#       plot(df[,1],df[,3],type='l',col='blue',lwd=1,yaxt='n')
+#       axis(4)
+#       mtext('',side=4,line=3,font=2)
+#       par(new=F)
+# }
         

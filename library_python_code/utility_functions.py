@@ -1,58 +1,19 @@
 #!/usr/bin/env 
 
-def handleArgs(argv,help="no arguments given\n"):
-    import sys # N.B. implicitly sys should already be loaded in order to use this function
-    """ argv = sys.argv, i.e a list of commandline arguments, 
-        with -a -b type flags
-        It returns a dictionary in which flags are keys and their following arguments
-        are values. If a flag is not followed by a value the dictionary stores 'None'
-        Flags can be given in any order, and repetition overwrites
+def fpath(s):
     """
-    if len(argv) < 2: 
-        print help
-        sys.exit()
-            
-    argv = argv[1:]
-    flagDic = {}
-    for i in range(len(argv)):
-        if argv[i].startswith("-"):
-            try: 
-                if not argv[i+1].startswith("-"): 
-                    flagDic[argv[i]] = argv[i+1]
-                else: flagDic[argv[i]] = None
-            except IndexError: flagDic[argv[i]] = None
-    return flagDic
-
-def check_args_filepath( arg, argDic, alternative ):
-    import os
-    if arg in argDic: 
-        if argDic[arg]:
-            filepath = argDic[arg]
-            while filepath.endswith("/"): filepath = filepath[:-1] # Trim off trailing "/"s
-        else: filepath = alternative
-    else: filepath = alternative
-    if filepath:  
-        if not os.path.isdir( filepath):
-            os.mkdir( filepath )
-    return filepath
-
-def check_args_bool( arg, argDic ):
-    if arg in argDic: 
-        return True
-    else:
-        return False
-
-def check_args_value( arg, argDic, alternative ):
-    if arg in argDic: 
-        if argDic[arg]:
-            value = argDic[arg]
-        else: value = alternative
-    else: value = alternative
-    return value
+    Helper function used when passing filepath arguments with argparse module.
+        Trims all '/' characters from the end of the path string,
+        and creates the directory if it doesn't already exist
+    """
+    while s.endswith('/'):
+        s = s[:-1]
+    return s
 
 def pam2sps(tree_file, conversion, outfile=None):
     """ Take in a newick file, change branch lengths by factor 100, write output file
-        (i.e. convert between PAM units and substitutions per site) """
+        (i.e. convert between PAM units and substitutions per site)
+    """
     import re
     reg_ex = re.compile('(?<=:)[0-9.]+')
     convert_pam_to_sps = lambda a: str(0.01*float(a.group()))
@@ -72,8 +33,9 @@ def pam2sps(tree_file, conversion, outfile=None):
     else: print output_string
 
 def get_alignments(input_dir, format='fasta'):
-    # Returns a list of fasta files in a given directory (provided the file extension is .fa or .fas)
-    # Doesn't allow for a mix of .fa and .fas
+    """ Returns a list of fasta files in a given directory (provided the file extension is .fa or .fas)
+    Doesn't allow for a mix of .fa and .fas
+    """
     import glob
     if format=='fasta':
         fasta_files = glob.glob( "{0}/*.fa".format(input_dir) )
@@ -87,7 +49,8 @@ def get_alignments(input_dir, format='fasta'):
     else: return []
 
 def get_gene_trees(input_dir):
-    # Returns a list of Inference_Result objects from files in input_dir
+    """ Returns a list of Inference_Result objects from files in input_dir
+    """
     import glob, inference_functions
     result_files = glob.glob( "{0}/*.tree".format(input_dir) ) # using file ext '.tree' for Inference_Result objects (also standard newick compatible)
     for result_file in result_files:
@@ -96,11 +59,18 @@ def get_gene_trees(input_dir):
         yield result
 
 def populate_phylip_from_fasta(fastafile):
-    import sequence_record
+    """ File format converter from fasta to (sequential) phylip
+    """
+    import sequence_record as sr
     phylip_name = fastafile[:fastafile.rindex(".")] + ".phy"
-    sequence_record.get_fasta_file(fastafile).write_phylip(phylip_name)
+    sr.get_fasta_file(fastafile).write_phylip(phylip_name)
 
 def sanitise_fasta(fasta):
+    """ Sorts fasta entries into alphabetical order,
+        Trims leading spaces in sequence headers,
+        Replaces spaces with underscores.
+        (It upsets some programs if sequences are not all presented in the same order, or with spaces in the wrong places)
+    """
     import sequence_record as sr
     s = sr.get_fasta_file(fasta)
     s.sort_by_name()
@@ -113,6 +83,13 @@ def sanitise_fasta(fasta):
     s.write_fasta(fasta)
 
 def populate_dv_from_fasta(fastafile, datatype, helper="./library_darwin_code/TC_wrapper.drw", fpath="./"):
+    """ Calls darwin to calculate a distance-variance matrix from a fasta alignment.
+        The darwin script is TC_wrapper.drw, which writes outfiles containing:
+            1: the dv matrix
+            2: the map file - mapping sequences to taxon labels
+            3: the taxon labels
+            4: the least squares tree
+    """
     import os, re
     from subprocess import Popen, PIPE
     if not fpath.endswith("/"): fpath += "/"
@@ -129,13 +106,12 @@ def populate_dv_from_fasta(fastafile, datatype, helper="./library_darwin_code/TC
     os.rename( "temp_labels.txt", prefix+"_labels.txt")
     os.rename( "temp_tree.nwk", prefix+"_guidetree.nwk")
     return score, tree, labels
-
-############
-# Concatenating TreeCollection input files:
-# Two helper functions and the main one
     
 def concatenate_dvs(distvar_files, map_files, labels, tree, outprefix=None):
-    
+    """ Concatenates distance-variance matrices into a form TreeCollection can use.
+        Also concatenates the map files, and produces label and tree files.
+        No darwin call required.
+    """
     def _parse_dv(distvar_file):
         raw = [line.rstrip() for line in open(distvar_file).readlines()]
         while '' in raw: raw.remove('')
@@ -187,12 +163,11 @@ def concatenate_dvs(distvar_files, map_files, labels, tree, outprefix=None):
         open(labels_out,'w').write(labelsstring)
         open(tree_out,'w').write(treestring)
 
-############
-
 def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False):
+    """ all pairwise distances between trees in list: 'trees'
+    """
     import numpy as np
     import dendropy as dpy
-    """ all pairwise distances between trees in list: 'trees' """
     np.set_printoptions(precision=2,linewidth=200)
     num_trees = len(trees)
     matrix = np.zeros( (num_trees,num_trees),dtype='float' )
@@ -248,6 +223,10 @@ def cluster_linkage(link, threshold, criterion="maxclust"):
     T = fcluster(link, threshold, criterion=criterion)
 
     return T
+
+#========================================================#
+# Probably everything from here onwards can be improved #
+#======================================================#
 
 def assign_to_clusters(msa_files, T,output_dir=None):
     import sequence_record as sr
@@ -528,5 +507,87 @@ def optimise_sample_rf(clustering, gene_trees, cluster_trees, sample_size, max_r
             os.system( "rm {0}/*".format(CLUSTER_DIR) )
             assignments = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
             return clustering, best_score
+
+def optimise_sample_rf_ordered(clustering, gene_trees, cluster_trees, sample_size, max_reassignments, INPUT_DIR, CLUSTER_DIR, fasta_files, best_score, greedy=False):
+    import copy, os, random,sys
+    new_clustering = copy.copy(clustering)
+    dic = {}
+    sample = random.sample(range(len(gene_trees)), sample_size)
+    for i in sample:
+        test_tree = gene_trees[i]
+        belongs_to = clustering[i]
+        scores = []
+        for j in range(len(cluster_trees)):
+            topology = cluster_trees[j].tree
+            score = compute_robinson_foulds(test_tree.tree, topology)
+            scores.append( score )
+        moves_to = (choice(probs(scores)),min(scores))
+        #print scores, probs(scores)
+        if belongs_to != moves_to[0]:
+            dic[i] = moves_to
+    #for k in random.sample(dic.keys(),min(max_reassignments,len(dic))):
+    #    new_clustering[k] = dic[k]
+    moves = sorted(dic.items(), key = lambda tup: tup[1][1])
+    #print moves
+
+    for k in range(min(max_reassignments,len(moves))):
+        new_group = moves[k][0]
+        new_clustering[new_group] = moves[k][1][0]
+    assignments = assign_to_clusters_optimiser(fasta_files, new_clustering, CLUSTER_DIR)
+    new_cluster_trees = get_cluster_trees(CLUSTER_DIR, quiet=True)
+    new_score = sum([float(tr.score) for tr in new_cluster_trees])
+    
+    # Acceptance decision
+    if greedy:
+        if new_score < best_score: # greedy
+            return new_clustering, new_score
+        else:
+            os.system( "rm {0}/*".format(CLUSTER_DIR) )
+            assignments = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
+            return clustering, best_score
+        
+    else:
+        if random.random() > (new_score / (new_score + best_score)): # stochastic
+            return new_clustering, new_score
+        else:
+            os.system( "rm {0}/*".format(CLUSTER_DIR) )
+            assignments = assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
+            return clustering, best_score
+
+
+def sc(c, t):
+    from itertools import permutations
+    import random, string
+    c = list(c)
+    t = list(t)
+    def perms(t):
+        if type(t)==type([1]):
+            t = ''.join([str(x) for x in t])
+        a = string.lowercase
+        s = sorted(list(set([str(item) for item in t])))
+        d = dict(zip(s,a))
+        per = [list(x) for x in permutations(s)]
+        sub = ''.join([str(item) for item in t])
+        for x in s:
+            sub=sub.replace(x,d[x])
+        l=[]
+        for poss in per:
+            d2 = dict(zip(a,poss))
+            new = sub
+            for x in poss:
+                new = new.replace(d[x],d2[d[x]])
+            l.append(new)
+        l= [ list(x) for x in l]
+        return l
+    
+    def comp(l,l2):
+        score=0
+        for (x,y) in zip(l,l2):
+            if x != y : score+=1
+        return score
+
+    if type(c)==type([1]):
+        c = ''.join([str(x) for x in c])
+    return min(map(comp, [c]*len(perms(t)), perms(t)))
 
 ##################################################################################################

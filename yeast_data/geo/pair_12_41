@@ -1,0 +1,121 @@
+Output of GeoMeTree v1.0
+
+2 Trees of 8 taxa given:
+T1=(((((Scer:0.0436976,Spar:0.0363024):0.0190934,Smik:0.0698469):0.0153411,(Skud:0.060143,Sbay:0.075857):0.0104824):0.0758714,Scas:0.165345):0.0125753,(Calb:0.40967,Sklu:0.17233):0.0125753);
+T2=((((((Scer:0.0595007,Spar:0.0474993):0.0187251,Skud:0.0707168):0.00577251,Smik:0.072157):0.0182499,Sbay:0.0965307):0.0914178,Scas:0.17221):0.00586058,(Calb:0.514447,Sklu:0.233553):0.00586058);
+
+Trees have been decomposed at common splits, the following dummy taxa are used:
+d1	Sbay*Scer*Skud*Smik*Spar
+d2	Scas*Calb*Sklu
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 1:
+
+Splits only in T1:
+
+Splits only in T2:
+
+Splits common to both trees and branch length in T1 and T2:
+1/1	d1	0.075871	0.091418
+1/2	Sklu	0.172330	0.233553
+1/3	Scas	0.165345	0.172210
+1/4	Calb*Sklu	0.025151	0.011721
+1/5	Calb	0.409670	0.514447
+
+The geodesic path:
+There are no different splits, it equals the branch score.
+
+Transition points:
+Splits:     (    1/1,    1/2,    1/3,    1/4,    1/5 )
+g(0.0000) = ( 0.0759, 0.1723, 0.1653, 0.0252, 0.4097 )
+g(1.0000) = ( 0.0914, 0.2336, 0.1722, 0.0117, 0.5144 )
+
+
+Results for all splits:
+Branch score 0.123271
+Geodesic distance 0.123271
+Cone distance 0.123271
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0000 s
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 2:
+
+Splits only in T1:
+2/1	Sbay*Skud*d2	0.015341
+2/2	Sbay*Skud	0.010482
+
+Splits only in T2:
+2/3	Sbay*d2	0.018250
+2/4	Sbay*Smik*d2	0.005773
+
+Splits common to both trees and branch length in T1 and T2:
+2/5	Spar	0.036302	0.047499
+2/6	Smik	0.069847	0.072157
+2/7	Skud	0.060143	0.070717
+2/8	Scer	0.043698	0.059501
+2/9	Scer*Spar	0.019093	0.018725
+2/10	Sbay	0.075857	0.096531
+
+The geodesic path:
+t	L	R
+0.000000	-	-
+0.364830	2/2	2/3
+0.726598	2/1	2/4
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,   2/10,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0153, 0.0105, 0.0000, 0.0000, 0.0759, 0.0363, 0.0698, 0.0601, 0.0437, 0.0191 )
+g(0.3648) = ( 0.0076, 0.0000, 0.0000, 0.0000, 0.0834, 0.0404, 0.0707, 0.0640, 0.0495, 0.0190 )
+g(0.7266) = ( 0.0000, 0.0000, 0.0104, 0.0000, 0.0909, 0.0444, 0.0715, 0.0678, 0.0552, 0.0188 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0182, 0.0058, 0.0965, 0.0475, 0.0722, 0.0707, 0.0595, 0.0187 )
+
+
+Results for the different splits:
+Branch score 0.026676
+Geodesic distance 0.035656
+Cone distance 0.037721
+
+Results for all splits:
+Branch score 0.040391
+Geodesic distance 0.046809
+Cone distance 0.048401
+
+Complete graph enumerated: 2 path(s) found!
+
+Computation time for geodesic path: 0.0012 s
+
+--------------------------------------------------------------------------------
+
+The complete geodesic path:
+t	L	R
+0.000000	-	-
+0.364830	2/2	2/3
+0.726598	2/1	2/4
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,    1/1,    1/2,    1/3,    1/4,    1/5,   2/10,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0153, 0.0105, 0.0000, 0.0000, 0.0759, 0.1723, 0.1653, 0.0252, 0.4097, 0.0759, 0.0363, 0.0698, 0.0601, 0.0437, 0.0191 )
+g(0.3648) = ( 0.0076, 0.0000, 0.0000, 0.0000, 0.0815, 0.1947, 0.1678, 0.0203, 0.4479, 0.0834, 0.0404, 0.0707, 0.0640, 0.0495, 0.0190 )
+g(0.7266) = ( 0.0000, 0.0000, 0.0104, 0.0000, 0.0872, 0.2168, 0.1703, 0.0154, 0.4858, 0.0909, 0.0444, 0.0715, 0.0678, 0.0552, 0.0188 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0182, 0.0058, 0.0914, 0.2336, 0.1722, 0.0117, 0.5144, 0.0965, 0.0475, 0.0722, 0.0707, 0.0595, 0.0187 )
+
+Results for the different splits:
+Branch score 0.026676
+Geodesic distance 0.035656
+Decomposed cone distance 0.037721
+
+Results for all splits:
+Branch score 0.129719
+Geodesic distance 0.131859
+Decomposed cone distance 0.132432
+
+Complete graphs enumerated: with independent decompositions 2 path(s) found!
+
+Computation time for all geodesic paths: 0.0012 s
