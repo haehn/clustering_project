@@ -45,6 +45,7 @@ class Inference_Result(object):
                 elif line[0] == "Tree:": self.tree = line[1]
                 elif line[0] == "Score:": self.score = line[1]
         except IndexError: return
+        return self
             
     def write_to_file(self, outfile):
         writer = open(outfile,'w')

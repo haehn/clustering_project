@@ -23,6 +23,7 @@ parser.add_argument('-g','--genes', help='Number of genes per class', nargs='*',
 parser.add_argument('-r','--rates', help='Tree length per class (PAM units)', nargs='*', default=[])
 parser.add_argument('-d','-dir','--directory', help='Base output directory', type=fpath, default='.')
 parser.add_argument('-tmp','--temp-directory', help='Directory to use for temp files', type=fpath, default='./alftmp')
+parser.add_argument('-q','--quiet',dest='quiet',action='store_true',help='Not much printing to stdout')
 args = vars(parser.parse_args())
 
 # Do some tidying up
@@ -40,6 +41,9 @@ OUT_DIR = args['directory']
 TEMP_DIR = args['temp_directory']
 MSA_path = fpath("{0}/MSA".format(OUT_DIR))
 tree_path = fpath("{0}/trees".format(OUT_DIR))
+quiet = args['quiet']
+for each in [OUT_DIR, TEMP_DIR, MSA_path, tree_path]:
+    if not os.path.isdir(each): os.mkdir(each)
 
 ####################################################################################################
 
@@ -52,7 +56,7 @@ for i in range(C):
     write_ALF_parameters(simulation_name='class{0}'.format(i+1), experiment_directory=TEMP_DIR, simulation_directory='', number_of_genes=G[i], min_gene_length=250, number_of_species=S, mutation_rate=R[i], indels=True, output_filename='{0}/class{1}-params.drw'.format(OUT_DIR,i+1))   
 
     #Run simulation
-    run_ALF('{0}/class{1}-params.drw'.format(OUT_DIR,i+1))
+    run_ALF('{0}/class{1}-params.drw'.format(OUT_DIR,i+1),quiet)
 
     #Gather MSA files
     class_path = './{0}/class{1}/MSA'.format(TEMP_DIR,i+1)
@@ -76,3 +80,10 @@ for i in range(C):
     shutil.rmtree("./{0}/".format(TEMP_DIR))
 
 ####################################################################################################
+
+true_clustering = open("./{0}/true_clustering".format(MSA_path),"w")
+for i in range(len(G)):
+    for j in range(G[i]):
+        true_clustering.write(str(i+1)+" ")
+true_clustering.close()
+

@@ -34,11 +34,13 @@ class Unaligned_Sequence_Record(object):
         h, s = zip(*sorted(zip(self.headers,self.sequences), key = lambda item: len(item[1]),reverse=True))
         self.headers = h
         self.sequences = s
+        return self
 
     def sort_by_name(self):
         h, s = zip(*sorted(zip(self.headers,self.sequences)))
         self.headers = h
         self.sequences = s
+        return self
 
     def write_fasta(self,outfile="stdout",print_to_screen=False):
         lines = [">{0}\n{1}".format(h,seq) for h,seq in zip(self.headers,self.sequences)]
@@ -104,6 +106,7 @@ class Aligned_Sequence_Record(Unaligned_Sequence_Record):
         h, s = zip(*sorted(zip(self.headers,self.sequences), key = lambda item: len(item[1].replace('-','')),reverse=True))
         self.headers = h
         self.sequences = s
+        return self
  
 ############################################################################################################################# 
 

@@ -3,8 +3,7 @@
 def fpath(s):
     """
     Helper function used when passing filepath arguments with argparse module.
-        Trims all '/' characters from the end of the path string,
-        and creates the directory if it doesn't already exist
+        Trims all '/' characters from the end of the path string.
     """
     while s.endswith('/'):
         s = s[:-1]
@@ -34,7 +33,8 @@ def pam2sps(tree_file, conversion, outfile=None):
 
 def get_alignments(input_dir, format='fasta'):
     """ Returns a list of fasta files in a given directory (provided the file extension is .fa or .fas)
-    Doesn't allow for a mix of .fa and .fas
+        Doesn't allow for a mix of .fa and .fas
+        Also collects TreeCollection distance-variance matrix file if format == 'dv'
     """
     import glob
     if format=='fasta':
@@ -49,13 +49,13 @@ def get_alignments(input_dir, format='fasta'):
     else: return []
 
 def get_gene_trees(input_dir):
-    """ Returns a list of Inference_Result objects from files in input_dir
+    """ Returns a generator of Inference_Result objects from files in input_dir
     """
     import glob, inference_functions
     result_files = glob.glob( "{0}/*.tree".format(input_dir) ) # using file ext '.tree' for Inference_Result objects (also standard newick compatible)
     for result_file in result_files:
-        result = inference_functions.Inference_Result()
-        result.read_from_file(result_file)
+        result = inference_functions.Inference_Result().read_from_file(result_file)
+        #result.read_from_file(result_file)
         yield result
 
 def populate_phylip_from_fasta(fastafile):
@@ -163,7 +163,7 @@ def concatenate_dvs(distvar_files, map_files, labels, tree, outprefix=None):
         open(labels_out,'w').write(labelsstring)
         open(tree_out,'w').write(treestring)
 
-def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False):
+def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False, tmpdir="."):
     """ all pairwise distances between trees in list: 'trees'
     """
     import numpy as np
@@ -171,25 +171,49 @@ def get_distance_matrix(trees, matrix_type="sym", invert=False, normalise=False)
     np.set_printoptions(precision=2,linewidth=200)
     num_trees = len(trees)
     matrix = np.zeros( (num_trees,num_trees),dtype='float' )
-    taxa = dpy.TaxonSet()
-    dpytrees = [dpy.Tree.get_from_string(tree.tree,'newick',taxon_set=taxa) for tree in trees]
-    for i in range(num_trees):
-        for j in range(i+1,num_trees):
-            if matrix_type == 'rf':
-                matrix[i][j]=matrix[j][i]=dpytrees[i].robinson_foulds_distance(dpytrees[j])
-            elif matrix_type == 'sym':
-                matrix[i][j]=matrix[j][i]=dpytrees[i].symmetric_difference(dpytrees[j])
-            elif matrix_type == 'euc':
-                matrix[i][j]=matrix[j][i]=dpytrees[i].euclidean_distance(dpytrees[j])
+    if matrix_type=="geo":
+        matrix = geometree_matrix(trees, tmpdir)
+    else:
+        taxa = dpy.TaxonSet()
+        dpytrees = [dpy.Tree.get_from_string(tree.tree,'newick',taxon_set=taxa) for tree in trees]
+        for i in range(num_trees):
+            for j in range(i+1,num_trees):
+                if matrix_type == 'rf':
+                    matrix[i][j]=matrix[j][i]=dpytrees[i].robinson_foulds_distance(dpytrees[j])
+                elif matrix_type == 'sym':
+                    matrix[i][j]=matrix[j][i]=dpytrees[i].symmetric_difference(dpytrees[j])
+                elif matrix_type == 'euc':
+                    matrix[i][j]=matrix[j][i]=dpytrees[i].euclidean_distance(dpytrees[j])
 
-    if invert and matrix_type == 'sym':
-        max_symdiff = 2 * (len(taxa) - 3)
-        matrix = max_symdiff - matrix
+        if invert and matrix_type == 'sym':
+            max_symdiff = 2 * (len(taxa) - 3)
+            matrix = max_symdiff - matrix
 
     if normalise:
         matrix = matrix / np.max(matrix)
   
     return matrix
+
+def geometree_matrix(trees, tmpdir):
+    import glob,os,re
+    import numpy as np
+    r = re.compile("(?<=Geodesic distance )(\d+\.\d+)")
+    num_trees = len(trees)
+    matrix = np.zeros( (num_trees,num_trees),dtype='float' )
+    tmpfile = open("{0}/geometree_input_trees.txt".format(tmpdir),'w')
+    for tree in trees: tmpfile.write(tree.tree+"\n")
+    tmpfile.flush()
+    tmpfile.close()
+    os.system("GeoMeTree.py -f {0}/geometree_input_trees.txt -v {0}/pair".format(tmpdir))
+    for fi in glob.glob("{0}/pair*".format(tmpdir)):
+        tree1 = int(fi.split('_')[-2])-1
+        tree2 = int(fi.split('_')[-1])-1
+        score = r.findall(open(fi).read())[-1]
+        matrix[tree1][tree2] = matrix[tree2][tree1] = float(score)
+        os.remove(fi)
+    os.remove("{0}/geometree_input_trees.txt".format(tmpdir))
+    return matrix
+
 
 def get_linkage(matrix, linkage_method="ward"):
     """ Linkage methods are: single, complete, average, ward """
@@ -223,6 +247,29 @@ def cluster_linkage(link, threshold, criterion="maxclust"):
     T = fcluster(link, threshold, criterion=criterion)
 
     return T
+
+
+def order(l,num=1):
+    """ The clustering returned by the hcluster module gives group membership without regard for numerical order 
+        This function preserves the group membership, but sorts the labelling into numerical order
+    """
+    # base case 
+    if num >= max(l): return l
+    # recursion on num
+    else:
+        outl = []
+        change_places = None  
+        for i in range(len(l)):
+            if l[i] < num: 
+                outl.append(l[i])
+            else:
+                change_places = l[i]
+                break
+        for j in range(i,len(l)):
+            if l[j] == change_places: outl.append(num)
+            elif l[j] == num: outl.append(change_places)
+            else: outl.append(l[j])
+        return order(outl,num+1)
 
 #========================================================#
 # Probably everything from here onwards can be improved #
@@ -292,6 +339,9 @@ def assign_to_clusters_optimiser(msa_files, T, output_dir=None):
     return assignments
 
 def calc_distinct_groups(matrix):
+    """ 'Matrix' parameter is a numpy array, or python list of lists
+        NOT a numpy matrix (indexing works differently)
+    """
     nclusters = len(matrix)
     indices = range(nclusters)
     for i in range(nclusters):
@@ -556,6 +606,8 @@ def optimise_sample_rf_ordered(clustering, gene_trees, cluster_trees, sample_siz
 
 
 def sc(c, t):
+    """ DON'T USE THIS FOR LARGE NUMBERS OF GROUPS (e.g. >10) AS IT SCALES BY FACTORIAL(GROUPS)
+    """
     from itertools import permutations
     import random, string
     c = list(c)
@@ -590,4 +642,62 @@ def sc(c, t):
         c = ''.join([str(x) for x in c])
     return min(map(comp, [c]*len(perms(t)), perms(t)))
 
+def comp(l,l2):
+        score=0
+        for (x,y) in zip(l,l2):
+            if x != y : score+=1
+        return score
+        
 ##################################################################################################
+
+""" Functions to calculate Variation of Information Metric between two clusterings of the 
+    same data - SEE Meila, M. (2007). Comparing clusterings: an information based distance. 
+    Journal of Multivariate Analysis, 98(5), 873-895. doi:10.1016/j.jmva.2006.11.013 """
+
+def make_clustering(l):
+    clusters = list(set(l))
+    result = []
+    for c in clusters:
+        cluster_k = []
+        for i in range(len(l)):
+            if c==l[i]:
+                cluster_k.append(i)
+        result.append(set(cluster_k))
+    return result
+
+def probability_distribution(l):
+    cl = make_clustering(l)
+    total = float(len(l))
+    return [ len(x)/total for x in cl ]
+
+def entropy(l):
+    from math import log
+    pd = probability_distribution(l)
+    return abs(sum([x*log(x,2) for x in pd]))
+
+def mutual_information(t,f):
+    # Note: Proof that 0*log(0)=0, by L'hopital's rule on limits:
+    # lim (x->c) f(x)/g(x) = lim(x->c) f'(x)/g'(x)
+    # Rewrite xlog(x) as log(x) / 1/x
+    # if f(x) = log(x) and g(x) = 1/x, then xlog(x) = f(x)/g(x)
+    # Also f'(x) = 1/x and g'(x) = -1/x^2 
+    # In the limit (x->0): xlog(x) = 1/x / -1/x^2 = -x, and -x -> 0
+    from math import log
+    ct = make_clustering(t)
+    cf = make_clustering(f)
+    lt = len(ct)
+    lf = len(cf)
+    m = float(len(t)) # enforce float division later
+    s = 0
+    for i in range(lt):
+        for j in range(lf):
+            intersect = len(ct[i] & cf[j])
+            if intersect == 0: 
+                continue # because 0 * log(0) = 0 (lim x->0: xlog(x)->0)
+            else: 
+                s += (intersect/m)*log(m*intersect/(len(ct[i])*len(cf[j])),2)
+    return s
+
+def variation_of_information(t,f): 
+    return entropy(t)+entropy(f)-2*mutual_information(t,f)
+

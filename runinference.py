@@ -13,7 +13,7 @@ from sequence_record import *
 # Get command line arguments with argparse #
 #=========================================#
 
-metrics  = ['euc', 'rf', 'sym']
+metrics  = ['euc', 'rf', 'sym', 'geo']
 linkages = ['average', 'complete', 'median', 'single', 'ward', 'weighted']
 programs = ["raxml", "phyml", "treecollection"]
 parser = argparse.ArgumentParser(description='Optimise partitioning')
@@ -153,12 +153,12 @@ for fasta in fasta_files:
 """ Fourth: clustering """
 if not quiet: print "CLUSTERING GENE TREES"
 
-matrix = get_distance_matrix(gene_trees,distance_metric,normalise=True)
+matrix = get_distance_matrix(gene_trees,distance_metric,normalise=True, tmpdir=TEMP_DIR)
 link = get_linkage(matrix,linkage_type)
 if rand:
-    clustering = list(np.random.randint(1,int(nclasses)+1,size=len(gene_trees)))
+    clustering = order(list(np.random.randint(1,int(nclasses)+1,size=len(gene_trees))))
 else:
-    clustering = cluster_linkage(link,nclasses,criterion='distance')
+    clustering = order(cluster_linkage(link,nclasses,criterion='distance'))
 if show: showplot(matrix, clustering, link, names, nclasses)
 assignments = assign_to_clusters(phylip_files, clustering, CLUSTER_DIR)
 
@@ -251,6 +251,12 @@ groups = calc_distinct_groups(cl_matrix)
 
 """ Fifth: generate some stats """ #  - MESSY CODE
 print "STATS"
+if os.path.isfile("{0}/true_clustering".format(MSA_DIR)): 
+    print "Linkage: {0}\nMetric: {1}".format(linkage_type,distance_metric)
+    #if max(clustering) < 8: print "Misclassifications:", sc([str(x) for x in list(clustering)],open("{0}/true_clustering".format(MSA_DIR)).read().split())
+    VI = variation_of_information(clustering,open("{0}/true_clustering".format(MSA_DIR)).read().split())
+    print "Variation of Information: ", VI
+    # print order([str(x) for x in list(clustering)]),open("{0}/true_clustering".format(MSA_DIR)).read().split()
 print "Method: ", program
 gtdict = {}                  # Use tree name to pull out tree object
 for tree in gene_trees:
@@ -265,8 +271,9 @@ for key in assignments:
     
     # Get average within cluster difference
     dm = get_distance_matrix(trees)
-    triu = np.triu_indices(len(dm),1)
-    print "Mean, variance of all against all RF (topology) comparison: ",np.mean(dm[triu]), np.var(dm[triu])
+    if len(dm)>1: 
+        triu = np.triu_indices(len(dm),1)
+        print "Mean, variance of all against all RF (topology) comparison: ",np.mean(dm[triu]), np.var(dm[triu])
 
     # Get concat tree distance from true tree
     tr_tree = False
@@ -304,5 +311,11 @@ if len(cl_matrix) > 1:
     cluster_link = get_linkage(cl_matrix,"ward")
     cluster_clustering = cluster_linkage(cluster_link, groups, criterion="distance")
     if show: showplot(cl_matrix,cluster_clustering,cluster_link,cluster_names, groups)
+ 
+
+writer = open("{0}/result_{1}_{2}.txt".format(RESULTS_DIR, distance_metric, linkage_type),'a')
+writer.write("{0} {1}\n".format(VI, final_score))
+writer.flush()
+writer.close()
 
         

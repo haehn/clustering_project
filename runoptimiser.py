@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
+# Standard libraries
 import argparse,glob,os,sys
+# External libraries
 import numpy as np
 import dendropy as dpy
+# Own libraries
 from utility_functions import *
 from inference_functions import *
 from sequence_record import *
@@ -50,6 +53,10 @@ for each in [TREES_DIR, CLUSTER_DIR, TEMP_DIR, RESULTS_DIR]:
 
 ###################################################################################################
 
+#=================================================#
+# Read alignments and calculate individual trees #
+#===============================================#
+
 fasta_files = get_alignments(MSA_DIR) # we'll need access to the sequence alignments (fasta format)
 names = [x[x.rindex("/")+1:x.rindex(".")] for x in fasta_files]
 
@@ -88,8 +95,12 @@ for fasta in fasta_files:
         tree = run_treecollection(dv, map_file, labels, guide_tree, name)
     gene_trees.append( tree )
 
+###################################################################################################
 
-""" Fourth: clustering """
+#==========================================#
+# Cluster trees by topological similarity #
+#========================================#
+
 if not quiet: print "CLUSTERING GENE TREES"
 matrix = get_distance_matrix(gene_trees,distance_metric,normalise=True)
 link = get_linkage(matrix,linkage_type)
@@ -101,21 +112,27 @@ t = cluster_linkage(link,nclasses,criterion='distance')
 if show: showplot(matrix, clustering, link, names, nclasses)
 print clustering
 
-
-
 if not quiet: print "OBTAINING CLUSTER TREES"
 assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
 cluster_trees = get_cluster_trees(CLUSTER_DIR)
 best_score = sum([float(tr.score) for tr in cluster_trees])
 
+###################################################################################################
 
-
-"""
-By now there is a clustering list assigning each gene to a cluster, and a score associated with this clustering
-Can try to improve this clustering with optimise_clustering() function.
-
-"""
-
+#=========================================================#
+# Optimisation procedure:
+# STARTING POINT
+# - clustering is calculated by some means,
+#   partitioning genes into n clusters
+# - the 'best' tree is calculated for each cluster using
+#   info from each gene in the cluster
+# - cluster tree scores are summed - objective function
+# PROCEDURE
+# - a sample of genes are selected
+# - for each gene in the sample its individual topology
+#   is compared (RF) to the n cluster trees
+# - 
+#=======================================================#
  
 suffix = 0    
 while os.path.isfile("{0}/result{1}.txt".format(RESULTS_DIR, suffix)):

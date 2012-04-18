@@ -12,41 +12,6 @@ from sequence_record import *
 
 ##################################################################################################
 
-# command_line_args = handleArgs(sys.argv,help='''
-# runml.py arguments:
-#          -dna       = invokes GTRGAMMA model in RAxML (default is PROTGAMMAWAG)
-#          -dir       = input directory
-#          -v         = verbose (include spawned process stdout)
-#          -q         = quiet mode: suppress (most) print statements
-#          -trees     = directory to write gene trees to
-#          -clusters  = path to write clusters to
-#          -nclasses  = number of classes to cluster into
-#          -distance  = sym, rf or euc - tree distance measures
-#          -rand      = generate random cluster assignment
-# ''')
-
-# #Check command line arguments
-
-# MSA_DIR               = check_args_filepath( "-dir", command_line_args, "./MSA" )
-# TREES_DIR                 = check_args_filepath( "-trees", command_line_args, None )
-# CLUSTER_DIR             = check_args_filepath( "-clusters", command_line_args, None ) 
-# TEMP_DIR                 = check_args_filepath( "-temp", command_line_args, "./" )
-# RESULTS_DIR             = check_args_filepath( "-results", command_line_args, None )
-# dna                     = check_args_bool('-dna', command_line_args)
-# verbose                 = check_args_bool('-v', command_line_args)
-# show                    = check_args_bool('-show', command_line_args)
-# rand    = check_args_bool('-rand', command_line_args) 
-# quiet                   = check_args_bool('-q', command_line_args)
-# nclasses                = int(check_args_value('-nclasses', command_line_args, 4 ))
-# distance_metric             = check_args_value('-m', command_line_args, 'sym')
-# linkage_type            = check_args_value('-l', command_line_args, 'ward')
-# if quiet: show = False
-# try:    
-#     assert nclasses >= 1
-#     assert distance_metric in ["rf","euc","sym"]
-#     assert linkage_type in ["average","single","complete","ward","weighted","centroid","median"]
-# except: sys.exit(1)
-
 #===========================================#
 # Get command line arguments with argparse #
 #=========================================#
@@ -86,9 +51,7 @@ rand            = args['rand']
 for each in [TREES_DIR, CLUSTER_DIR, TEMP_DIR, RESULTS_DIR]:
     if not os.path.isdir(each): os.mkdir(each)
 
-#====#
-
-##################################################################################################
+###################################################################################################
 
 fasta_files = get_alignments(MSA_DIR) # we'll need access to the sequence alignments (fasta format)
 names = [x[x.rindex("/")+1:x.rindex(".")] for x in fasta_files]

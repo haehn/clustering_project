@@ -70,10 +70,13 @@ treeFile := '{0}'; '''.format( custom_tree )
     return alfsim_parameter_string
 
 
-def run_ALF(parameters):
+def run_ALF(parameters,quiet=False):
     """ Function to run ALF from parameter file """
     import os
     
     if os.path.isfile(parameters):
-        os.system("alfsim {0}".format(parameters))
+        if quiet: 
+            os.system("alfsim {0} > /dev/null 2> /dev/null".format(parameters))
+        else: 
+            os.system("alfsim {0}".format(parameters))
     else: print "Can't find file '{0}'".format(parameters)
