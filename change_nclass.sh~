@@ -1,0 +1,12 @@
+#!/bin/bash
+ODIR=../scratch/chclass$1
+../runsim.py -c 2 -s 4 -dir $ODIR
+for i in {10..1}; do
+    echo "../runquiet.py -dir $ODIR/MSA -program treecollection -trees $ODIR/tr -clusters $ODIR/cl -m sym -l ward -nclasses $i >> $ODIR/results.txt"
+#    ../runquiet.py -dir $ODIR/MSA -program treecollection -trees $ODIR/tr -clusters $ODIR/cl -m sym -l ward -nclasses $i >> $ODIR/results.txt
+    echo "rm $ODIR/tr/cluster*"
+#    rm $ODIR/tr/cluster*
+    echo "rm $ODIR/cl/*"
+#    rm $ODIR/cl/*
+done
+
