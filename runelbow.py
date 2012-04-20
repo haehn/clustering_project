@@ -116,14 +116,21 @@ while os.path.isfile("{0}/elbow{1}.txt".format(RESULTS_DIR, suffix)):
 writer = open("{0}/elbow{1}.txt".format(RESULTS_DIR, suffix),'w')
 
 while nclasses >= 1:
+    if os.path.isfile("{0}/true_clustering".format(MSA_DIR)): VI = variation_of_information(clustering,open("{0}/true_clustering".format(MSA_DIR)).read().split())
+    else: VI = None
     clustering = cluster_linkage(link,nclasses,criterion='distance')
     assign_to_clusters_optimiser(fasta_files, clustering, CLUSTER_DIR)
     cluster_trees = get_cluster_trees(CLUSTER_DIR, quiet=True)
     best_score = sum([float(tr.score) for tr in cluster_trees])
     cl_matrix = get_distance_matrix(cluster_trees,"sym")
     groups = calc_distinct_groups(cl_matrix)
-    print nclasses, groups, best_score
-    writer.write( "{0} {1} {2}\n".format(nclasses, groups, best_score))
+    
+    if VI: 
+        print nclasses, groups, best_score, VI
+        writer.write( "{0} {1} {2} {3}\n".format(nclasses, groups, best_score, VI))
+    else: 
+        writer.write( "{0} {1} {2}\n".format(nclasses, groups, best_score))
+        print nclasses, groups, best_score
     os.system( "rm {0}/*".format(CLUSTER_DIR))
     nclasses -= 1
 writer.close()
