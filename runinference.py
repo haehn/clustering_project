@@ -262,6 +262,7 @@ gtdict = {}                  # Use tree name to pull out tree object
 for tree in gene_trees:
     gtdict[tree.name]=tree
 
+index = 0
 for key in assignments:
     print "Cluster {0}\nSize: {1}\n{2}".format(key,len(assignments[key]), assignments[key])
     trees = []
@@ -299,7 +300,15 @@ for key in assignments:
     meancomps = []
     for dpytree in dpytrees:
         meancomps.append(dpytree.symmetric_difference(cl_tree))
-    print "Mean, variance of RF (topology) distance from concat tree: {0} {1}\n".format(np.mean(meancomps),np.var(meancomps))
+    print "Mean, variance of RF (topology) distance from concat tree: {0} {1}".format(np.mean(meancomps),np.var(meancomps))
+    print meancomps
+    
+    meancomps_tr = []
+    for tree in trees:
+            meancomps_tr.append(dpy.Tree().get_from_string(tree.tree,'newick').symmetric_difference(dpy.Tree().get_from_stream(open(true_trees[index]),'newick')))
+    print "Mean, variance of RF (topology) distance from true tree: {0} {1}\n".format(np.mean(meancomps_tr),np.var(meancomps_tr))
+    index += 1
+    print meancomps_tr
 
 # Get sum of likelihood scores
 individual_score = sum([float(tr.score) for tr in gene_trees])
