@@ -1,0 +1,70 @@
+
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+                                    ---  PhyML v3.0_360-500M  ---                                             
+                            http://www.atgc-montpellier.fr/phyml                                          
+                         Copyright CNRS - Universite Montpellier II                                 
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+
+
+. Sequence filename: 			YGL001C.phy
+
+. Data set: 				#1
+
+. Tree topology search : 		NNIs
+
+. Initial tree: 			BioNJ
+
+. Model of nucleotides substitution: 	GTR
+
+. Number of taxa: 			8
+
+. Log-likelihood: 			-5222.84155
+
+. Unconstrained likelihood: 		-4292.17121
+
+. Parsimony: 				996
+
+. Tree size: 				2.61071
+
+. Discrete gamma model: 		Yes
+  - Number of categories: 		4
+  - Gamma shape parameter: 		0.334
+
+. Nucleotides frequencies:
+
+  - f(A)= 0.30027
+  - f(C)= 0.17792
+  - f(G)= 0.21923
+  - f(T)= 0.30258
+
+. GTR relative rate parameters : 
+
+  A <-> C    2.04519
+  A <-> G    5.26526
+  A <-> T    1.35927
+  C <-> G    1.05031
+  C <-> T   10.59920
+  G <-> T    1.00000
+
+
+. Instantaneous rate matrix : 
+
+  [A---------C---------G---------T------]
+  -0.76732   0.14471   0.45905   0.16357  
+   0.24422  -1.61123   0.09157   1.27544  
+   0.62874   0.07432  -0.82339   0.12033  
+   0.16231   0.74995   0.08718  -0.99945  
+
+
+
+. Time used 0h0m6s
+
+
+. 6 seconds
+
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+ Suggested citation:
+ S. Guindon & O. Gascuel
+ "A simple, fast, and accurate algorithm to estimate large phylogenies by maximum likelihood"
+ Systematic Biology. 2003. 52(5):696-704.
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo

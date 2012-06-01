@@ -1,0 +1,116 @@
+Output of GeoMeTree v1.0
+
+2 Trees of 8 taxa given:
+T1=(((((Scer:0.0467185,Spar:0.0372815):0.00851061,Smik:0.0513187):0.0154981,(Skud:0.0520118,Sbay:0.0559882):0.00526055):0.0382308,Scas:0.104833):0.00389038,(Calb:0.15077,Sklu:0.10923):0.00389038);
+T2=(((((Skud:0.0674031,((Scer:0.0662505,Spar:0.0467495):0.0301216,Smik:0.0608125):0.0131054):0.0110738,Sbay:0.0779486):0.0700016,Scas:0.194813):0.0835138,Sklu:0.310848):0.460076,Calb:0.460076);
+
+Trees have been decomposed at common splits, the following dummy taxa are used:
+d1	Sbay*Scer*Skud*Smik*Spar
+d2	Scas*Calb*Sklu
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 1:
+
+Splits only in T1:
+
+Splits only in T2:
+
+Splits common to both trees and branch length in T1 and T2:
+1/1	d1	0.038231	0.070002
+1/2	Sklu	0.109230	0.310848
+1/3	Scas	0.104833	0.194813
+1/4	Calb*Sklu	0.007781	0.083514
+1/5	Calb	0.150770	0.920152
+
+The geodesic path:
+There are no different splits, it equals the branch score.
+
+Transition points:
+Splits:     (    1/1,    1/2,    1/3,    1/4,    1/5 )
+g(0.0000) = ( 0.0382, 0.1092, 0.1048, 0.0078, 0.1508 )
+g(1.0000) = ( 0.0700, 0.3108, 0.1948, 0.0835, 0.9202 )
+
+
+Results for all splits:
+Branch score 0.804636
+Geodesic distance 0.804636
+Cone distance 0.804636
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0000 s
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 2:
+
+Splits only in T1:
+2/1	Sbay*Skud	0.005261
+
+Splits only in T2:
+2/2	Sbay*d2	0.011074
+
+Splits common to both trees and branch length in T1 and T2:
+2/3	Spar	0.037282	0.046749
+2/4	Smik	0.051319	0.060812
+2/5	Skud	0.052012	0.067403
+2/6	Scer	0.046719	0.066251
+2/7	Scer*Spar	0.008511	0.030122
+2/8	Sbay*Skud*d2	0.015498	0.013105
+2/9	Sbay	0.055988	0.077949
+
+The geodesic path:
+t	L	R
+0.000000	-	-
+0.322054	2/1	2/2
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0053, 0.0000, 0.0373, 0.0513, 0.0520, 0.0467, 0.0085, 0.0155, 0.0560 )
+g(0.3221) = ( 0.0000, 0.0000, 0.0403, 0.0544, 0.0570, 0.0530, 0.0155, 0.0147, 0.0631 )
+g(1.0000) = ( 0.0000, 0.0111, 0.0467, 0.0608, 0.0674, 0.0663, 0.0301, 0.0131, 0.0779 )
+
+
+Results for the different splits:
+Branch score 0.012260
+Geodesic distance 0.016334
+Cone distance 0.016334
+
+Results for all splits:
+Branch score 0.043629
+Geodesic distance 0.044944
+Cone distance 0.044944
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0003 s
+
+--------------------------------------------------------------------------------
+
+The complete geodesic path:
+t	L	R
+0.000000	-	-
+0.322054	2/1	2/2
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    1/1,    1/2,    1/3,    1/4,    1/5,    2/3,    2/4,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0053, 0.0000, 0.0382, 0.1092, 0.1048, 0.0078, 0.1508, 0.0373, 0.0513, 0.0520, 0.0467, 0.0085, 0.0155, 0.0560 )
+g(0.3221) = ( 0.0000, 0.0000, 0.0485, 0.1742, 0.1338, 0.0322, 0.3986, 0.0403, 0.0544, 0.0570, 0.0530, 0.0155, 0.0147, 0.0631 )
+g(1.0000) = ( 0.0000, 0.0111, 0.0700, 0.3108, 0.1948, 0.0835, 0.9202, 0.0467, 0.0608, 0.0674, 0.0663, 0.0301, 0.0131, 0.0779 )
+
+Results for the different splits:
+Branch score 0.012260
+Geodesic distance 0.016334
+Decomposed cone distance 0.016334
+
+Results for all splits:
+Branch score 0.805818
+Geodesic distance 0.805891
+Decomposed cone distance 0.805891
+
+Complete graphs enumerated: with independent decompositions 1 path(s) found!
+
+Computation time for all geodesic paths: 0.0003 s

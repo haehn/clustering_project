@@ -1,0 +1,5 @@
+Inference Result Object:
+Name:	YKL120W
+Program:	TreeCollection
+Score:	2.92594
+Tree:	((Sklu:0.192821,Scas:0.161179):0.00179328,(Calb:0.381927,((((Scer:0.037017,Spar:0.024983):0.0203786,Smik:0.0500846):0.0160539,Skud:0.0501098):0.0174202,Sbay:0.0629154):0.0915931):0.00179328);

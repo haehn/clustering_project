@@ -1,0 +1,5 @@
+[Inference Result Object:
+Name:	YOL145C
+Program:	TreeCollection
+Score:	4.40575
+Tree:	](((((((Scer:0.0615455,Spar:0.0504545):0.0319574,Smik:0.0795753):0.00594571,Skud:0.0878809):0.0138298,Sbay:0.0963781):0.103578,Scas:0.266385):0.0256443,Sklu:0.219688):0.353156,Calb:0.353156);

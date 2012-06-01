@@ -1,0 +1,121 @@
+Output of GeoMeTree v1.0
+
+2 Trees of 8 taxa given:
+T1=((((((Scer:0.0595007,Spar:0.0474993):0.0187251,Skud:0.0707168):0.00577251,Smik:0.072157):0.0182499,Sbay:0.0965307):0.0914178,Scas:0.17221):0.00586058,(Calb:0.514447,Sklu:0.233553):0.00586058);
+T2=(((((Scer:0.0382785,Spar:0.0357215):0.0250142,Smik:0.0726362):0.0201793,(Sbay:0.087342,Skud:0.079658):0.000721612):0.154543,Scas:0.20563):0.00923397,(Calb:0.699003,Sklu:0.229997):0.00923397);
+
+Trees have been decomposed at common splits, the following dummy taxa are used:
+d1	Sbay*Scer*Skud*Smik*Spar
+d2	Scas*Calb*Sklu
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 1:
+
+Splits only in T1:
+
+Splits only in T2:
+
+Splits common to both trees and branch length in T1 and T2:
+1/1	d1	0.091418	0.154543
+1/2	Sklu	0.233553	0.229997
+1/3	Scas	0.172210	0.205630
+1/4	Calb*Sklu	0.011721	0.018468
+1/5	Calb	0.514447	0.699003
+
+The geodesic path:
+There are no different splits, it equals the branch score.
+
+Transition points:
+Splits:     (    1/1,    1/2,    1/3,    1/4,    1/5 )
+g(0.0000) = ( 0.0914, 0.2336, 0.1722, 0.0117, 0.5144 )
+g(1.0000) = ( 0.1545, 0.2300, 0.2056, 0.0185, 0.6990 )
+
+
+Results for all splits:
+Branch score 0.198042
+Geodesic distance 0.198042
+Cone distance 0.198042
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0000 s
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 2:
+
+Splits only in T1:
+2/1	Sbay*d2	0.018250
+2/2	Sbay*Smik*d2	0.005773
+
+Splits only in T2:
+2/3	Sbay*Skud*d2	0.020179
+2/4	Sbay*Skud	0.000722
+
+Splits common to both trees and branch length in T1 and T2:
+2/5	Spar	0.047499	0.035722
+2/6	Smik	0.072157	0.072636
+2/7	Skud	0.070717	0.079658
+2/8	Scer	0.059501	0.038279
+2/9	Scer*Spar	0.018725	0.025014
+2/10	Sbay	0.096531	0.087342
+
+The geodesic path:
+t	L	R
+0.000000	-	-
+0.222432	2/2	2/3
+0.961963	2/1	2/4
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,   2/10,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0182, 0.0058, 0.0000, 0.0000, 0.0965, 0.0475, 0.0722, 0.0707, 0.0595, 0.0187 )
+g(0.2224) = ( 0.0140, 0.0000, 0.0000, 0.0000, 0.0945, 0.0449, 0.0723, 0.0727, 0.0548, 0.0201 )
+g(0.9620) = ( 0.0000, 0.0000, 0.0192, 0.0000, 0.0877, 0.0362, 0.0726, 0.0793, 0.0391, 0.0248 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0202, 0.0007, 0.0873, 0.0357, 0.0726, 0.0797, 0.0383, 0.0250 )
+
+
+Results for the different splits:
+Branch score 0.027823
+Geodesic distance 0.032147
+Cone distance 0.039333
+
+Results for all splits:
+Branch score 0.039590
+Geodesic distance 0.042740
+Cone distance 0.048377
+
+Complete graph enumerated: 2 path(s) found!
+
+Computation time for geodesic path: 0.0010 s
+
+--------------------------------------------------------------------------------
+
+The complete geodesic path:
+t	L	R
+0.000000	-	-
+0.222432	2/2	2/3
+0.961963	2/1	2/4
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,    1/1,    1/2,    1/3,    1/4,    1/5,   2/10,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0182, 0.0058, 0.0000, 0.0000, 0.0914, 0.2336, 0.1722, 0.0117, 0.5144, 0.0965, 0.0475, 0.0722, 0.0707, 0.0595, 0.0187 )
+g(0.2224) = ( 0.0140, 0.0000, 0.0000, 0.0000, 0.1055, 0.2328, 0.1796, 0.0132, 0.5555, 0.0945, 0.0449, 0.0723, 0.0727, 0.0548, 0.0201 )
+g(0.9620) = ( 0.0000, 0.0000, 0.0192, 0.0000, 0.1521, 0.2301, 0.2044, 0.0182, 0.6920, 0.0877, 0.0362, 0.0726, 0.0793, 0.0391, 0.0248 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0202, 0.0007, 0.1545, 0.2300, 0.2056, 0.0185, 0.6990, 0.0873, 0.0357, 0.0726, 0.0797, 0.0383, 0.0250 )
+
+Results for the different splits:
+Branch score 0.027823
+Geodesic distance 0.032147
+Decomposed cone distance 0.039333
+
+Results for all splits:
+Branch score 0.201961
+Geodesic distance 0.202602
+Decomposed cone distance 0.203865
+
+Complete graphs enumerated: with independent decompositions 2 path(s) found!
+
+Computation time for all geodesic paths: 0.0010 s

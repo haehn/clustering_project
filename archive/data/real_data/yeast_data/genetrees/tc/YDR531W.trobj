@@ -1,0 +1,5 @@
+Inference Result Object:
+Name:	YDR531W
+Program:	TreeCollection
+Score:	3.37587
+Tree:	((Sklu:0.227876,Scas:0.164124):0.0141664,(Calb:0.39402,((Sbay:0.087728,Skud:0.062272):0.00788138,((Scer:0.0310177,Spar:0.0429823):0.0120183,Smik:0.0680506):0.0223433):0.0753268):0.0141664);

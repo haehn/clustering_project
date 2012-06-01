@@ -1,0 +1,121 @@
+Output of GeoMeTree v1.0
+
+2 Trees of 8 taxa given:
+T1=((((((Scer:0.0595007,Spar:0.0474993):0.0187251,Skud:0.0707168):0.00577251,Smik:0.072157):0.0182499,Sbay:0.0965307):0.0914178,Scas:0.17221):0.00586058,(Calb:0.514447,Sklu:0.233553):0.00586058);
+T2=((((Sbay:0.105086,Skud:0.0589136):0.0137022,((Scer:0.0434876,Spar:0.0435124):0.0271144,Smik:0.0542999):0.0192252):0.140775,Scas:0.194767):0.00576344,(Calb:0.37642,Sklu:0.22258):0.00576344);
+
+Trees have been decomposed at common splits, the following dummy taxa are used:
+d1	Sbay*Scer*Skud*Smik*Spar
+d2	Scas*Calb*Sklu
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 1:
+
+Splits only in T1:
+
+Splits only in T2:
+
+Splits common to both trees and branch length in T1 and T2:
+1/1	d1	0.091418	0.140775
+1/2	Sklu	0.233553	0.222580
+1/3	Scas	0.172210	0.194767
+1/4	Calb*Sklu	0.011721	0.011527
+1/5	Calb	0.514447	0.376420
+
+The geodesic path:
+There are no different splits, it equals the branch score.
+
+Transition points:
+Splits:     (    1/1,    1/2,    1/3,    1/4,    1/5 )
+g(0.0000) = ( 0.0914, 0.2336, 0.1722, 0.0117, 0.5144 )
+g(1.0000) = ( 0.1408, 0.2226, 0.1948, 0.0115, 0.3764 )
+
+
+Results for all splits:
+Branch score 0.148717
+Geodesic distance 0.148717
+Cone distance 0.148717
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0000 s
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 2:
+
+Splits only in T1:
+2/1	Sbay*d2	0.018250
+2/2	Sbay*Smik*d2	0.005773
+
+Splits only in T2:
+2/3	Sbay*Skud*d2	0.019225
+2/4	Sbay*Skud	0.013702
+
+Splits common to both trees and branch length in T1 and T2:
+2/5	Spar	0.047499	0.043512
+2/6	Smik	0.072157	0.054300
+2/7	Skud	0.070717	0.058914
+2/8	Scer	0.059501	0.043488
+2/9	Scer*Spar	0.018725	0.027114
+2/10	Sbay	0.096531	0.105086
+
+The geodesic path:
+t	L	R
+0.000000	-	-
+0.230922	2/2	2/3
+0.571164	2/1	2/4
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,   2/10,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0182, 0.0058, 0.0000, 0.0000, 0.0965, 0.0475, 0.0722, 0.0707, 0.0595, 0.0187 )
+g(0.2309) = ( 0.0109, 0.0000, 0.0000, 0.0000, 0.0985, 0.0466, 0.0680, 0.0680, 0.0558, 0.0207 )
+g(0.5712) = ( 0.0000, 0.0000, 0.0085, 0.0000, 0.1014, 0.0452, 0.0620, 0.0640, 0.0504, 0.0235 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0192, 0.0137, 0.1051, 0.0435, 0.0543, 0.0589, 0.0435, 0.0271 )
+
+
+Results for the different splits:
+Branch score 0.030393
+Geodesic distance 0.040569
+Cone distance 0.042750
+
+Results for all splits:
+Branch score 0.042401
+Geodesic distance 0.050199
+Cone distance 0.051977
+
+Complete graph enumerated: 2 path(s) found!
+
+Computation time for geodesic path: 0.0010 s
+
+--------------------------------------------------------------------------------
+
+The complete geodesic path:
+t	L	R
+0.000000	-	-
+0.230922	2/2	2/3
+0.571164	2/1	2/4
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,    1/1,    1/2,    1/3,    1/4,    1/5,   2/10,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0182, 0.0058, 0.0000, 0.0000, 0.0914, 0.2336, 0.1722, 0.0117, 0.5144, 0.0965, 0.0475, 0.0722, 0.0707, 0.0595, 0.0187 )
+g(0.2309) = ( 0.0109, 0.0000, 0.0000, 0.0000, 0.1028, 0.2310, 0.1774, 0.0117, 0.4826, 0.0985, 0.0466, 0.0680, 0.0680, 0.0558, 0.0207 )
+g(0.5712) = ( 0.0000, 0.0000, 0.0085, 0.0000, 0.1196, 0.2273, 0.1851, 0.0116, 0.4356, 0.1014, 0.0452, 0.0620, 0.0640, 0.0504, 0.0235 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0192, 0.0137, 0.1408, 0.2226, 0.1948, 0.0115, 0.3764, 0.1051, 0.0435, 0.0543, 0.0589, 0.0435, 0.0271 )
+
+Results for the different splits:
+Branch score 0.030393
+Geodesic distance 0.040569
+Decomposed cone distance 0.042750
+
+Results for all splits:
+Branch score 0.154644
+Geodesic distance 0.156961
+Decomposed cone distance 0.157539
+
+Complete graphs enumerated: with independent decompositions 2 path(s) found!
+
+Computation time for all geodesic paths: 0.0010 s

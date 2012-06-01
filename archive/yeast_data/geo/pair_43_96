@@ -1,0 +1,44 @@
+Output of GeoMeTree v1.0
+
+2 Trees of 8 taxa given:
+T1=((Sklu:0.111807,Calb:0.222193):0.0094694,(Scas:0.140485,((((Scer:0.029507,Spar:0.020493):0.0131901,Smik:0.0382267):0.0109776,Skud:0.0510328):0.00337676,Sbay:0.0514392):0.0632763):0.0094694);
+T2=((((((Scer:0.0412363,Spar:0.0307637):0.0267569,Smik:0.0633079):0.00542606,Skud:0.0725644):0.0158647,Sbay:0.091993):0.0854274,Scas:0.191309):0.0201929,(Calb:0.421582,Sklu:0.202418):0.0201929);
+
+--------------------------------------------------------------------------------
+
+Splits only in T1:
+
+Splits only in T2:
+
+Splits common to both trees and branch length in T1 and T2:
+1	Spar	0.020493	0.030764
+2	Smik	0.038227	0.063308
+3	Skud	0.051033	0.072564
+4	Sklu	0.111807	0.202418
+5	Scer	0.029507	0.041236
+6	Scer*Spar	0.013190	0.026757
+7	Scer*Smik*Spar	0.010978	0.005426
+8	Calb*Sbay*Scas*Sklu	0.003377	0.015865
+9	Scas	0.140485	0.191309
+10	Sbay	0.051439	0.091993
+11	Calb*Scas*Sklu	0.063276	0.085427
+12	Calb*Sklu	0.018939	0.040386
+13	Calb	0.222193	0.421582
+
+The geodesic path:
+There are no different splits, it equals the branch score.
+
+Transition points:
+Splits:     (      1,     10,     11,     12,     13,      2,      3,      4,      5,      6,      7,      8,      9 )
+g(0.0000) = ( 0.0205, 0.0514, 0.0633, 0.0189, 0.2222, 0.0382, 0.0510, 0.1118, 0.0295, 0.0132, 0.0110, 0.0034, 0.1405 )
+g(1.0000) = ( 0.0308, 0.0920, 0.0854, 0.0404, 0.4216, 0.0633, 0.0726, 0.2024, 0.0412, 0.0268, 0.0054, 0.0159, 0.1913 )
+
+
+Results for all splits:
+Branch score 0.234203
+Geodesic distance 0.234203
+Cone distance 0.234203
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0000 s

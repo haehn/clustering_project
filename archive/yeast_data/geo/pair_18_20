@@ -1,0 +1,128 @@
+Output of GeoMeTree v1.0
+
+2 Trees of 8 taxa given:
+T1=(((((Scer:0.0467185,Spar:0.0372815):0.00851061,Smik:0.0513187):0.0154981,(Skud:0.0520118,Sbay:0.0559882):0.00526055):0.0382308,Scas:0.104833):0.00389038,(Calb:0.15077,Sklu:0.10923):0.00389038);
+T2=((Sklu:0.213452,Scas:0.166548):0.01825,(Calb:0.510234,(Smik:0.0797102,((Scer:0.0493679,Spar:0.0556321):0.0199265,(Sbay:0.0861406,Skud:0.0828594):0.00996251):0.0039488):0.0948237):0.01825);
+
+Trees have been decomposed at common splits, the following dummy taxa are used:
+d1	Sbay*Scer*Skud*Smik*Spar
+d2	Scas*Calb*Sklu
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 1:
+
+Splits only in T1:
+1/1	Calb*Sklu	0.007781
+
+Splits only in T2:
+1/2	Calb*d1	0.036500
+
+Splits common to both trees and branch length in T1 and T2:
+1/3	d1	0.038231	0.094824
+1/4	Sklu	0.109230	0.213452
+1/5	Scas	0.104833	0.166548
+1/6	Calb	0.150770	0.510234
+
+The geodesic path:
+t	L	R
+0.000000	-	-
+0.175714	1/1	1/2
+1.000000	-	-
+
+Transition points:
+Splits:     (    1/1,    1/2,    1/3,    1/4,    1/5,    1/6 )
+g(0.0000) = ( 0.0078, 0.0000, 0.0382, 0.1092, 0.1048, 0.1508 )
+g(0.1757) = ( 0.0000, 0.0000, 0.0482, 0.1275, 0.1157, 0.2139 )
+g(1.0000) = ( 0.0000, 0.0365, 0.0948, 0.2135, 0.1665, 0.5102 )
+
+
+Results for the different splits:
+Branch score 0.037320
+Geodesic distance 0.044281
+Cone distance 0.044281
+
+Results for all splits:
+Branch score 0.385332
+Geodesic distance 0.386068
+Cone distance 0.386068
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0003 s
+
+--------------------------------------------------------------------------------
+
+Results for Decomposition No. 2:
+
+Splits only in T1:
+2/1	Sbay*Skud*d2	0.015498
+
+Splits only in T2:
+2/2	Smik*d2	0.003949
+
+Splits common to both trees and branch length in T1 and T2:
+2/3	Spar	0.037282	0.055632
+2/4	Smik	0.051319	0.079710
+2/5	Skud	0.052012	0.082859
+2/6	Scer	0.046719	0.049368
+2/7	Scer*Spar	0.008511	0.019926
+2/8	Sbay*Skud	0.005261	0.009963
+2/9	Sbay	0.055988	0.086141
+
+The geodesic path:
+t	L	R
+0.000000	-	-
+0.796945	2/1	2/2
+1.000000	-	-
+
+Transition points:
+Splits:     (    2/1,    2/2,    2/3,    2/4,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0155, 0.0000, 0.0373, 0.0513, 0.0520, 0.0467, 0.0085, 0.0053, 0.0560 )
+g(0.7969) = ( 0.0000, 0.0000, 0.0519, 0.0739, 0.0766, 0.0488, 0.0176, 0.0090, 0.0800 )
+g(1.0000) = ( 0.0000, 0.0039, 0.0556, 0.0797, 0.0829, 0.0494, 0.0199, 0.0100, 0.0861 )
+
+
+Results for the different splits:
+Branch score 0.015993
+Geodesic distance 0.019447
+Cone distance 0.019447
+
+Results for all splits:
+Branch score 0.058470
+Geodesic distance 0.059508
+Cone distance 0.059508
+
+Complete graph enumerated: 1 path(s) found!
+
+Computation time for geodesic path: 0.0003 s
+
+--------------------------------------------------------------------------------
+
+The complete geodesic path:
+t	L	R
+0.000000	-	-
+0.175714	1/1	1/2
+0.796945	2/1	2/2
+1.000000	-	-
+
+Transition points:
+Splits:     (    1/1,    2/1,    1/2,    2/2,    1/3,    1/4,    1/5,    1/6,    2/3,    2/4,    2/5,    2/6,    2/7,    2/8,    2/9 )
+g(0.0000) = ( 0.0078, 0.0155, 0.0000, 0.0000, 0.0382, 0.1092, 0.1048, 0.1508, 0.0373, 0.0513, 0.0520, 0.0467, 0.0085, 0.0053, 0.0560 )
+g(0.1757) = ( 0.0000, 0.0121, 0.0000, 0.0000, 0.0482, 0.1275, 0.1157, 0.2139, 0.0405, 0.0563, 0.0574, 0.0472, 0.0105, 0.0061, 0.0613 )
+g(0.7969) = ( 0.0000, 0.0000, 0.0275, 0.0000, 0.0833, 0.1923, 0.1540, 0.4372, 0.0519, 0.0739, 0.0766, 0.0488, 0.0176, 0.0090, 0.0800 )
+g(1.0000) = ( 0.0000, 0.0000, 0.0365, 0.0039, 0.0948, 0.2135, 0.1665, 0.5102, 0.0556, 0.0797, 0.0829, 0.0494, 0.0199, 0.0100, 0.0861 )
+
+Results for the different splits:
+Branch score 0.040603
+Geodesic distance 0.048363
+Decomposed cone distance 0.048363
+
+Results for all splits:
+Branch score 0.389743
+Geodesic distance 0.390628
+Decomposed cone distance 0.390628
+
+Complete graphs enumerated: with independent decompositions 1 path(s) found!
+
+Computation time for all geodesic paths: 0.0005 s

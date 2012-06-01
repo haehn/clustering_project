@@ -1,0 +1,68 @@
+
+
+This is RAxML version 7.3.0 released by Alexandros Stamatakis in June 2011.
+
+With greatly appreciated code contributions by:
+Andre Aberer (HITS)
+Simon Berger (HITS)
+Nick Pattengale (Sandia)
+Wayne Pfeiffer (SDSC)
+Akifumi S. Tanabe (Univ. Tsukuba)
+
+
+Alignment has 246 distinct alignment patterns
+
+Proportion of gaps and completely undetermined characters in this alignment: 0.00%
+
+RAxML rapid hill-climbing mode
+
+Using 1 distinct models/data partitions with joint branch length optimization
+
+
+Executing 1 inferences on the original alignment using 1 distinct randomized MP trees
+
+All free model parameters will be estimated by RAxML
+GAMMA model of rate heteorgeneity, ML estimate of alpha-parameter
+
+GAMMA Model parameters will be estimated up to an accuracy of 0.1000000000 Log Likelihood units
+
+Partition: 0
+Alignment Patterns: 246
+Name: No Name Provided
+DataType: DNA
+Substitution Matrix: GTR
+
+
+
+
+RAxML was called as follows:
+
+raxml -T 8 -m GTRGAMMA -s yeast_data//MSA/YER005W.phy -n YER005W -p 121 
+
+
+Partition: 0 with name: No Name Provided
+Base frequencies: 0.298 0.148 0.225 0.328 
+
+Testing which likelihood implementation to use
+Standard Implementation full tree traversal time: 0.000412
+Subtree Equality Vectors for gap columns full tree traversal time: 0.000312
+... using SEV-based implementation
+
+Inference[0]: Time 0.223152 GAMMA-based likelihood -3108.462321, best rearrangement setting 5
+alpha[0]: 0.482912 rates[0] ac ag at cg ct gt: 1.418943 2.961152 0.404005 0.724169 7.869397 1.000000 
+
+
+Conducting final model optimizations on all 1 trees under GAMMA-based models ....
+
+Inference[0] final GAMMA-based Likelihood: -3106.294866 tree written to file /Users/kgori/git/kevin/RAxML_result.YER005W
+
+
+Starting final GAMMA-based thorough Optimization on tree 0 likelihood -3106.294866 .... 
+
+Final GAMMA-based Score of best tree -3106.294866
+
+Program execution info written to /Users/kgori/git/kevin/RAxML_info.YER005W
+Best-scoring ML tree written to: /Users/kgori/git/kevin/RAxML_bestTree.YER005W
+
+Overall execution time: 0.364872 secs or 0.000101 hours or 0.000004 days
+
