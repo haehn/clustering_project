@@ -1,3 +1,0 @@
-Python code for importing into scripts
-Add this directory to .bashrc: 
-export PYTHONPATH=library_python_code:$PYTHONPATH

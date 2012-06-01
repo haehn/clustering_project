@@ -1,5 +1,0 @@
-[Inference Result Object:
-Name:	YOL097C
-Program:	TreeCollection
-Score:	6.24807
-Tree:	]((Sklu:0.205942,Scas:0.128058):0.0111574,(Calb:0.280676,((((Scer:0.0379564,Spar:0.0300436):0.0153928,Smik:0.056544):0.0176007,Skud:0.0576722):0.00975833,Sbay:0.070982):0.0442212):0.0111574);

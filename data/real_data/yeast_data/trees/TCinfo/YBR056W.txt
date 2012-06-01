@@ -1,6 +1,0 @@
-initial distance fit: 5.4552561
-after fitting edges with FitLabeledEdgesC, fit 5.45525609655
-after FiveOptim, dst fit 5.4552561 (0 swaps)
-after fitting edges with FitLabeledEdgesC, 5.4552561
-(((((Smik:9.61379,Skud:8.58621):0.19304,(Scer:4.35729,Spar:4.64271):2.8079):1.88568,Sbay:8.16992):18.8274,Sklu:29.0325):1.0621,(Calb:51.9668,Scas:29.5332):1.0621);
-5.45526

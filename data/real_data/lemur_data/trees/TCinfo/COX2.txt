@@ -1,8 +1,0 @@
-initial distance fit: 86.80784
-after fitting edges with FitLabeledEdgesC, fit 86.7917197149
-after FiveOptim, dst fit 86.79172 (0 swaps)
-after fitting edges with FitLabeledEdgesC, 86.79172
-after FiveOptim, dst fit 86.79172 (0 swaps)
-after fitting edges with FitLabeledEdgesC, 86.79172
-((L_ruficaudatus:11.4693,(P_diadema__DLC6564_:4.02847,(P_tattersalli__DLC6196_:0.459645,P_coquereli__DLC6583_:0.267259):4.9537):6.54747):1.0035,(C_medius:8.16987,((((M_murinus__RMR46_allele_A_:0.662187,(Microcebus_sp_Bemanasy__RMR217_allele_A_:0.462111,Microcebus_sp_Mandena__00-016A-8982_allele_A_:0.134203):0.0703397):2.61851,(((((Microcebus_sp_IvMan__RMR207_allele_A_:0.141617,Microcebus_sp_IvMan__RMR209_allele_A_:0.01):2.23592,M_tavaratra__RMR71_allele_A_:2.88774):0.281821,(((M_mittermeieri__RMR187_allele_A_:0.01,M_mittermeieri__RMR191_allele_A_:0.01):1.39061,(((M_berthae__JMR045_allele_A_:1.34429,(M_myoxinus__JMR072_allele_A_:0.0690771,M_myoxinus__RMR32_allele_A_:0.373993):1.04483):0.234188,(M_rufus__RMR142_allele_A_:0.0194045,M_rufus__SL100F71_allele_A_:0.126767):0.794361):0.344594,(M_lehilahytsara__JMR001_allele_A_:0.499635,M_lehilahytsara__RMR95_allele_A_:0.241807):0.98844):0.203046):0.552263,((Microcebus_sp_Mt_dAmbre__RMR154_allele_A_:0.01,Microcebus_sp_Mt_dAmbre__RMR160_allele_A_:0.01):2.37344,M_sambiranensis__RMR163_allele_A_:1.09105):0.807065):0.0897687):0.0739248,(M_simmonsi__RMR102_allele_A_:0.319034,M_simmonsi__RMR115_allele_A_:0.124037):1.83067):0.149229,(Microcebus_sp_Marolambo__RMR131_allele_A_:0.142617,Microcebus_sp_Marolambo__RMR136_allele_A_:0.442005):3.13554):0.881505):0.111801,(M_griseorufus__JMR022_allele_A_:0.01,M_griseorufus__RMR64_allele_A_:0.01):4.17779):3.57112,M_coquereli__DLC2037_:7.25008):3.0431):1.0035);
-86.7917
