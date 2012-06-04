@@ -236,10 +236,11 @@ Text for this section.
      \1 show how the traditional ML model (Felsenstein 1981) can be extended 
         to accomodate $>1$ tree topology: index tree topologies from 1..K, where 
         K is the number of cluster (or "classes"), the likelihood becomes
-        $$ L_{global} = \prod_{\mathrm{aligned \, gene \,} g \in G} L(g|M, T, \theta_g )   = \prod_{\mathrm{aligned \, gene \,} g \in G} L(g|T_g, \theta ) $$
+        $$ L_{global} = \prod_{\mathrm{aligned \, gene \,} g \in G} L(D_g|M, T, \theta_g )   = \prod_{\mathrm{aligned \, gene \,} g \in G} L(D_g|T_g, \theta_g ) $$
         where $T$ is the set of K cluster topologies, $M$ is a map between marker genes and $T$,
-        and $T_g$ the topology in T corresponding to $M(g)$. Note that
-        $L(T_{g}, \theta_g)$ is the traditional likelihood formula.
+        $T_g$ the topology in T corresponding to $M(g)$, and $D_g$ the 
+        aligned sequences of marker gene $g$. Note that
+        $L(D_g| T_{g}, \theta_g)$ is the traditional likelihood formula.
   \end{outline}
   \subsection*{Tree distance measures}
   \begin{outline}
