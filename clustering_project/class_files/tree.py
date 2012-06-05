@@ -19,6 +19,7 @@ class Tree(object):
         score=0,
         program=None,
         name=None,
+        output=None,
         ):
 
         self.newick = newick
@@ -126,10 +127,12 @@ class Tree(object):
         tree = open('{0}_phyml_tree.txt'.format(alignment_file)).read()
         score = float(re.compile('(?<=Log-likelihood: ).+'
                       ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
+        output = \
+            open('{0}_phyml_stats.txt'.format(alignment_file)).read()
         os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
-        (self.newick, self.score, self.program, self.name) = (tree,
-                score, 'phyml', name)
-        return Tree(tree, score, 'phyml', name)
+        (self.newick, self.score, self.program, self.name,
+         self.output) = (tree, score, 'phyml', name, output)
+        return Tree(tree, score, 'phyml', name, output)
 
     def run_raxml(
         self,
@@ -163,10 +166,12 @@ class Tree(object):
             score = float(re.compile('(?<=Score of best tree ).+'
                           ).search(open('{0}/RAxML_info.{1}'.format(tmpdir,
                           name)).read()).group())
+            output = open('{0}/RAxML_info.{1}'.format(tmpdir,
+                          name)).read()
         os.system('rm {0}/*.{1}'.format(tmpdir, name))  # Cleanup
-        (self.newick, self.score, self.program, self.name) = (tree,
-                score, 'raxml', name)
-        return Tree(tree, score, 'raxml', name)
+        (self.newick, self.score, self.program, self.name,
+         self.output) = (tree, score, 'raxml', name, output)
+        return Tree(tree, score, 'raxml', name, output)
 
     def run_treecollection(
         self,
@@ -186,9 +191,9 @@ class Tree(object):
         tree = info[-2]
         score = float(info[-1])
         (self.newick, self.score, self.program, self.name) = (tree,
-                score, 'TreeCollection', name)
-        return Tree(tree, score, 'TreeCollection',
-                    name).pam2sps('pam2sps')
+                score, 'TreeCollection', name, stdout)
+        return Tree(tree, score, 'TreeCollection', name,
+                    stdout).pam2sps('pam2sps')
 
     def _unpack_raxml_args(packed_args):
         """
