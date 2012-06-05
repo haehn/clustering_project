@@ -173,6 +173,7 @@ class SequenceCollection(object):
         model=None,
         datatype=None,
         rec_list=None,
+        ncat=4,
         tmpdir='/tmp',
         ):
 
@@ -184,7 +185,7 @@ class SequenceCollection(object):
         args = []
         names = []
         for rec in rec_list:
-            args.append((rec, model, datatype, tmpdir))
+            args.append((rec, model, datatype, ncat, tmpdir))
             names.append(rec.name)
         r = pool.map_async(self._unpack_phyml, args,
                            callback=results.append)
@@ -241,6 +242,7 @@ class SequenceCollection(object):
         program='treecollection',
         model=None,
         datatype=None,
+        ncat=4,
         tmpdir='/tmp',
         ):
 
@@ -256,7 +258,7 @@ class SequenceCollection(object):
                 rec.get_raxml_tree(tmpdir)
             elif program == 'phyml':
                 rec.get_phyml_tree(model=model, datatype=datatype,
-                                   tmpdir=tmpdir)
+                                   tmpdir=tmpdir,ncat=ncat)
 
     def put_trees_parallel(
         self,
@@ -264,6 +266,7 @@ class SequenceCollection(object):
         program='treecollection',
         model=None,
         datatype=None,
+        ncat=4,
         tmpdir='/tmp',
         ):
 
@@ -280,7 +283,7 @@ class SequenceCollection(object):
                     tmpdir=tmpdir)
         elif program == 'phyml':
             trees_dict = self._phyml_parallel_call(rec_list=rec_list,
-                    model=model, datatype=datatype, tmpdir=tmpdir)
+                    model=model, datatype=datatype, tmpdir=tmpdir,ncat=ncat)
         for rec in self.records:
             rec.tree = trees_dict[rec.name]
 

@@ -114,12 +114,13 @@ class Tree(object):
         alignment_file,
         datatype,
         name,
+        ncat=4,
         verbose=True,
         ):
 
         command = \
-            'phyml -m {0} -i {1} -d {2} -c 4 -a e -b 0 --sequential > /dev/null'.format(model,
-                alignment_file, datatype)
+            'phyml -m {0} -i {1} -d {2} -c {3} -a e -b 0 --sequential > /dev/null'.format(model,
+                alignment_file, datatype, ncat)
         if verbose:
             command = command.replace('> /dev/null', '')
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,

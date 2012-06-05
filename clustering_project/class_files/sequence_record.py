@@ -578,7 +578,7 @@ class TCSeqRec(SequenceRecord):
         assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir, self.name))
         assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir, self.name))
 
-    def get_phyml_tree(self, model=None, datatype=None, tmpdir='/tmp'):
+    def get_phyml_tree(self, model=None, datatype=None, ncat=4, tmpdir='/tmp'):
         self.tree = Tree()
         self._write_temp_phylip(tmpdir=tmpdir)
         print 'Running phyml on ' + str(self.name) + '...'
@@ -593,7 +593,7 @@ class TCSeqRec(SequenceRecord):
             else:
                 print 'I don\'t know this datatype: {0}'.format(self.datatype)
                 return
-        t = self.tree.run_phyml(model, input_file, datatype, self.name)
+        t = self.tree.run_phyml(model, input_file, datatype, self.name, ncat=ncat)
         os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
         return self.tree
 
