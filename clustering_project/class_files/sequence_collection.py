@@ -166,9 +166,9 @@ class SequenceCollection(object):
         return dvs
 
     def _unpack_phyml(self, packed_args):
-        return packed_args[0].get_phyml_tree(packed_args[1])
+        return packed_args[0].get_phyml_tree(*packed_args[1:])
 
-    def _phyml_parallel_call(self, rec_list=None, tmpdir='/tmp'):
+    def _phyml_parallel_call(self, model=None, datatype=None, rec_list=None, tmpdir='/tmp'):
         if not rec_list:
             rec_list = self.records
         nprocesses = multiprocessing.cpu_count() - 1
@@ -177,7 +177,7 @@ class SequenceCollection(object):
         args = []
         names = []
         for rec in rec_list:
-            args.append((rec, tmpdir))
+            args.append((rec, model, datatype, tmpdir))
             names.append(rec.name)
         r = pool.map_async(self._unpack_phyml, args,
                            callback=results.append)
@@ -232,6 +232,8 @@ class SequenceCollection(object):
         self,
         rec_list=None,
         program='treecollection',
+        model=None,
+        datatype=None,
         tmpdir='/tmp',
         ):
 
@@ -246,12 +248,15 @@ class SequenceCollection(object):
             elif program == 'raxml':
                 rec.get_raxml_tree(tmpdir)
             elif program == 'phyml':
-                rec.get_phyml_tree(tmpdir)
+                rec.get_phyml_tree(model=model, datatype=datatype,
+                                   tmpdir=tmpdir)
 
     def put_trees_parallel(
         self,
         rec_list=None,
         program='treecollection',
+        model=None,
+        datatype=None,
         tmpdir='/tmp',
         ):
 
@@ -268,7 +273,7 @@ class SequenceCollection(object):
                     tmpdir=tmpdir)
         elif program == 'phyml':
             trees_dict = self._phyml_parallel_call(rec_list=rec_list,
-                    tmpdir=tmpdir)
+                    model=model,datatype=datatype,tmpdir=tmpdir)
         for rec in self.records:
             rec.tree = trees_dict[rec.name]
 
