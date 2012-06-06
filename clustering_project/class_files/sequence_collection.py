@@ -371,6 +371,7 @@ class SequenceCollection(object):
         program='treecollection',
         model=None,
         datatype=None,
+        ncat=4,
         tmpdir='/tmp',
         ):
         if program not in ['treecollection', 'raxml', 'phyml']:
@@ -378,7 +379,7 @@ class SequenceCollection(object):
             return
         rec_list = self.get_cluster_records()
         self.put_trees(rec_list=rec_list, program=program, model=model,
-                       datatype=datatype, tmpdir=tmpdir)
+                       ncat=ncat, datatype=datatype, tmpdir=tmpdir)
         self.update_results()
 
     def update_results(self):
@@ -390,6 +391,7 @@ class SequenceCollection(object):
         program='treecollection',
         model=None,
         datatype=None,
+        ncat=4,
         tmpdir='/tmp',
         ):
 
@@ -407,7 +409,7 @@ class SequenceCollection(object):
         elif program == 'phyml':
             cluster_trees_dict = \
                 self._phyml_parallel_call(rec_list=rec_list,
-                    model=model, datatype=datatype, tmpdir=tmpdir)
+                    model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir)
         for rec in rec_list:
             rec.tree = cluster_trees_dict[rec.name]
         self.update_results()
