@@ -166,9 +166,17 @@ class SequenceCollection(object):
         return dvs
 
     def _unpack_phyml(self, packed_args):
-        return packed_args[0].get_phyml_tree(packed_args[1])
+        return packed_args[0].get_phyml_tree(*packed_args[1:])
 
-    def _phyml_parallel_call(self, rec_list=None, tmpdir='/tmp'):
+    def _phyml_parallel_call(
+        self,
+        model=None,
+        datatype=None,
+        rec_list=None,
+        ncat=4,
+        tmpdir='/tmp',
+        ):
+
         if not rec_list:
             rec_list = self.records
         nprocesses = multiprocessing.cpu_count() - 1
@@ -177,7 +185,7 @@ class SequenceCollection(object):
         args = []
         names = []
         for rec in rec_list:
-            args.append((rec, tmpdir))
+            args.append((rec, model, datatype, ncat, tmpdir))
             names.append(rec.name)
         r = pool.map_async(self._unpack_phyml, args,
                            callback=results.append)
@@ -232,6 +240,9 @@ class SequenceCollection(object):
         self,
         rec_list=None,
         program='treecollection',
+        model=None,
+        datatype=None,
+        ncat=4,
         tmpdir='/tmp',
         ):
 
@@ -246,12 +257,16 @@ class SequenceCollection(object):
             elif program == 'raxml':
                 rec.get_raxml_tree(tmpdir)
             elif program == 'phyml':
-                rec.get_phyml_tree(tmpdir)
+                rec.get_phyml_tree(model=model, datatype=datatype,
+                                   tmpdir=tmpdir,ncat=ncat)
 
     def put_trees_parallel(
         self,
         rec_list=None,
         program='treecollection',
+        model=None,
+        datatype=None,
+        ncat=4,
         tmpdir='/tmp',
         ):
 
@@ -268,7 +283,7 @@ class SequenceCollection(object):
                     tmpdir=tmpdir)
         elif program == 'phyml':
             trees_dict = self._phyml_parallel_call(rec_list=rec_list,
-                    tmpdir=tmpdir)
+                    model=model, datatype=datatype, tmpdir=tmpdir,ncat=ncat)
         for rec in self.records:
             rec.tree = trees_dict[rec.name]
 
@@ -351,22 +366,35 @@ class SequenceCollection(object):
 
         return rec_list
 
-    def put_cluster_trees(self, program='treecollection', tmpdir='/tmp'
-                          ):
+    def put_cluster_trees(
+        self,
+        program='treecollection',
+        model=None,
+        datatype=None,
+        ncat=4,
+        tmpdir='/tmp',
+        ):
         if program not in ['treecollection', 'raxml', 'phyml']:
             print 'unrecognised program {0}'.format(program)
             return
         rec_list = self.get_cluster_records()
-        self.put_trees(rec_list=rec_list, program=program,
-                       tmpdir=tmpdir)
+        self.put_trees(rec_list=rec_list, program=program, model=model,
+                       ncat=ncat, datatype=datatype, tmpdir=tmpdir)
         self.update_results()
 
     def update_results(self):
         for result in self.get_clusters().values():
             result.update_score()
 
-    def put_cluster_trees_parallel(self, program='treecollection',
-                                   tmpdir='/tmp'):
+    def put_cluster_trees_parallel(
+        self,
+        program='treecollection',
+        model=None,
+        datatype=None,
+        ncat=4,
+        tmpdir='/tmp',
+        ):
+
         if program not in ['treecollection', 'raxml', 'phyml']:
             print 'unrecognised program {0}'.format(program)
             return
@@ -381,7 +409,7 @@ class SequenceCollection(object):
         elif program == 'phyml':
             cluster_trees_dict = \
                 self._phyml_parallel_call(rec_list=rec_list,
-                    tmpdir=tmpdir)
+                    model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir)
         for rec in rec_list:
             rec.tree = cluster_trees_dict[rec.name]
         self.update_results()
