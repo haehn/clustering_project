@@ -4,6 +4,13 @@
 import os
 import sys
 import cPickle
+import glob
+import re
+import shutil
+from sequence_collection import SequenceCollection
+from sequence_record import TCSeqRec
+
+
 
 
 def extract(sc, n):
@@ -80,20 +87,18 @@ treeFile := '{5}';
         gene_length,
         tree_file,
         )
-    if output_filename:
-        if os.path.isfile(output_filename):
-            write = \
-                raw_input("Output file '{0}' exists, overwrite (y/n)?: ".format(output_filename))
-        else:
-            write = 'y'
-        if write == 'y':
-            output = open(output_filename, 'w')
-            output.write(alfsim_parameter_string)
-            output.close()
+    
+    output = open(output_filename, 'w')
+    output.write(alfsim_parameter_string)
+    output.close()
     return alfsim_parameter_string
 
+cwd = os.getcwd()
+helper = os.environ['DARWINHELPER']
+tmpdir = os.environ['TEMPORARY_DIRECTORY']
 
 n = int(sys.argv[1])
+simnumber = sys.argv[2]
 sc = cPickle.load(file('yeast_jc69.pickle'))
 name = '{0}to{1}'.format(n, n + 1)
 cwd = os.getcwd()
@@ -109,6 +114,23 @@ trees = d['trees']
 helper = os.environ['DARWINHELPER']
 tmpdir = os.environ['TEMPORARY_DIRECTORY']
 
+input_directory = simdir
+while input_directory.endswith('/'):
+    input_directory = input_directory[:-1]
+n = int(input_directory.split('to')[-1])-1
+
+
+
+msa_directory = '{0}/MSA'.format(input_directory)
+if not os.path.isdir(msa_directory):
+    os.mkdir(msa_directory)
+results_directory = '{0}/results'.format(input_directory)
+if not os.path.isdir(results_directory):
+    os.mkdir(results_directory)
+
+if os.path.isfile('{0}/result{1}.pickle'.format(results_directory,simnumber)):
+    sys.exit()
+
 parameter_files = []
 for i in range(len(total_lengths)):
     treefile = open('{0}/tree{1}.nwk'.format(simdir, i + 1), 'w')
@@ -117,14 +139,58 @@ for i in range(len(total_lengths)):
     adjusted_length = (total_lengths[i] + total_lengths[i]%3)/3
     write_ALF_parameters(
         'alfsim' + name + '_' + str(i + 1),
-        simdir,
+        tmpdir,
         'alftmp',
         1,
         adjusted_length,
         '{0}/tree{1}.nwk'.format(simdir, i + 1),
-        '{0}/class{1}-params.drw'.format(simdir, i + 1),
+        '{0}/class{1}-params.drw'.format(tmpdir, i + 1),
         )
-    parameter_files.append('{0}/class{1}-params.drw'.format(simdir,
+    parameter_files.append('{0}/class{1}-params.drw'.format(tmpdir,
                            i + 1))
-    cPickle.dump(lengths[i],file('{0}/lengths{1}.pickle'.format(simdir,i+1),'w'))
+    cPickle.dump(lengths[i],file('{0}/lengths{1}.pickle'.format(tmpdir,i+1),'w'))
 
+
+
+
+
+
+
+
+sort_key = lambda item: tuple((int(num) if num else alpha) for (num,alpha) in re.findall(r'(\d+)|(\D+)', item))
+parameter_files = sorted(glob.glob('{0}/*.drw'.format(tmpdir)),key=sort_key)
+length_files = sorted(glob.glob('{0}/*.pickle'.format(tmpdir)),key=sort_key)
+print parameter_files
+print length_files
+
+msas = []
+k = 1
+for i in range(len(parameter_files)):
+    os.system('alfsim {0}'.format(parameter_files[i]))
+    wdir = re.search(r"(?<=wdir := ')[\.\/\w]+",open(parameter_files[i]).read()).group()
+    mname = re.search(r"(?<=mname := )(\w+)",open(parameter_files[i]).read()).group()
+    simdir = '{0}/{1}/MSA'.format(wdir,mname)
+    msa = TCSeqRec(glob.glob('{0}/*dna.fa'.format(simdir))[0])
+    print msa
+    msa.sort_by_name()
+    headers = [x[:x.rindex('/')] for x in msa.headers]
+    sequences = msa.sequences
+    lengths = cPickle.load(file('{0}/lengths{1}.pickle'.format(tmpdir,i+1)))
+    for j in range(len(lengths)):
+        start = sum(lengths[:j])
+        end = sum(lengths[:j+1])
+        new_sequences = [seq[start:end] for seq in sequences]
+        newmsa = TCSeqRec(headers=headers, sequences = new_sequences, name = 'gene{0:0>3}'.format(k))
+        k+=1
+        newmsa.write_fasta(outfile='{0}/{1}.fas'.format(msa_directory,newmsa.name))
+
+col = SequenceCollection(msa_directory, datatype='dna', helper=helper, tmpdir=tmpdir)
+col.put_trees_parallel(program='phyml', model='JC69', datatype='nt', ncat=1)
+col.put_partitions('sym', 'ward', [n,n+1])
+col.put_clusters()
+col.put_cluster_trees_parallel(program='phyml', model='JC69', datatype='nt', ncat=1)
+
+cPickle.dump(col,file('{0}/result{1}.pickle'.format(results_directory,simnumber),'w'))
+# shutil.rmtree('{0}/alftmp'.format(input_directory))
+
+# print 'SCORES = ', col.get_clusters()[('sym','ward',n)].concats

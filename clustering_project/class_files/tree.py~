@@ -192,8 +192,8 @@ class Tree(object):
         info = stdout.split()
         tree = info[-2]
         score = float(info[-1])
-        (self.newick, self.score, self.program, self.name,
-         self.output) = (tree, score, 'TreeCollection', name, stdout)
+        (self.newick, self.score, self.program, self.name, self.output) = (tree,
+                score, 'TreeCollection', name, stdout)
         return Tree(tree, score, 'TreeCollection', name,
                     stdout).pam2sps('pam2sps')
 

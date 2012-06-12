@@ -124,8 +124,9 @@ class SequenceCollection(object):
             rec.dv = [rec.get_dv_matrix(tmpdir=tmpdir, helper=helper)]
 
     def _unpack_dv(self, packed_args):
-        return packed_args[0].get_dv_matrix(packed_args[1],
+            return packed_args[0].get_dv_matrix(packed_args[1],
                 packed_args[2])
+        
 
     def _dv_parallel_call(self, tmpdir='/tmp',
                           helper='./class_files/DV_wrapper.drw'):
@@ -142,7 +143,7 @@ class SequenceCollection(object):
             args.append((rec, tmpdir + '/' + rec.name, helper))
             names.append(rec.name)
         r = pool.map_async(self._unpack_dv, args,
-                           callback=results.append)
+                       callback=results.append)
         r.wait()
         for (x, y, z) in args:
             if os.path.isdir(y):

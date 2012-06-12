@@ -658,7 +658,6 @@ class TCSeqRec(SequenceRecord):
         calculates a distance-variance matrix from the sequence alignments,
         and generates files needed by the treecollection binary
         """
-
         if self.name:
             fastafile = '{0}/{1}.fas'.format(tmpdir, self.name)
         else:

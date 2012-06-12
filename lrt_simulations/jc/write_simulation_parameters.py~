@@ -9,7 +9,7 @@ import cPickle
 def extract(sc, n):
     d = sc.get_clusters()
     key = ('sym', 'ward', n)
-    trees = [x.tree.newick for x in d[key].concats]
+    trees = [x.tree.pam2sps('sps2pam').newick for x in d[key].concats]
     lengths = []
     for member_list in d[key].members:
         l = [x.seqlength for x in member_list]
@@ -40,7 +40,7 @@ def write_ALF_parameters(
 # To run the simulation on your own machine, download ALF from http://www.cbrg.ethz.ch/alf
 # and call alfsim from the parent directory of this file.
 
-webRequest := false;
+webRequest := true;
 uuid := '';
 
 # name of simulation - you may want to change this
@@ -52,7 +52,7 @@ dbdir := 'DB/';
 dbAncdir := 'DBancestral/';
 
 # time scale for simulation (PAM is default)
-unitIsPam := false:
+unitIsPam := true:
 
 # parameters concerning the root genome
 realseed := false;
@@ -69,7 +69,6 @@ modelAssignments := [1]:
 modelSwitchS := [[1]]:
 modelSwitchD := [[1]]:
 
-# parameters concerning the species tree
 # parameters concerning the species tree
 treeType := 'Custom';
 treeFile := '{5}';
@@ -114,13 +113,14 @@ for i in range(len(total_lengths)):
     treefile = open('{0}/tree{1}.nwk'.format(simdir, i + 1), 'w')
     treefile.write(trees[i])
     treefile.close()
+    adjusted_length = (total_lengths[i] + total_lengths[i]%3)/3
     write_ALF_parameters(
         'alfsim' + name,
         './tmp',
         'alftmp',
         1,
-        total_lengths[i],
-        '{0}/tree{1}.nwk'.format(simdir, i + 1),
+        adjusted_length,
+        'tree{0}.nwk'.format(i + 1),
         '{0}/class{1}-params.drw'.format(simdir, i + 1),
         )
     parameter_files.append('{0}/class{1}-params.drw'.format(simdir,
