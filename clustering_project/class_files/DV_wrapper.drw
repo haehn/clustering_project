@@ -173,6 +173,7 @@ end:
 
 ####################################################################################################
 
+print(fil);
 alignedSeqs := CreateArray(1..length(fil[1])):
 labs := TrimLabels(fil[2]):
 ntaxa := length(labs):

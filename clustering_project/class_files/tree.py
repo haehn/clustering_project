@@ -107,6 +107,7 @@ class Tree(object):
         else:
             writer.write(self.newick)
         writer.close()
+        return outfile
 
     def run_phyml(
         self,
@@ -116,8 +117,10 @@ class Tree(object):
         name,
         ncat=4,
         verbose=True,
+        overwrite=True
         ):
-
+    	if not overwrite and self.newick:
+    		return self
         command = \
             'phyml -m {0} -i {1} -d {2} -c {3} -a e -b 0 --sequential > /dev/null'.format(model,
                 alignment_file, datatype, ncat)
@@ -142,8 +145,10 @@ class Tree(object):
         name,
         tmpdir,
         guide=False,
+        overwrite=True
         ):
-
+    	if not overwrite and self.newick:
+    		return self
         command = 'raxml -m {0} -s {1} -n {2} -w {3}'.format(model,
                 alignment_file, name, tmpdir)
         if guide:
@@ -182,8 +187,10 @@ class Tree(object):
         label_file,
         tree_file,
         name,
+        overwrite=True
         ):
-
+    	if not overwrite and self.newick:
+    		return self
         command = 'TreeCollection {0} {1} {2} {3}'.format(dv_file,
                 map_file, label_file, tree_file)
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,

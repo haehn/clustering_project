@@ -40,7 +40,7 @@ class Clustering(object):
             s += ' '.join(str(x) for x in p) + '\n'
         return s
 
-    def put_distance_matrix(
+    def get_distance_matrix(
         self,
         trees,
         metric,
@@ -88,6 +88,17 @@ class Clustering(object):
         if normalise:
             matrix = matrix / np.max(matrix)
 
+        return matrix
+
+    def put_distance_matrix(
+        self,
+        trees,
+        metric,
+        invert=False,
+        normalise=False,
+        ):
+        matrix = self.get_distance_matrix(trees, metric, invert=invert,\
+            normalise=normalise)
         self.distance_matrices[metric] = matrix
 
     def order(self, l, num=1):
@@ -164,7 +175,7 @@ class Clustering(object):
 
         partition = self.partitions[compound_key]
         (linkmat, names, threshold) = self.plotting_info[compound_key]
-        fig = plt.figure()
+        fig = plt.figure(figsize=(11.7,8.3))
         dendrogram(
             linkmat,
             color_threshold=threshold,
@@ -198,8 +209,9 @@ class Clustering(object):
         """
         NB: had a version of this which used a reduce construct to concatenate
         the alignments - reduce(lambda x,y: x+y, records_list) - but this led
-        to problems of leakage. Deepcopying the first record, ensuring a new
-        memory address for the concatenation, seems more robust.
+        to problems of the original object being modified. Deepcopying the 
+        first record, ensuring a new memory address for the concatenation, seems 
+        more robust.
         """
         partition = self.partitions[compound_key] # partition = list like [ 1, 1, 2, 1, 1, 2, 3, 3]
         memberships = self.get_memberships(partition)

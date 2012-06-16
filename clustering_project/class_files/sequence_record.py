@@ -312,6 +312,7 @@ class SequenceRecord(object):
             open(outfile, 'w').write(s)
             if print_to_screen:
                 print s
+            return outfile
 
     def write_nexus(self, outfile='stdout', sequence_type='protein'):
         maxlen = len(max(self.sequences, key=len))
@@ -336,6 +337,7 @@ class SequenceRecord(object):
             return s
         else:
             open(outfile, 'w').write(s)
+            return outfile
 
     def write_phylip(
         self,
@@ -381,6 +383,7 @@ class SequenceRecord(object):
             open(outfile, 'w').write(s)
             if print_to_screen:
                 print s
+            return outfile
 
 
 class TCSeqRec(SequenceRecord):
@@ -578,12 +581,22 @@ class TCSeqRec(SequenceRecord):
         assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir, self.name))
         assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir, self.name))
 
-    def get_phyml_tree(self, model=None, datatype=None, ncat=4, tmpdir='/tmp'):
+    def get_phyml_tree(
+        self, 
+        model=None, 
+        datatype=None, 
+        ncat=4, 
+        tmpdir='/tmp', 
+        overwrite=True
+        ):
+        if not overwrite and self.tree.newick:
+            print '{0}: Tree exists and overwrite set to false'.format(self.name)
+            return self.tree
         self.tree = Tree()
         self._write_temp_phylip(tmpdir=tmpdir)
         print 'Running phyml on ' + str(self.name) + '...'
         input_file = '{0}/{1}.phy'.format(tmpdir, self.name)
-        if not model and not datatype: #quick-fix to allow specification of oher
+        if not model and not datatype: #quick-fix to allow specification of other
             if self.datatype == 'dna': #models when calling phyml
                 model = 'GTR'
                 datatype = 'nt'
@@ -593,11 +606,12 @@ class TCSeqRec(SequenceRecord):
             else:
                 print 'I don\'t know this datatype: {0}'.format(self.datatype)
                 return
-        t = self.tree.run_phyml(model, input_file, datatype, self.name, ncat=ncat)
+        t = self.tree.run_phyml(model, input_file, datatype, self.name,\
+            ncat=ncat, overwrite=overwrite)
         os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
         return self.tree
 
-    def get_raxml_tree(self, tmpdir='/tmp'):
+    def get_raxml_tree(self, tmpdir='/tmp', overwrite=True):
         self.tree = Tree()
         self._write_temp_phylip(tmpdir=tmpdir)
         print 'Running raxml on ' + str(self.name) + '...'
@@ -609,14 +623,15 @@ class TCSeqRec(SequenceRecord):
         else:
             print 'I don\'t know this datatype: {0}'.format(self.datatype)
             return
-        self.tree.run_raxml(model, input_file, self.name, tmpdir)
+        self.tree.run_raxml(model, input_file, self.name, tmpdir,\
+            overwrite=overwrite)
         os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
         if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir,
                           self.name)):
             os.remove('{0}/{1}.phy.reduced'.format(tmpdir, self.name))
         return self.tree
 
-    def get_guide_tree(self, tmpdir='/tmp'):
+    def get_guide_tree(self, tmpdir='/tmp', overwrite=True):
         self._write_temp_phylip(tmpdir=tmpdir)
         input_file = '{0}/{1}.phy'.format(tmpdir, self.name)
         if self.datatype == 'dna':
@@ -635,7 +650,7 @@ class TCSeqRec(SequenceRecord):
             os.remove('{0}/{1}.phy.reduced'.format(tmpdir, self.name))
         return t
 
-    def get_TC_tree(self, tmpdir='/tmp'):
+    def get_TC_tree(self, tmpdir='/tmp', overwrite=True):
         self._write_temp_tc(tmpdir=tmpdir)
         print 'Running TreeCollection on ' + str(self.name) + '...'
         self.tree = \
@@ -643,7 +658,7 @@ class TCSeqRec(SequenceRecord):
                 self.name), '{0}/{1}_map.txt'.format(tmpdir,
                 self.name), '{0}/{1}_labels.txt'.format(tmpdir,
                 self.name), '{0}/{1}_tree.nwk'.format(tmpdir,
-                self.name), self.name)
+                self.name), self.name, overwrite=overwrite)
         os.remove('{0}/{1}_dv.txt'.format(tmpdir, self.name))
         os.remove('{0}/{1}_map.txt'.format(tmpdir, self.name))
         os.remove('{0}/{1}_labels.txt'.format(tmpdir, self.name))
@@ -667,7 +682,12 @@ class TCSeqRec(SequenceRecord):
         else:
             datatype = 'AA'
 
+        if not os.path.isfile(helper):
+            print 'Can\'t find the darwin helper file at {0}'.format(helper)
+            return 0
+
         self.write_fasta(fastafile)
+        print 'Running darwin on {0}, datatype = {1}'.format(fastafile, datatype, helper)
         command = \
             'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\'; fpath := \'{2}/\'; ReadProgram(\'{3}\');" | darwin'.format(fastafile,
                 datatype, tmpdir, helper)
