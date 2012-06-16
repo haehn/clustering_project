@@ -106,7 +106,10 @@ rob.r('library(phangorn)')
 for i in range(C):
     rob.r('t <- read.tree("{0}/basetree.nwk")'.format(tree_path))
     # rob.r('t <- root(t, "SE001",resolve.root=TRUE)')
-    rob.r('c <- rNNI(t,{0})'.format(NNI))
+    if NNI:
+        rob.r('c <- rNNI(t,{0})'.format(NNI))
+    elif SPR:
+        rob.r('c <- rSPR(t,{0})'.format(SPR))
     # rob.r('c <- root(c, "SE001",resolve.root=TRUE)')
     rob.r('n <- write.tree(c)')
     n = rob.r['n']
