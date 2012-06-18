@@ -247,10 +247,18 @@ Text for this section.
      \1 list the various tree distance measures and explain how we computed 
      them
   \end{outline}
+We begin by calculating a distance matrix between the marker genes in the dataset, based on the ML tree obtained from each alignment. Distances were calculated using partition-based distance metrics \begin {itemize} 
+\item Unweighted Robinson-Foulds 
+\item Weighted Robinson-Foulds 
+\item Euclidean Distance, and 
+\item Geodesic Distance
+\end{itemize}
+The basis of these methods is to examine the set of splits defined by each tree. Each edge in the tree can be considered to partition the set of species the tree describes, $S$, into two non-overlapping subsets, $S_A$ and $S_B$, where $S_A \cup S_B = S$. The union of these partitions is the set of splits for the tree. Given two trees on the same $S$ a distance between them can be defined by the symmetric difference of the two sets of splits. This is the unweighted Robinson-Foulds distance between the trees, and takes an integer value between 0 and $2 \left( \left| {S} \right| - 3 \right)$. This measure is based solely on the topologies of the two trees, and takes no account of branch lengths. The weighted Robinson-Foulds distance and the euclidean distance extend this approach into the real-valued domain by taking branch-lengths into consideration. In the weighted Robinson-Foulds, the measure is the sum of the absolute differences in branch lengths for equivalent splits between both trees, with the branch length taken to be zero when the split is present in one tree and not the other. The euclidean distance is calculated similarly, but sums the squared difference between branch lengths, and takes the square root of the result. The geodesic distance of Billera, Holmes and Vogtmann is a more complex measure that explicitly takes topology and branch length into account. Under this scheme, a tree-space for $\left| {S} \right|$ species is embedded as a hypercube in real-valued space. All possible tree topologies are represented uniquely as points on the faces, called \textit{orthants}, of the hypercube
   \subsection*{Clustering methods}
   \begin{outline}
      \1 list the various clustering methods and explain how we computed 
   \end{outline}
+
   \subsection*{Determining the number of classes}
   \begin{outline}
      \1 Permutation analysis

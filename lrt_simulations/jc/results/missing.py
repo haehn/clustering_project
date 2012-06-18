@@ -13,7 +13,7 @@ else:
     launch_jobs = False
 
 l = []
-for i in range(1,11):
+for i in range(1,20):
     for j in range(1,21):
         l.append( '{0}class_50sims_{2}_{1}'.format(i,j,sys.argv[2]))
 
