@@ -6,6 +6,7 @@ import dendropy as dpy
 import GeoMeTreeHack
 from result import Result
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
+from Bio.Cluster import kmedoids
 import matplotlib.pyplot as plt
 from math import log
 import copy
@@ -148,26 +149,35 @@ class Clustering(object):
                                     to separate dendrogram into clusters 
                                     (threshold in range float(0,1)) """
 
-        linkmat = linkage(self.distance_matrices[metric],
-                          linkage_method)
-
-        if criterion == 'distance':
-            linkmat_size = len(linkmat)
-            if nclasses <= 1:
-                br_top = linkmat[linkmat_size - nclasses][2]
-            else:
-                br_top = linkmat[linkmat_size - nclasses + 1][2]
-            if nclasses >= len(linkmat):
-                br_bottom = 0
-            else:
-                br_bottom = linkmat[linkmat_size - nclasses][2]
-            threshold = 0.5 * (br_top + br_bottom)
-        T = fcluster(linkmat, threshold, criterion=criterion)
+        dm = self.distance_matrices[metric]
         compound_key = (metric, linkage_method, nclasses)
+
+        if linkage_method == 'kmedoids':
+            p = []
+            for i in range(100):
+                p.append(kmedoids(dm, nclusters=nclasses, npass=100))
+            T = sorted(p, key=lambda x:x[1])[0][0]
+
+        else:
+            linkmat = linkage(dm, linkage_method)
+
+            if criterion == 'distance':
+                linkmat_size = len(linkmat)
+                if nclasses <= 1:
+                    br_top = linkmat[linkmat_size - nclasses][2]
+                else:
+                    br_top = linkmat[linkmat_size - nclasses + 1][2]
+                if nclasses >= len(linkmat):
+                    br_bottom = 0
+                else:
+                    br_bottom = linkmat[linkmat_size - nclasses][2]
+                threshold = 0.5 * (br_top + br_bottom)
+            T = fcluster(linkmat, threshold, criterion=criterion)
+            self.plotting_info[compound_key] = (linkmat, names, threshold)
+        
         T = self.order(T)  # puts cluster labels in ascending order
         self.partitions[compound_key] = T
-        self.plotting_info[compound_key] = (linkmat, names, threshold)
-
+        
     def plot_dendrogram(self, compound_key):
         """
         Extracts data from clustering to plot dendrogram
@@ -179,7 +189,7 @@ class Clustering(object):
         dendrogram(
             linkmat,
             color_threshold=threshold,
-            leaf_font_size=10,
+            leaf_font_size=8,
             leaf_rotation=90,
             leaf_label_func=lambda leaf: names[leaf] + '_' \
                 + str(partition[leaf]),

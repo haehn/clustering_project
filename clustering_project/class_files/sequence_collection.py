@@ -119,23 +119,31 @@ class SequenceCollection(object):
         for rec in self.records:
             rec.sanitise()
 
-    def put_dv_matrices(self, tmpdir='/tmp',
-                        helper='./class_files/DV_wrapper.drw'):
+    def put_dv_matrices(
+        self,
+        tmpdir='/tmp',
+        helper='./class_files/DV_wrapper.drw',
+        overwrite=True,
+        ):
 
         for rec in self.records:
-            rec.dv = [rec.get_dv_matrix(tmpdir=tmpdir, helper=helper)]
+            rec.dv = [rec.get_dv_matrix(tmpdir=tmpdir, helper=helper,
+                      overwrite=overwrite)]
 
     def _unpack_dv(self, packed_args):
-            return packed_args[0].get_dv_matrix(packed_args[1],
-                packed_args[2])
-        
+        return packed_args[0].get_dv_matrix(*packed_args[1:])
 
-    def _dv_parallel_call(self, tmpdir='/tmp',
-                          helper='./class_files/DV_wrapper.drw'):
+    def _dv_parallel_call(
+        self,
+        tmpdir='/tmp',
+        helper='./class_files/DV_wrapper.drw',
+        overwrite=True,
+        ):
 
-        nprocesses = min(len(self.records), multiprocessing.cpu_count() - 1)
-        print 'Initialising a pool of {0} processes running {1} jobs...'\
-            .format(nprocesses, len(self.records))
+        nprocesses = min(len(self.records), multiprocessing.cpu_count()
+                         - 1)
+        print 'Initialising a pool of {0} processes running {1} jobs...'.format(nprocesses,
+                len(self.records))
         pool = multiprocessing.Pool(nprocesses)
         results = []
         args = []
@@ -144,14 +152,15 @@ class SequenceCollection(object):
             new_dir = tmpdir + '/' + rec.name
             if not os.path.isdir(new_dir):
                 os.mkdir(new_dir)
-            args.append((rec, tmpdir + '/' + rec.name, helper))
+            args.append((rec, tmpdir + '/' + rec.name, helper,
+                        overwrite))
             names.append(rec.name)
         r = pool.map_async(self._unpack_dv, args,
-                       callback=results.append)
+                           callback=results.append)
         r.wait()
-        for (x, y, z) in args:
-            if os.path.isdir(y):
-                os.rmdir(y)
+        for (w, x, y, z) in args:
+            if os.path.isdir(x):
+                os.rmdir(x)
         results = results[0]
         print 'Results obtained, closing pool...'
         pool.close()
@@ -159,10 +168,15 @@ class SequenceCollection(object):
         print 'Pool closed'
         return dict(zip(names, results))
 
-    def put_dv_matrices_parallel(self, tmpdir='/tmp',
-                                 helper='./class_files/DV_wrapper.drw'):
+    def put_dv_matrices_parallel(
+        self,
+        tmpdir='/tmp',
+        helper='./class_files/DV_wrapper.drw',
+        overwrite=True,
+        ):
 
-        dv_matrices_dict = self._dv_parallel_call(tmpdir, helper)
+        dv_matrices_dict = self._dv_parallel_call(tmpdir, helper,
+                overwrite=overwrite)
         for rec in self.records:
             rec.dv = [dv_matrices_dict[rec.name]]
 
@@ -182,20 +196,27 @@ class SequenceCollection(object):
         rec_list=None,
         ncat=4,
         tmpdir='/tmp',
-        overwrite=True
+        overwrite=True,
         ):
 
         if not rec_list:
             rec_list = self.records
         nprocesses = min(len(rec_list), multiprocessing.cpu_count() - 1)
-        print 'Initialising a pool of {0} processes running {1} jobs...'\
-            .format(nprocesses, len(rec_list))
+        print 'Initialising a pool of {0} processes running {1} jobs...'.format(nprocesses,
+                len(rec_list))
         pool = multiprocessing.Pool(nprocesses)
         results = []
         args = []
         names = []
         for rec in rec_list:
-            args.append((rec, model, datatype, ncat, tmpdir, overwrite))
+            args.append((
+                rec,
+                model,
+                datatype,
+                ncat,
+                tmpdir,
+                overwrite,
+                ))
             names.append(rec.name)
         r = pool.map_async(self._unpack_phyml, args,
                            callback=results.append)
@@ -209,8 +230,13 @@ class SequenceCollection(object):
     def _unpack_raxml(self, packed_args):
         return packed_args[0].get_raxml_tree(*packed_args[1:])
 
-    def _raxml_parallel_call(self, rec_list=None, tmpdir='/tmp',\
-        overwrite=True):
+    def _raxml_parallel_call(
+        self,
+        rec_list=None,
+        tmpdir='/tmp',
+        overwrite=True,
+        ):
+
         if not rec_list:
             rec_list = self.records
         nprocesses = multiprocessing.cpu_count() - 1
@@ -231,8 +257,13 @@ class SequenceCollection(object):
     def _unpack_TC(self, packed_args):
         return packed_args[0].get_TC_tree(*packed_args[1:])
 
-    def _TC_parallel_call(self, rec_list=None, tmpdir='/tmp',\
-        overwrite=True):
+    def _TC_parallel_call(
+        self,
+        rec_list=None,
+        tmpdir='/tmp',
+        overwrite=True,
+        ):
+
         if not rec_list:
             rec_list = self.records
         nprocesses = multiprocessing.cpu_count() - 1
@@ -258,7 +289,7 @@ class SequenceCollection(object):
         datatype=None,
         ncat=4,
         tmpdir='/tmp',
-        overwrite=True
+        overwrite=True,
         ):
 
         if not program in ['treecollection', 'raxml', 'phyml']:
@@ -273,7 +304,7 @@ class SequenceCollection(object):
                 rec.get_raxml_tree(tmpdir=tmpdir, overwrite=overwrite)
             elif program == 'phyml':
                 rec.get_phyml_tree(model=model, datatype=datatype,
-                                   tmpdir=tmpdir,ncat=ncat)
+                                   tmpdir=tmpdir, ncat=ncat)
 
     def put_trees_parallel(
         self,
@@ -283,7 +314,7 @@ class SequenceCollection(object):
         datatype=None,
         ncat=4,
         tmpdir='/tmp',
-        overwrite=True
+        overwrite=True,
         ):
 
         if not program in ['treecollection', 'raxml', 'phyml']:
@@ -298,9 +329,14 @@ class SequenceCollection(object):
             trees_dict = self._raxml_parallel_call(rec_list=rec_list,
                     tmpdir=tmpdir, overwrite=overwrite)
         elif program == 'phyml':
-            trees_dict = self._phyml_parallel_call(rec_list=rec_list,
-                    model=model, datatype=datatype, tmpdir=tmpdir,
-                    ncat=ncat, overwrite=overwrite)
+            trees_dict = self._phyml_parallel_call(
+                rec_list=rec_list,
+                model=model,
+                datatype=datatype,
+                tmpdir=tmpdir,
+                ncat=ncat,
+                overwrite=overwrite,
+                )
         for rec in self.records:
             rec.tree = trees_dict[rec.name]
 
@@ -354,9 +390,6 @@ class SequenceCollection(object):
                             names, criterion=criterion)
                     key = (metric, linkage, n)
 
-                    # self.clustering.concatenate_records(key,
-                            # self.records)
-
     def get_partitions(self):
         return self.clustering.partitions
 
@@ -390,15 +423,22 @@ class SequenceCollection(object):
         datatype=None,
         ncat=4,
         tmpdir='/tmp',
-        overwrite=True
+        overwrite=True,
         ):
+
         if program not in ['treecollection', 'raxml', 'phyml']:
             print 'unrecognised program {0}'.format(program)
             return
         rec_list = self.get_cluster_records()
-        self.put_trees(rec_list=rec_list, program=program, model=model,
-                       ncat=ncat, datatype=datatype, tmpdir=tmpdir,
-                       overwrite=overwrite)
+        self.put_trees(
+            rec_list=rec_list,
+            program=program,
+            model=model,
+            ncat=ncat,
+            datatype=datatype,
+            tmpdir=tmpdir,
+            overwrite=overwrite,
+            )
         self.update_results()
 
     def update_results(self):
@@ -412,7 +452,7 @@ class SequenceCollection(object):
         datatype=None,
         ncat=4,
         tmpdir='/tmp',
-        overwrite=True
+        overwrite=True,
         ):
 
         if program not in ['treecollection', 'raxml', 'phyml']:
@@ -421,17 +461,21 @@ class SequenceCollection(object):
         rec_list = self.get_cluster_records()
         if program == 'treecollection':
             cluster_trees_dict = \
-                self._TC_parallel_call(rec_list=rec_list, tmpdir=tmpdir,
-                    overwrite=overwrite)
+                self._TC_parallel_call(rec_list=rec_list,
+                    tmpdir=tmpdir, overwrite=overwrite)
         elif program == 'raxml':
             cluster_trees_dict = \
                 self._raxml_parallel_call(rec_list=rec_list,
                     tmpdir=tmpdir, overwrite=overwrite)
         elif program == 'phyml':
-            cluster_trees_dict = \
-                self._phyml_parallel_call(rec_list=rec_list,
-                    model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir,
-                    overwrite=overwrite)
+            cluster_trees_dict = self._phyml_parallel_call(
+                rec_list=rec_list,
+                model=model,
+                datatype=datatype,
+                ncat=ncat,
+                tmpdir=tmpdir,
+                overwrite=overwrite,
+                )
         for rec in rec_list:
             rec.tree = cluster_trees_dict[rec.name]
         self.update_results()
@@ -531,21 +575,18 @@ class SequenceCollection(object):
                 x.append(k[-1])
         plt.plot(x, y, *args)
 
-    def find_mergeable_groups(
-        self,
-        compound_key
-        ):
+    def find_mergeable_groups(self, compound_key):
+
         result_object = self.get_clusters()[compound_key]
         cluster_trees = [rec.tree for rec in result_object.concats]
         cluster_names = [tree.name for tree in cluster_trees]
-        matrix = self.clustering.get_distance_matrix(cluster_trees, 'sym')
+        matrix = self.clustering.get_distance_matrix(cluster_trees,
+                'sym')
         groups = result_object.find_mergeable_groups(matrix)
         return groups
 
-    def merge_groups(
-        self,
-        compound_key
-        ):
+    def merge_groups(self, compound_key):
+
         group_dict = self.find_mergeable_groups(compound_key)[0]
         old_memberships = self.get_clusters()[compound_key].members
         new_memberships = []
@@ -571,7 +612,7 @@ class SequenceCollection(object):
                 new_partition[index] = i
             i += 1
 
-        new_key = compound_key + ('merge',)
+        new_key = compound_key + ('merge', )
         self.clustering.partitions[new_key] = new_partition
         self.put_clusters()
 
@@ -579,12 +620,13 @@ class SequenceCollection(object):
         self,
         compound_key,
         helper='./class_files/DV_wrapper.drw',
-        tmpdir='/tmp'
+        tmpdir='/tmp',
         ):
+
         shorten = lambda x: '_'.join([str(b)[:5] for b in x])
         result_object = self.get_clusters()[compound_key]
-        lengths = [ [rec.seqlength for rec in m] 
-                    for m in result_object.members ]
+        lengths = [[rec.seqlength for rec in m] for m in
+                   result_object.members]
         total_lengths = [sum(x) for x in lengths]
         msa_dir = '{0}/msa'.format(tmpdir)
         if not os.path.isdir(msa_dir):
@@ -593,13 +635,13 @@ class SequenceCollection(object):
         for i in range(result_object.length):
             tree = result_object.concats[i].tree
             tree = tree.pam2sps('sps2pam')
-            treefile = tree.write_to_file(
-                    '{0}/{1}_tmptree{2}.nwk'.format(tmpdir,
-                    shorten(compound_key),i))
+            treefile = \
+                tree.write_to_file('{0}/{1}_tmptree{2}.nwk'.format(tmpdir,
+                                   shorten(compound_key), i))
             outfile = '{0}/{1}_class{2}_params.drw'.format(tmpdir,
-                    shorten(compound_key),i)
+                    shorten(compound_key), i)
             length_list = lengths[i]
-            total_length = (total_lengths[i] + total_lengths[i]%3)/3
+            total_length = (total_lengths[i] + total_lengths[i] % 3) / 3
             result_object.write_ALF_parameters(
                 'alfsim_{0}'.format(i),
                 tmpdir,
@@ -607,42 +649,47 @@ class SequenceCollection(object):
                 1,
                 total_length,
                 treefile,
-                outfile
+                outfile,
                 )
             os.system('alfsim {0}'.format(outfile))
-            record = TCSeqRec(glob.glob('{0}/alftmp_{1}/alfsim_{1}/MSA/*dna.fa'\
-                .format(tmpdir,i))[0])
-            
-            alf_newick = open('{0}/alftmp_{1}/alfsim_{1}/RealTree.nwk'\
-                .format(tmpdir,i)).read()
-            replacement_dict = dict(zip(re.findall(r'(\w+)(?=:)',alf_newick),
-                re.findall(r'(\w+)(?=:)',tree.newick)))
+            record = \
+                TCSeqRec(glob.glob('{0}/alftmp_{1}/alfsim_{1}/MSA/*dna.fa'.format(tmpdir,
+                         i))[0])
+
+            alf_newick = \
+                open('{0}/alftmp_{1}/alfsim_{1}/RealTree.nwk'.format(tmpdir,
+                     i)).read()
+            replacement_dict = dict(zip(re.findall(r'(\w+)(?=:)',
+                                    alf_newick),
+                                    re.findall(r'(\w+)(?=:)',
+                                    tree.newick)))
             print alf_newick
             print tree.newick
             print replacement_dict
             record.sort_by_name()
-            headers = [replacement_dict[x[:x.rindex('/')]] for x in record.headers]
+            headers = [replacement_dict[x[:x.rindex('/')]] for x in
+                       record.headers]
             print headers
             sequences = record.sequences
             print record
             for j in range(len(length_list)):
                 start = sum(length_list[:j])
-                end = sum(length_list[:j+1])
+                end = sum(length_list[:j + 1])
                 new_sequences = [seq[start:end] for seq in sequences]
-                newmsa = TCSeqRec(headers=headers, sequences=new_sequences,
-                                    name='gene{0:0>3}'.format(k))
-                k+=1
+                newmsa = TCSeqRec(headers=headers,
+                                  sequences=new_sequences,
+                                  name='gene{0:0>3}'.format(k))
+                k += 1
                 newmsa.write_fasta(outfile='{0}/{1}.fas'.format(msa_dir,
-                                            newmsa.name))
-            shutil.rmtree('{0}/alftmp_{1}'.format(tmpdir,i))
+                                   newmsa.name))
+            shutil.rmtree('{0}/alftmp_{1}'.format(tmpdir, i))
             os.remove(treefile)
             os.remove(outfile)
 
         new_seqcol_object = SequenceCollection(msa_dir, datatype='dna',
-                                                helper=helper, tmpdir=tmpdir)
+                helper=helper, tmpdir=tmpdir)
         shutil.rmtree('{0}/msa'.format(tmpdir))
         return new_seqcol_object
-
 
     def __init__(
         self,
@@ -652,7 +699,8 @@ class SequenceCollection(object):
         datatype='protein',
         helper='./class_files/DV_wrapper.drw',
         tmpdir='/tmp',
-        parallel_load=True
+        parallel_load=True,
+        overwrite=True,
         ):
 
         self.dir = input_dir
@@ -675,17 +723,20 @@ class SequenceCollection(object):
             if not os.path.isdir(tmpdir):
                 os.mkdir(tmpdir)
             if parallel_load:
-                self.put_dv_matrices_parallel(helper=helper, tmpdir=tmpdir)
+                self.put_dv_matrices_parallel(helper=helper,
+                        tmpdir=tmpdir, overwrite=overwrite)
             else:
-                self.put_dv_matrices(helper=helper, tmpdir=tmpdir)
-
+                self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
+                        overwrite=overwrite)
         elif records:
 
             self.sanitise_records()
             if parallel_load:
-                self.put_dv_matrices_parallel(helper=helper, tmpdir=tmpdir)
+                self.put_dv_matrices_parallel(helper=helper,
+                        tmpdir=tmpdir, overwrite=overwrite)
             else:
-                self.put_dv_matrices(helper=helper, tmpdir=tmpdir)
+                self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
+                        overwrite=overwrite)
 
         self.length = len(self.records)
 

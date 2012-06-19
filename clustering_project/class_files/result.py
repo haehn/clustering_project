@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
+from collections import defaultdict
 
 class Result(object):
 
@@ -37,7 +37,7 @@ class Result(object):
         """
         nclusters = len(matrix)
         indices = range(nclusters)
-        results = { i:[] for i in range(len(indices)) }
+        results = defaultdict(list)
         for i in range(nclusters):
             if i in indices:
                 for j in range(i+1, nclusters):

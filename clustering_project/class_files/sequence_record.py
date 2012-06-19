@@ -666,13 +666,16 @@ class TCSeqRec(SequenceRecord):
         return self.tree
 
     def get_dv_matrix(self, tmpdir='/tmp',
-                      helper='/Users/kgori/Projects/clustering_project/class_files/DV_wrapper.drw'
+                      helper='/Users/kgori/Projects/clustering_project/class_files/DV_wrapper.drw',
+                      overwrite=True
                       ):
         """
         Makes a call to the TC_wrapper.drw darwin helper script, which
         calculates a distance-variance matrix from the sequence alignments,
         and generates files needed by the treecollection binary
         """
+        if not overwrite and self.dv:
+            return self.dv[0]
         if self.name:
             fastafile = '{0}/{1}.fas'.format(tmpdir, self.name)
         else:
