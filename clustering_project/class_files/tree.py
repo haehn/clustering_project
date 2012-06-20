@@ -52,13 +52,16 @@ class Tree(object):
 
         convert_pam_to_sps = lambda a: str(0.01 * float(a.group()))
         convert_sps_to_pam = lambda b: str(100 * float(b.group()))
-        strip_lengths = lambda c: ''
+        convert_quarter = lambda c,n: str(0.25 * float(c.group()))
+        strip_lengths = lambda d: ''
 
         input_string = self.newick
         if conversion == 'pam2sps':
             output_string = reg_ex.sub(convert_pam_to_sps, input_string)
         elif conversion == 'sps2pam':
             output_string = reg_ex.sub(convert_sps_to_pam, input_string)
+        elif conversion == 'quarter':
+            output_string = reg_ex.sub(convert_quarter, input_string)
         else:
             output_string = reg_ex.sub(strip_lengths,
                     input_string).replace(':', '')
