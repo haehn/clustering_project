@@ -45,9 +45,18 @@ parser.add_argument(
     type=int,
     default='1'
     )
+parser.add_argument(
+    '-g',
+    '--genes',
+    dest='genes',
+    help='choice of number of genes',
+    type=int,
+    default='10'
+    )
 
 args = vars(parser.parse_args())
 choice = args['set']
+genes = args['genes']
 ### END ARGPARSE BIT
 
 # Essential files
@@ -75,7 +84,7 @@ while trees:
     trees=trees[1:]
 
 treesets = treesets[choice-1:choice] ### REMOVE THIS LINE
-truth = np.array( [1]*10+[2]*10+[3]*10 )
+truth = np.array( [1]*genes+[2]*genes+[3]*genes )
 
 for i,treeset in enumerate(treesets):
     treeset = treesets[i]
@@ -92,6 +101,7 @@ for i,treeset in enumerate(treesets):
         os.mkdir(msa_dir)
     number = 0
     for j, tree in enumerate(treeset):
+        #tree = Tree(newick=tree).newick
         tmptree = '{0}/tmptree{1}_{2}_{3}.nwk'.format(tmpdir,i,j,choice)
         params = '{0}/{1}_{2}_{3}_params.drw'.format(tmpdir,i,j,choice)
         with open(tmptree,'w') as file:
@@ -100,8 +110,8 @@ for i,treeset in enumerate(treesets):
             'alfsim{0}_{1}_{2}'.format(i,j,choice),
             tmpdir,
             'alftmp{0}_{1}_{2}'.format(i,j,choice),
-            10,
-            250,
+            genes,
+            100,
             tmptree,
             params
             )
@@ -133,11 +143,11 @@ for i,treeset in enumerate(treesets):
             new_record.write_fasta(outfile='{0}/{1}.fas'.format(msa_dir,name))
         shutil.rmtree('{0}/alftmp{1}_{2}_{3}'.format(tmpdir,
                  i,j,choice))
-    sim = SequenceCollection(msa_dir, datatype='dna',helper=os.environ['DARWINHELPER'])
-    sim.put_trees_parallel(program='phyml',model='JC69',datatype='nt',ncat=1)
+    sim = SequenceCollection(msa_dir, datatype='dna',helper=os.environ['DARWINHELPER'],tmpdir=tmpdir)
+    sim.put_trees_parallel(program='phyml',model='JC69',datatype='nt',ncat=1,tmpdir=tmpdir)
     sim.put_partitions(metrics=['sym','rf','euc','geodesic'], linkages=['single','complete','average','ward'], nclasses=[3])
     sim.put_clusters()
-    sim.put_cluster_trees_parallel(program='phyml',model='JC69',datatype='nt',ncat=1)
+    sim.put_cluster_trees_parallel(program='phyml',model='JC69',datatype='nt',ncat=1,tmpdir=tmpdir)
     d = sim.get_clusters()
     print 'Av. Dist\t(sym):\t{0}'.format(avdist_sym)
     print 'Av. Dist\t(euc):\t{0}'.format(avdist_euc)
@@ -149,10 +159,10 @@ for i,treeset in enumerate(treesets):
             vi = sim.clustering.variation_of_information(partition,truth)
             score = d[k].score
             if k[0] == 'sym':
-                file.write('sym\t{0}\t{1}\t{2}\t{3}'.format(k[1],avdist_sym,vi,score))
+                file.write('sym\t{0}\t{1}\t{2}\t{3}\n'.format(k[1],avdist_sym,vi,score))
             elif k[0] == 'rf':
-                file.write('rf\t{0}\t{1}\t{2}\t{3}'.format(k[1],avdist_rf,vi,score))
+                file.write('rf\t{0}\t{1}\t{2}\t{3}\n'.format(k[1],avdist_rf,vi,score))
             elif k[0] == 'geodesic':
-                file.write('geodesic\t{0}\t{1}\t{2}\t{3}'.format(k[1],avdist_geo,vi,score))
+                file.write('geodesic\t{0}\t{1}\t{2}\t{3}\n'.format(k[1],avdist_geo,vi,score))
             elif k[0] == 'euc':
-                file.write('euc\t{0}\t{1}\t{2}\t{3}'.format(k[1],avdist_euc,vi,score))
+                file.write('euc\t{0}\t{1}\t{2}\t{3}\n'.format(k[1],avdist_euc,vi,score))

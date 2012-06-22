@@ -42,30 +42,36 @@ class Tree(object):
             + 'Tree:\t]{0}\n'.format(self.newick)
         return s
 
-    def pam2sps(self, conversion='sps2pam'):
+    def pam2sps(self, multiplier=0.01):
         """
-        Scales branch lengths by an order of 100, converting
-        PAM units to substitutions per site, and vice versa
+        Scales branch lengths by an order of `multiplier`.
+        Default is 0.01, converting PAM units to substitutions 
+        per site.
+        multiplier = 'sps2pam' scales by 100, performing the 
+        opposite operation.
+        multiplier = 'strip' removes branch lengths entirely
         """
-
+        
         reg_ex = re.compile('(?<=:)[0-9.]+')
 
-        convert_pam_to_sps = lambda a: str(0.01 * float(a.group()))
-        convert_sps_to_pam = lambda b: str(100 * float(b.group()))
-        convert_quarter = lambda c,n: str(0.25 * float(c.group()))
+        converter = lambda a: str(multiplier * float(a.group()))
         strip_lengths = lambda d: ''
 
         input_string = self.newick
-        if conversion == 'pam2sps':
-            output_string = reg_ex.sub(convert_pam_to_sps, input_string)
-        elif conversion == 'sps2pam':
-            output_string = reg_ex.sub(convert_sps_to_pam, input_string)
-        elif conversion == 'quarter':
-            output_string = reg_ex.sub(convert_quarter, input_string)
-        else:
-            output_string = reg_ex.sub(strip_lengths,
+        
+        if multiplier == 'pam2sps':
+            multiplier = 0.01
+        elif multiplier == 'sps2pam':
+            multiplier = 100
+        
+        # Set the output string according to selection
+        if multiplier == 'strip':
+            output_string =  reg_ex.sub(strip_lengths,
                     input_string).replace(':', '')
 
+        else: 
+            output_string = reg_ex.sub(converter, input_string)
+        
         return Tree(output_string, self.score, self.program, self.name)
 
     def read_from_file(self, infile, name=None):
