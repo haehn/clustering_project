@@ -367,6 +367,7 @@ class SequenceCollection(object):
         linkages,
         nclasses,
         criterion='distance',
+        prune=True
         ):
         """
         metrics, linkages and nclasses are given as lists, or coerced into 
@@ -379,6 +380,8 @@ class SequenceCollection(object):
             linkages = [linkages]
         if not isinstance(nclasses, list):
             nclasses = [nclasses]
+        else:
+            nclasses = sorted(nclasses, reverse=True)
         names = [rec.name for rec in self.records]
         for metric in metrics:
             if not metric in self.get_distance_matrices():
@@ -387,7 +390,7 @@ class SequenceCollection(object):
             for linkage in linkages:
                 for n in nclasses:
                     self.clustering.put_partition(metric, linkage, n,
-                            names, criterion=criterion)
+                            names, criterion=criterion, prune=prune)
                     key = (metric, linkage, n)
 
     def get_partitions(self):
