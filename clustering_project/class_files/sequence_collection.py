@@ -9,6 +9,7 @@ import re
 import matplotlib.pyplot as plt
 from sequence_record import TCSeqRec
 from clustering import Clustering
+from simulation import Simulation
 import copy_reg
 import types
 from random import shuffle
@@ -186,6 +187,39 @@ class SequenceCollection(object):
             dvs[rec.name] = rec.dv
         return dvs
 
+    def _unpack_bionj(self, packed_args):
+        return packed_args[0].get_bionj_tree(*packed_args[1:])
+
+    def _bionj_parallel_call(
+        self,
+        model=None,
+        datatype=None,
+        rec_list=None,
+        tmpdir='/tmp',
+        overwrite=True,
+        ):
+
+        if not rec_list:
+            rec_list = self.records
+        nprocesses = min(len(rec_list), multiprocessing.cpu_count() - 1)
+        print 'Initialising a pool of {0} processes running {1} jobs...'.format(nprocesses,
+                len(rec_list))
+        pool = multiprocessing.Pool(nprocesses)
+        results = []
+        args = []
+        names = []
+        for rec in rec_list:
+            args.append((rec, model, datatype, tmpdir, overwrite))
+            names.append(rec.name)
+        r = pool.map_async(self._unpack_bionj, args,
+                           callback=results.append)
+        r.wait()
+        print 'Results obtained, closing pool...'
+        pool.close()
+        pool.join()
+        print 'Pool closed'
+        return dict(zip(names, results[0]))
+
     def _unpack_phyml(self, packed_args):
         return packed_args[0].get_phyml_tree(*packed_args[1:])
 
@@ -240,6 +274,8 @@ class SequenceCollection(object):
         if not rec_list:
             rec_list = self.records
         nprocesses = multiprocessing.cpu_count() - 1
+        print 'Initialising a pool of {0} processes running {1} jobs...'.format(nprocesses,
+                len(rec_list))
         pool = multiprocessing.Pool(nprocesses)
         results = []
         args = []
@@ -267,6 +303,8 @@ class SequenceCollection(object):
         if not rec_list:
             rec_list = self.records
         nprocesses = multiprocessing.cpu_count() - 1
+        print 'Initialising a pool of {0} processes running {1} jobs...'.format(nprocesses,
+                len(rec_list))
         pool = multiprocessing.Pool(nprocesses)
         results = []
         args = []
@@ -292,7 +330,7 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        if not program in ['treecollection', 'raxml', 'phyml']:
+        if not program in ['treecollection', 'raxml', 'phyml', 'bionj']:
             print 'unrecognised program {0}'.format(program)
             return
         if not rec_list:
@@ -304,7 +342,11 @@ class SequenceCollection(object):
                 rec.get_raxml_tree(tmpdir=tmpdir, overwrite=overwrite)
             elif program == 'phyml':
                 rec.get_phyml_tree(model=model, datatype=datatype,
-                                   tmpdir=tmpdir, ncat=ncat)
+                                   tmpdir=tmpdir, ncat=ncat,
+                                   overwrite=overwrite)
+            elif program == 'bionj':
+                rec.get_bionj_tree(model=model, datatype=datatype,
+                                   tmpdir=tmpdir, overwrite=overwrite)
 
     def put_trees_parallel(
         self,
@@ -317,7 +359,7 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        if not program in ['treecollection', 'raxml', 'phyml']:
+        if not program in ['treecollection', 'raxml', 'phyml', 'bionj']:
             print 'unrecognised program {0}'.format(program)
             return
         if not rec_list:
@@ -337,6 +379,10 @@ class SequenceCollection(object):
                 ncat=ncat,
                 overwrite=overwrite,
                 )
+        elif program == 'bionj':
+            trees_dict = self._bionj_parallel_call(rec_list=rec_list,
+                    model=model, datatype=datatype, tmpdir=tmpdir,
+                    overwrite=overwrite)
         for rec in self.records:
             rec.tree = trees_dict[rec.name]
 
@@ -367,7 +413,7 @@ class SequenceCollection(object):
         linkages,
         nclasses,
         criterion='distance',
-        prune=True
+        prune=True,
         ):
         """
         metrics, linkages and nclasses are given as lists, or coerced into 
@@ -389,8 +435,14 @@ class SequenceCollection(object):
                 self.clustering.put_distance_matrix(trees, metric)
             for linkage in linkages:
                 for n in nclasses:
-                    self.clustering.put_partition(metric, linkage, n,
-                            names, criterion=criterion, prune=prune)
+                    self.clustering.put_partition(
+                        metric,
+                        linkage,
+                        n,
+                        names,
+                        criterion=criterion,
+                        prune=prune,
+                        )
                     key = (metric, linkage, n)
 
     def get_partitions(self):
@@ -429,7 +481,7 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        if program not in ['treecollection', 'raxml', 'phyml']:
+        if program not in ['treecollection', 'raxml', 'phyml','bionj']:
             print 'unrecognised program {0}'.format(program)
             return
         rec_list = self.get_cluster_records()
@@ -458,7 +510,7 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        if program not in ['treecollection', 'raxml', 'phyml']:
+        if program not in ['treecollection', 'raxml', 'phyml','bionj']:
             print 'unrecognised program {0}'.format(program)
             return
         rec_list = self.get_cluster_records()
@@ -479,6 +531,10 @@ class SequenceCollection(object):
                 tmpdir=tmpdir,
                 overwrite=overwrite,
                 )
+        elif program == 'bionj':
+            cluster_trees_dict = self._bionj_parallel_call(rec_list=rec_list,
+                    model=model, datatype=datatype, tmpdir=tmpdir,
+                    overwrite=overwrite)
         for rec in rec_list:
             rec.tree = cluster_trees_dict[rec.name]
         self.update_results()
@@ -570,6 +626,7 @@ class SequenceCollection(object):
         *args
         ):
 
+        fig = plt.figure()
         cl = self.get_clusters()
         (x, y) = ([], [])
         for k in sorted(cl):
@@ -577,6 +634,7 @@ class SequenceCollection(object):
                 y.append(cl[k].score)
                 x.append(k[-1])
         plt.plot(x, y, *args)
+        return fig
 
     def find_mergeable_groups(self, compound_key):
 

@@ -32,7 +32,12 @@ class Clustering(object):
         self.partitions = {}
         self.plotting_info = {}
         self.clusters = {}
-        self._affinity_propagation = defaultdict(list)
+        self._affinity_propagation = {
+            'euc': defaultdict(list),
+            'geodesic': defaultdict(list),
+            'sym': defaultdict(list),
+            'rf': defaultdict(list),
+            }
 
     def __str__(self):
         s = ''
@@ -163,7 +168,6 @@ class Clustering(object):
             self.partitions[compound_key] = T
             return
 
-
         if linkage_method == 'kmedoids':
             p = []
             for i in range(100):
@@ -189,7 +193,7 @@ class Clustering(object):
             T = est.labels_
         elif linkage_method == 'affinity':
 
-            T = self.affinity_propagation(dm, nclasses)
+            T = self.affinity_propagation(dm, metric, nclasses)
         else:
 
             linkmat = linkage(dm, linkage_method)
@@ -470,6 +474,7 @@ class Clustering(object):
     def affinity_propagation(
         self,
         distance_matrix,
+        metric,
         n_clusters,
         p=None,
         ):
@@ -478,10 +483,15 @@ class Clustering(object):
         affinity propagation clustering.
         """
 
-        if n_clusters in self._affinity_propagation:
-            p = self._affinity_propagation[n_clusters][0]
+        if not metric in self._affinity_propagation:
+            print '{0} metric not supported by affinity propagation'
 
-    
+            # If this message occurs, add missing metric to
+            # self._affinity_propagation dictionary in __init__
+
+        if n_clusters in self._affinity_propagation[metric]:
+            p = self._affinity_propagation[metric][n_clusters][0]
+
         affinity_matrix = -distance_matrix ** 2
         ind = np.triu_indices(len(affinity_matrix), 1)
         minval = np.min(affinity_matrix[ind])
@@ -495,44 +505,49 @@ class Clustering(object):
             for pref in np.arange(minval, medval, step):
                 aff.fit(affinity_matrix, pref)
                 clusters_found = len(aff.cluster_centers_indices_)
-                self._affinity_propagation[clusters_found].append(pref)
+                self._affinity_propagation[metric][clusters_found].append(pref)
                 if clusters_found == n_clusters:
                     return aff.labels_
 
-            for x in sorted(self._affinity_propagation):
+            for x in sorted(self._affinity_propagation[metric]):
                 if x < n_clusters:
-                    minval = self._affinity_propagation[x][0]
+                    minval = self._affinity_propagation[metric][x][0]
                 else:
-                    maxval = self._affinity_propagation[x][0]
+                    maxval = self._affinity_propagation[metric][x][0]
                     break
 
             step = (maxval - minval) / 200
 
-            for pref in np.arange(minval, 0, step):
+            for pref in np.arange(minval, maxval, step):
                 aff.fit(affinity_matrix, pref)
                 clusters_found = len(aff.cluster_centers_indices_)
-                self._affinity_propagation[clusters_found].append(pref)
+                self._affinity_propagation[metric][clusters_found].append(pref)
                 if clusters_found == n_clusters:
                     return aff.labels_
 
             print 'Unable to find {0} clusters'.format(n_clusters)
             return
         else:
-            print 'Using dictionary for {0} clusters: P = {1}'.format(n_clusters,p)
+            print 'Using dictionary for {0} clusters: P = {1}'.format(n_clusters,
+                    p)
             aff.fit(affinity_matrix, p)
             clusters_found = len(aff.cluster_centers_indices_)
             print 'Clusters found = ', clusters_found
             assert clusters_found == n_clusters
             return aff.labels_
 
-    def spectral(self, distance_matrix, prune=True):
+    def spectral(self, distance_matrix, prune=True, sigma7=False):
         """
         1st: Calculates an affinity matrix from a distance matrix, using the
         local scaling transform from Zelnik-Manor and Perona (2004):
         affinity[i,j] = exp(-distance[i,j]^2/(sigma_i*sigma_j)).
         2nd: Returns a normalised Laplacian matrix from the affinity matrix.
         Optionally the similarity matrix can be pruned using a k-nearest neighbours
-        approach as in Leigh et al. (2011)
+        approach as in Leigh et al. (2011).
+        Note: the normalised Laplacian according to Ng et al. is different to the
+        normalised Laplacian according to Von Luxburg: 
+        Ng et al. give D(-1/2). W. D(-1/2)
+        VL gives I - D(-1/2). W. D(-1/2)
 
         References: 
         Luxburg, U. (2007). A tutorial on spectral clustering. 
@@ -587,6 +602,12 @@ class Clustering(object):
                     return False
             return True
 
+        def nodivzero(d):
+            if 0 in d.values():
+                return False
+            else:
+                return True
+
         def knn(matrix, k):
             """
             Acts on distance matrix. For each datapoint, finds
@@ -600,7 +621,7 @@ class Clustering(object):
             for i in range(size):
                 sorted_dists = matrix[i].argsort()
                 for j in sorted_dists[:k]:
-                    kneighbour_matrix[i, j] = 1
+                    kneighbour_matrix[i, j] = kneighbour_matrix[j, i] = 1
                     max_dists[i] = matrix[i, sorted_dists[k - 1]]
             return (kneighbour_matrix, max_dists)
 
@@ -624,26 +645,17 @@ class Clustering(object):
 
         def laplace(affinity_matrix):
 
-            D = np.zeros([size, size])
-            for i in range(size):
-                D[i, i] = 1 / np.sqrt(np.sum(affinity_matrix[i]))
-            return np.dot(np.dot(D, affinity_matrix), D)
+            D = np.diag(affinity_matrix.sum(axis=1))
+            invRootD = np.sqrt(np.linalg.inv(D))
+            return np.dot(np.dot(invRootD, affinity_matrix), invRootD)
 
-        # if prune:
-        #     k = int(np.log(size).round())
-        #     for i in range(k, size):
-        #         test = knn(distance_matrix, i)
-        #         if isconnected(test[0]):
-        #             break
-        #     kneighbour_matrix, max_dists = test
-
-        if prune: # 'guess a number' strategy
+        if prune:  # 'guess a number' strategy
             mink = 1
             maxk = size
             guessk = int(np.log(size).round())
             while maxk - mink != 1:
                 test = knn(distance_matrix, guessk)
-                if isconnected(test[0]):
+                if isconnected(test[0]) and nodivzero(test[1]):
 
                     # either correct or too high
                     # try a lower number
@@ -658,11 +670,25 @@ class Clustering(object):
                     guessk = guessk + (maxk - guessk) / 2
             (kneighbour_matrix, max_dists) = knn(distance_matrix,
                     guessk + 1)
+               
         else:
 
             (kneighbour_matrix, max_dists) = knn(distance_matrix, size)
 
         affinity_matrix = get_affinity_matrix(distance_matrix,
                 kneighbour_matrix, max_dists)
+        md7 = knn(distance_matrix, 7)[1]
+        if nodivzero(md7):
+            am7 = get_affinity_matrix(distance_matrix, kneighbour_matrix, md7)
+        else:
+            print 'Setting sigma(i) > d(S(i),S(7)) to avoid dividing by zero.'
+            if prune: 
+                print 'Sigma = d(S(i),S({0})'.format( guessk + 1 )
+            else:
+                print 'Sigma = d(S(i),S({0})'.format( size )
+            sigma7 = False
 
-        return laplace(affinity_matrix)
+        if sigma7: 
+            return laplace(am7)
+        else:
+            return laplace(affinity_matrix)

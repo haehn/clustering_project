@@ -576,19 +576,24 @@ class TCSeqRec(SequenceRecord):
 
         # Check it all worked
 
-        assert os.path.isfile('{0}/{1}_dv.txt'.format(tmpdir, self.name))
-        assert os.path.isfile('{0}/{1}_labels.txt'.format(tmpdir, self.name))
-        assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir, self.name))
-        assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir, self.name))
+        assert os.path.isfile('{0}/{1}_dv.txt'.format(tmpdir,
+                              self.name))
+        assert os.path.isfile('{0}/{1}_labels.txt'.format(tmpdir,
+                              self.name))
+        assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir,
+                              self.name))
+        assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir,
+                              self.name))
 
     def get_phyml_tree(
-        self, 
-        model=None, 
-        datatype=None, 
-        ncat=4, 
-        tmpdir='/tmp', 
-        overwrite=True
+        self,
+        model=None,
+        datatype=None,
+        ncat=4,
+        tmpdir='/tmp',
+        overwrite=True,
         ):
+
         if not overwrite and self.tree.newick:
             print '{0}: Tree exists and overwrite set to false'.format(self.name)
             return self.tree
@@ -596,8 +601,8 @@ class TCSeqRec(SequenceRecord):
         self._write_temp_phylip(tmpdir=tmpdir)
         print 'Running phyml on ' + str(self.name) + '...'
         input_file = '{0}/{1}.phy'.format(tmpdir, self.name)
-        if not model and not datatype: #quick-fix to allow specification of other
-            if self.datatype == 'dna': #models when calling phyml
+        if not model and not datatype:  # quick-fix to allow specification of other
+            if self.datatype == 'dna':  # models when calling phyml
                 model = 'GTR'
                 datatype = 'nt'
             elif self.datatype == 'protein':
@@ -606,12 +611,50 @@ class TCSeqRec(SequenceRecord):
             else:
                 print 'I don\'t know this datatype: {0}'.format(self.datatype)
                 return
-        t = self.tree.run_phyml(model, input_file, datatype, self.name,\
-            ncat=ncat, overwrite=overwrite)
+        t = self.tree.run_phyml(
+            model,
+            input_file,
+            datatype,
+            self.name,
+            ncat=ncat,
+            overwrite=overwrite,
+            )
+        os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
+        return self.tree
+
+    def get_bionj_tree(
+        self,
+        model,
+        datatype,
+        tmpdir='/tmp',
+        overwrite=True,
+        ):
+        if not overwrite and self.tree.newick:
+            print '{0}: Tree exists and overwrite set to false'.format(self.name)
+            return self.tree
+        self.Tree = Tree()
+        self._write_temp_phylip(tmpdir=tmpdir)
+        print 'Running bionj on ' + str(self.name) + '...'
+        input_file = '{0}/{1}.phy'.format(tmpdir, self.name)
+        if not model and not datatype:  # quick-fix to allow specification of other
+            if self.datatype == 'dna':  # models when calling phyml
+                model = 'GTR'
+                datatype = 'nt'
+            elif self.datatype == 'protein':
+                model = 'WAG'
+                datatype = 'aa'
+            else:
+                print 'I don\'t know this datatype: {0}'.format(self.datatype)
+                return
+        t = self.tree.run_bionj(model, input_file, datatype, self.name,
+                                overwrite=overwrite)
         os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
         return self.tree
 
     def get_raxml_tree(self, tmpdir='/tmp', overwrite=True):
+        if not overwrite and self.tree.newick:
+            print '{0}: Tree exists and overwrite set to false'.format(self.name)
+            return self.tree
         self.tree = Tree()
         self._write_temp_phylip(tmpdir=tmpdir)
         print 'Running raxml on ' + str(self.name) + '...'
@@ -623,8 +666,8 @@ class TCSeqRec(SequenceRecord):
         else:
             print 'I don\'t know this datatype: {0}'.format(self.datatype)
             return
-        self.tree.run_raxml(model, input_file, self.name, tmpdir,\
-            overwrite=overwrite)
+        self.tree.run_raxml(model, input_file, self.name, tmpdir,
+                            overwrite=overwrite)
         os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
         if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir,
                           self.name)):
@@ -651,29 +694,38 @@ class TCSeqRec(SequenceRecord):
         return t
 
     def get_TC_tree(self, tmpdir='/tmp', overwrite=True):
+        if not overwrite and self.tree.newick:
+            print '{0}: Tree exists and overwrite set to false'.format(self.name)
+            return self.tree
         self._write_temp_tc(tmpdir=tmpdir)
         print 'Running TreeCollection on ' + str(self.name) + '...'
-        self.tree = \
-            Tree().run_treecollection('{0}/{1}_dv.txt'.format(tmpdir,
-                self.name), '{0}/{1}_map.txt'.format(tmpdir,
-                self.name), '{0}/{1}_labels.txt'.format(tmpdir,
-                self.name), '{0}/{1}_tree.nwk'.format(tmpdir,
-                self.name), self.name, overwrite=overwrite)
+        self.tree = Tree().run_treecollection(
+            '{0}/{1}_dv.txt'.format(tmpdir, self.name),
+            '{0}/{1}_map.txt'.format(tmpdir, self.name),
+            '{0}/{1}_labels.txt'.format(tmpdir, self.name),
+            '{0}/{1}_tree.nwk'.format(tmpdir, self.name),
+            self.name,
+            overwrite=overwrite,
+            )
         os.remove('{0}/{1}_dv.txt'.format(tmpdir, self.name))
         os.remove('{0}/{1}_map.txt'.format(tmpdir, self.name))
         os.remove('{0}/{1}_labels.txt'.format(tmpdir, self.name))
         os.remove('{0}/{1}_tree.nwk'.format(tmpdir, self.name))
         return self.tree
 
-    def get_dv_matrix(self, tmpdir='/tmp',
-                      helper='/Users/kgori/Projects/clustering_project/class_files/DV_wrapper.drw',
-                      overwrite=True
-                      ):
+    def get_dv_matrix(
+        self,
+        tmpdir='/tmp',
+        helper='/Users/kgori/Projects/clustering_project/class_files/DV_wrapper.drw'
+            ,
+        overwrite=True,
+        ):
         """
         Makes a call to the TC_wrapper.drw darwin helper script, which
         calculates a distance-variance matrix from the sequence alignments,
         and generates files needed by the treecollection binary
         """
+
         if not overwrite and self.dv:
             return self.dv[0]
         if self.name:
@@ -690,7 +742,8 @@ class TCSeqRec(SequenceRecord):
             return 0
 
         self.write_fasta(fastafile)
-        print 'Running darwin on {0}, datatype = {1}'.format(fastafile, datatype, helper)
+        print 'Running darwin on {0}, datatype = {1}'.format(fastafile,
+                datatype, helper)
         command = \
             'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\'; fpath := \'{2}/\'; ReadProgram(\'{3}\');" | darwin'.format(fastafile,
                 datatype, tmpdir, helper)
