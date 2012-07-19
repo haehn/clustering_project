@@ -119,6 +119,8 @@ class Tree(object):
         if metadata:
             writer.write(str(self))
         else:
+            if not self.newick.endswith('\n'):
+                self.newick += '\n'
             writer.write(self.newick)
         writer.close()
         return outfile
@@ -158,7 +160,7 @@ class Tree(object):
 
         if not overwrite and self.newick:
             return self
-        command = 'phyml -m {0} -i {1} -d {2} -b0 -o n --sequential > /dev/null'.format(model, alignment_file, datatype)
+        command = 'phyml -m {0} -i {1} -d {2} -b0 -o n --sequential #> /dev/null'.format(model, alignment_file, datatype)
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
                         stderr=PIPE).wait()
         tree = open('{0}_phyml_tree.txt'.format(alignment_file)).read()
@@ -166,7 +168,7 @@ class Tree(object):
                       ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
         output = \
             open('{0}_phyml_stats.txt'.format(alignment_file)).read()
-        os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
+        #os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
 
         (self.newick, self.score, self.program, self.name,
          self.output) = (tree, score, 'bionj', name, output)

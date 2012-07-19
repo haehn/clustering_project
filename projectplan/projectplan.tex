@@ -1,0 +1,167 @@
+%----------------------------------------------------------------------------------------
+%	DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[10pt]{article}
+\usepackage{cite}
+\usepackage{url}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fullpage}
+\usepackage{mathpazo}
+\renewcommand{\rmdefault}{bch}
+\renewcommand{\sfdefault}{phv}
+\usepackage[round,comma,authoryear]{natbib}
+\usepackage[protrusion=true,expansion=true]{microtype}				% Better typography
+\usepackage{amsmath,amsfonts,amsthm}								% Math packages
+\usepackage[pdftex]{graphicx}
+%\normalfont % in case the EC fonts aren't available
+
+\title{\textbf{Clustering Trees into Topological Classes \\ Project Plan}} % Title
+\author{Kevin Gori} % Author name
+\renewcommand{\bibsection}{\Large\textbf{References}\small\vspace{8pt}}
+
+\begin{document}
+
+\maketitle % Insert the title, author and date
+
+\begin{tabular}{lr}
+
+Supervisors: Nick Goldman, Christophe Dessimoz % Instructor/supervisor
+\end{tabular}
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+
+%\renewcommand{\labelenumi}{\alph{enumi}.} % Make numbering in the enumerate environment by letter rather than number (e.g. section 6)
+
+%----------------------------------------------------------------------------------------
+%	SECTION
+%----------------------------------------------------------------------------------------
+
+\section{Objective}
+Phylogenetic inference on modern datasets containing large numbers of genes from a group of taxa will in most cases produce discordant trees. 
+This project aims to identify and characterise this discordance by applying a variety of clustering methods to a matrix of tree distances derived from single-gene tree inferences.
+
+% If you have more than one objective, uncomment the below:
+%\begin{description}
+%\item[First Objective] \hfill \\
+%Objective 1 text
+%\item[Second Objective] \hfill \\
+%Objective 2 text
+%\end{description}
+
+ %----------------------------------------------------------------------------------------
+%	SECTION
+%----------------------------------------------------------------------------------------
+
+\section{Principles}
+%%(NB: using 'marker' to represent any sequences, and 'gene' to represent protein coding)
+Phylogenetic inference from molecular sequences aims to provide a description of the evolutionary history of the marker sequences being analysed. The resulting tree summarises two aspects of the evolutionary process: the branching order of the tree corresponds to the order of duplications of the marker sequences, and the branch lengths reflect the process of evolution along the branch - they estimate the evolutionary rate according to the model, multiplied by the time spent evolving. The tree describes the history of the marker sequences used, but if we are investigating species history we may wish to conflate the marker's branching history with the history of speciation events. However, there are many reasons why a segment of DNA can have a different history to the organism it resides in, including horizontal gene transfer, recombination, hybridisation, incomplete lineage sorting and others.\\
+To get a better estimate of the species history we can use several markers, in the hope that the speciation signal 
+
+
+ %----------------------------------------------------------------------------------------
+%	SECTION
+%----------------------------------------------------------------------------------------
+\section{Methods}
+
+\subsection{Tree Inference}
+I align sequences using some alignment method (for example Prank \citep{Loytynoja:2005cb}), and then infer trees using either a Maximum-Likelihood approach, for which I use PhyML \citep{Guindon:2010gf}, or a distance based approach, TreeCollection, for which distances and variances between sequences in an alignment are estimated using Darwin, with the resulting distance-variance matrices being the input for TreeCollection, which uses a Least-Squares approach to reconstruct the tree.
+
+%----------------------------------------------------------------------------------------
+%	SECTION
+%----------------------------------------------------------------------------------------
+
+\subsection{Estimating Tree Distances}
+
+As a way of avoiding representing trees as vectors of features observed in a defined space I use pairwise distances to construct a distance matrix as a basis for clustering. A number of distance metrics are available for comparing phylogenetic trees. I chose to use the following (not an exhaustive list of all metrics available).
+\begin{itemize}
+	\item Distance Metrics:
+	\begin{itemize}
+		\item Robinson-Foulds Distance \citep{Robinson:1981ti}
+		\item Euclidean Distance (the Branch Length Distance of \citet{Kuhner:1994ub})
+		\item Geodesic Distance \citep{Billera:2001ii}
+	\end{itemize}
+\end{itemize}
+The first two of these measures are calculated using the Python module DendroPy \citep{Sukumaran:2010id}. The fourth is calculated using a modified version of the GeoMeTree program \citep{Kupczok:2008bh}. The unweighted Robinson-Foulds measure is based only on topology, the Branch Length distance is based only on branch lengths and the Geodesic distance is explicitly based on topology and branch lengths.
+
+%----------------------------------------------------------------------------------------
+%	SECTION
+%----------------------------------------------------------------------------------------
+
+\subsection{Clustering Methods}
+Clustering is a process of separating data points into groups, the members of which share common characteristics more than they share the characteristics with members of other groups. There is a large number of methods available for doing clustering. 
+
+\begin{enumerate}
+	\item Hierarchical Clustering Methods
+	\begin{itemize}
+		\item Single-linkage
+		\item Complete-linkage
+		\item Average-linkage
+		\item Ward-linkage
+	\end{itemize}
+	\item Exemplar Methods
+	\begin{itemize}
+		\item K-medoids (k-centres)
+		\item Affinity Propagation
+	\end{itemize}
+	\item Matrix Decomposition Methods
+	\begin{itemize}
+		\item Classical Multidimensional Scaling + K-means
+		\item Spectral Clustering + K-means
+	\end{itemize}
+\end{enumerate}
+
+%---------------------
+
+\subsubsection{Hierarchical Clustering}
+Possibly the simplest methods which can act directly on distance matrices are (agglomerative) hierarchical clustering. These methods iteratively combine the two closest points, representing them by a single point. How this point is taken to relate to the remaining points is defined by the linkage method used. Let $u$ be the newly defined cluster formed by combining points $s$ and $t$, and $v$ be any other point (or cluster) in the dataset, and let $d(u,v)$ be the distance between $u$ and $v$:
+\begin{itemize}
+	\item Single-linkage - closest member point 
+		\begin{equation*}
+		d(u,v)=\min_{i \in u, j \in v} (d(i,j))
+		\end{equation*}
+\item Complete-linkage - furthest member point 
+		\begin{equation*}
+		d(u,v)=\max_{i \in u, j \in v} (d(i,j))
+		\end{equation*}
+
+	\item Average-linkage - mean of member distances
+		\begin{equation*}
+		d(u,v)=\frac{1}{\left|{u}\right|\left|{v}\right|}\sum_{i \in u}\sum_{j \in v} d(i,j)
+		\end{equation*}
+
+	\item Ward-linkage - minimum variance
+		\begin{align*}
+		d(u,v)=\sqrt{ \frac{\left|v\right| +  \left|s\right|}{T}d(v,s)^2 + \frac{\left|v\right| +  \left|t\right|}{T}d(v,t)^2 + \frac{\left|v\right|}{T}d(s,t)^2} \\
+		T=\left|v\right| +  \left|s\right| + \left|t\right|
+		\end{align*}
+	
+\end{itemize}
+
+%--------------------
+
+\subsubsection{Exemplar Methods}
+Other methods acting directly on distance matrices are k-medoids (also known as k-centres), and affinity propagation \citep{Frey:2007hs}. These search for points in the data set to act as exemplars, that is cluster centres to which surrounding points are grouped. K-medoids requires that the number of clusters be set in advance, whereas with affinity propagation the number of clusters depends on the value of a tuning parameter, called the preference, which can take a value between $\min(d)$ and $\max(d)$, and is usually set as the median.
+
+%--------------------
+
+\subsubsection{Matrix Decomposition Methods}
+Classical multidimensional scaling maps distances to points in a multidimensional space. The distance matrix is double-centred (from each element subtract the row mean, subtract the column mean, add the overall mean and divide by -2). This eigenvectors of this matrix - the Gower matrix - corresponding to the $k$ largest eigenvalues map the data into a $k$-dimensional space. The points can then be clustered using k-means.\\
+Spectral decomposition is carried out using the Ng-Jordan-Weiss (NJW) algorithm \citep{Ng:2002tj} with local scaling approach of \citet{Perona:2004tk}.
+
+%----------------------------------------------------------------------------------------
+%	SECTION 
+%----------------------------------------------------------------------------------------
+
+\section{Investigating the clustering procedures}
+
+%----------------------------------------------------------------------------------------
+%	BIBLIOGRAPHY
+%----------------------------------------------------------------------------------------
+
+\newpage
+\bibliography{projectplan.bib}
+\bibliographystyle{unsrtnat}
+
+\end{document}

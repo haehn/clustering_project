@@ -1,16 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import os
 from tree import Tree
 from sequence_record import TCSeqRec
-import numpy as np
+import GeoMeTreeHack
 import dendropy as dpy
-import random
 import glob
+import numpy as np
+import os
+import random
 import re
+import shutil
 import sys
 
+np.set_printoptions(precision=3,linewidth=200)
 
 class Simulation(object):
 
@@ -516,6 +519,26 @@ scaleTree := {5};
 
         """
 
+        def class_stats(M, mk_list):
+            d = {}
+            nclasses = len(mk_list)
+            Msize = len(M)
+            ind = np.triu_indices(Msize, 1)
+            intra_class = []
+            inter_class = []
+            cs = np.concatenate((np.array([0]),np.cumsum(mk_list)))
+            for i in range(nclasses):
+                intra_class += list(M[cs[i]:cs[i+1],cs[i]:cs[i+1]][np.triu_indices(mk_list[i],1)].flatten())
+                inter_class += list(M[cs[i]:cs[i+1],cs[i+1]:].flatten())
+            d['overall_mean'] = np.mean(M[ind])
+            d['intra_mean'] = np.mean(intra_class)
+            d['inter_mean'] = np.mean(inter_class)
+            d['overall_var'] = np.var(M[ind])
+            d['intra_var'] = np.var(intra_class)
+            d['inter_var'] = np.var(inter_class)
+
+            return d
+
         # Create directories for simulation trees and parameter files
 
         if not os.path.isdir('{0}/alf_parameter_dir'.format(tmpdir)):
@@ -538,9 +561,9 @@ scaleTree := {5};
             K = 1
 
         if tune == 0:
-            proportions = [K / M for x in range(K)]
+            proportions = [float(K) / M for x in range(K)]
+        
         else:
-
             proportions = np.random.gamma(shape=float(M) / (tune * K),
                     scale=tune * float(K) / M, size=K)
 
@@ -559,9 +582,13 @@ scaleTree := {5};
             for j in range(mk[i]):
                 true_clustering.append(i + 1)
 
+        print 'Simulating {0} genes in {1} classes, distributed as {2}'.format(M,
+                K, mk)
+
         # Create simulation trees
 
         topologies = []
+        base_trees = []
         parameter_files = []
         names = ['Sp{0}'.format(i) for i in range(1, n + 1)]
         for k in range(K):
@@ -591,8 +618,9 @@ scaleTree := {5};
             if unit_is_pam:
                 class_tree = class_tree.pam2sps('sps2pam')
                 class_tree.write_to_file('{0}/alf_trees_dir/class{1}_1.nwk'.format(tmpdir,
-                    k + 1))
+                        k + 1))
             base_tree = class_tree
+            base_trees.append(base_tree)
 
             # Write parameter files
 
@@ -624,14 +652,14 @@ scaleTree := {5};
                     class_tree = base_tree.scale(scale_factor)
                 elif regime == 4:
                     class_tree = \
-                        class_tree.randomise_branch_lengths(inner_edges=inner_edge_params,
+                        base_tree.randomise_branch_lengths(inner_edges=inner_edge_params,
                             leaves=leaf_params,
                             distribution_func=branch_length_func)
-                if unit_is_pam:
-                    class_tree = class_tree.pam2sps('sps2pam')
+                    if unit_is_pam:
+                        class_tree = class_tree.pam2sps('sps2pam')
 
                 class_tree.write_to_file('{0}/alf_trees_dir/class{1}_{2}.nwk'.format(tmpdir,
-                        k + 1, genes + 1))    
+                        k + 1, genes + 1))
 
                 sim.root_genome(number_of_genes=1,
                                 min_length=gene_length_min,
@@ -642,20 +670,53 @@ scaleTree := {5};
                 sim.rename('class{0}_{1}'.format(k + 1, genes + 1))
                 sim.write_parameters()
 
+        # Estimate distances between base class trees
+
+        if unit_is_pam:
+            base_trees = [x.pam2sps() for x in base_trees]
+
+        geodists = []
+        eucdists = []
+        symdists = []
+        wrfdists = []
+        for a in range(K):
+            tree_a = dpy.Tree.get_from_string(base_trees[a].newick,
+                    'newick')
+            for b in range(a + 1, K):
+                tree_b = dpy.Tree.get_from_string(base_trees[b].newick,
+                        'newick')
+                geodists.append(GeoMeTreeHack.main(base_trees[a].newick,
+                                base_trees[b].newick))
+                eucdists.append(tree_a.euclidean_distance(tree_b))
+                symdists.append(tree_a.symmetric_difference(tree_b))
+                wrfdists.append(tree_a.robinson_foulds_distance(tree_b))
+
+        writer = open('{0}/treedistances.txt'.format(filepath), 'w')
+        writer.write('''Class base tree distances:
+geodesic\t{0}
+euclidean\t{1}
+RF\t{2}
+wRF\t{3}
+
+'''.format(np.mean(geodists),
+                     np.mean(eucdists), np.mean(symdists),
+                     np.mean(wrfdists)))
+        writer.flush()
+
+
         # Run simulations, and correct ALF renaming bug
 
         parameter_files = \
             glob.glob('{0}/alf_parameter_dir/*.drw'.format(tmpdir))
         tree_files = glob.glob('{0}/alf_trees_dir/*.nwk'.format(tmpdir))
         sort_key = lambda item: tuple((int(num) if num else alpha)
-                for (num, alpha) in re.findall(r'(\d+)|(\D+)', item[0]))
-        parameter_files = sorted(parameter_files, key=sort_key)
-        tree_files = sorted(tree_files, key=sort_key)
-        print tree_files
+                for (num, alpha) in re.findall(r'(\d+)|(\D+)', item))
+        parameter_files.sort(key=sort_key)
+        tree_files.sort(key=sort_key)
         files = zip(parameter_files, tree_files)
 
         for (params, tree) in files:
-            self.runALF(params,quiet=quiet)
+            self.runALF(params, quiet=quiet)
             name = params[params.rindex('/'):params.rindex('.')]
             (class_number, base_gene_number) = re.findall(r'(\d+)',
                     name)
@@ -671,25 +732,103 @@ scaleTree := {5};
             for dna_alignment in \
                 sorted(glob.glob('{0}/alf_working_dir/{1}/MSA/*dna.fa'.format(tmpdir,
                        name)), key=sort_key):
-                gene_number = dna_alignment[dna_alignment.rindex('/')+1:].split('_')[1]
+                gene_number = dna_alignment[dna_alignment.rindex('/')
+                    + 1:].split('_')[1]
                 record = TCSeqRec(dna_alignment)
                 record.sort_by_name()
                 record.headers = [replacement_dict[x[:x.rindex('/')]]
                                   for x in record.headers]
                 record.write_fasta('{0}/dna_alignments/class{1}_{2}.fas'.format(filepath,
                                    class_number, int(base_gene_number)
-                                   + int(gene_number) - 1 ))
+                                   + int(gene_number) - 1))
 
             for aa_alignment in \
                 sorted(glob.glob('{0}/alf_working_dir/{1}/MSA/*aa.fa'.format(tmpdir,
                        name)), key=sort_key):
-                gene_number = aa_alignment[aa_alignment.rindex('/')+1:].split('_')[1]
+                gene_number = aa_alignment[aa_alignment.rindex('/')
+                    + 1:].split('_')[1]
                 record = TCSeqRec(aa_alignment)
                 record.sort_by_name()
                 record.headers = [replacement_dict[x[:x.rindex('/')]]
                                   for x in record.headers]
                 record.write_fasta('{0}/aa_alignments/class{1}_{2}.fas'.format(filepath,
                                    class_number, int(base_gene_number)
-                                   + int(gene_number) - 1 ))
+                                   + int(gene_number) - 1))
 
-            Tree(tree_newick).pam2sps('pam2sps').write_to_file('{0}/true_trees/{1}.nwk'.format(filepath, name))
+            # Write true trees
+
+            if regime in [1,2]:
+                for g in range(mk[int(class_number)-1]):
+                    Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/class{1}_{2}.nwk'.format(filepath,
+                                    class_number, g + 1))
+
+            else:
+                Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/{1}.nwk'.format(filepath,
+                                    name))
+        
+        # Intra- and inter-class stats
+
+        alltrees = glob.glob('{0}/true_trees/*.nwk'.format(filepath))
+        alltrees.sort(key=sort_key)
+        alltrees = [open(x).read() for x in alltrees]
+        for x in range(len(alltrees)):
+            print x,'\n',alltrees[x], '\n',dpy.Tree.get_from_string(alltrees[x],'newick').as_newick_string()
+        geodists = np.zeros( [M,M] )
+        eucdists = np.zeros( [M,M] )
+        symdists = np.zeros( [M,M] )
+        wrfdists = np.zeros( [M,M] )
+        for a in range(M):
+            tree_a = dpy.Tree.get_from_string(alltrees[a],
+                    'newick')
+            for b in range(a + 1, M):
+                tree_b = dpy.Tree.get_from_string(alltrees[b],
+                        'newick')
+                geodists[a,b] = geodists[b,a] = (GeoMeTreeHack.main(alltrees[a],
+                                alltrees[b]))
+                eucdists[a,b] = eucdists[b,a] = (tree_a.euclidean_distance(tree_b))
+                symdists[a,b] = symdists[b,a] = (tree_a.symmetric_difference(tree_b))
+                wrfdists[a,b] = wrfdists[b,a] = (tree_a.robinson_foulds_distance(tree_b))
+
+        geodic = class_stats(geodists, mk)
+        eucdic = class_stats(eucdists, mk)
+        symdic = class_stats(symdists, mk)
+        wrfdic = class_stats(wrfdists, mk)
+
+        print geodists
+        print
+        print eucdists
+        print
+        print symdists
+        print
+        print wrfdists
+        print
+
+        writer.write('Geodesic class stats\n')
+        for key in sorted(geodic):
+            writer.write('{0}\t{1}\n'.format(key, geodic[key]))
+        writer.write('\n')
+        writer.flush()
+
+        writer.write('Euc class stats\n')
+        for key in sorted(eucdic):
+            writer.write('{0}\t{1}\n'.format(key, eucdic[key]))
+        writer.write('\n')
+        writer.flush()
+
+        writer.write('RF class stats\n')
+        for key in sorted(symdic):
+            writer.write('{0}\t{1}\n'.format(key, symdic[key]))
+        writer.write('\n')
+        writer.flush()
+
+        writer.write('wRF class stats\n')
+        for key in sorted(wrfdic):
+            writer.write('{0}\t{1}\n'.format(key, wrfdic[key]))
+        writer.write('\n')
+        writer.flush()
+
+        writer.close()
+
+        shutil.rmtree('{0}/alf_parameter_dir'.format(tmpdir))
+        shutil.rmtree('{0}/alf_trees_dir'.format(tmpdir))
+        shutil.rmtree('{0}/alf_working_dir'.format(tmpdir))

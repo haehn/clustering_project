@@ -402,7 +402,7 @@ class TCSeqRec(SequenceRecord):
         sequences=None,
         dv=[],
         datatype=None,
-        tree=Tree(),
+        tree=None,
         ):
 
         self.name = name
@@ -412,9 +412,13 @@ class TCSeqRec(SequenceRecord):
         self.length = 0
         self.seqlength = 0
         self.is_aligned = False
-        self.tree = tree
         self.TCfiles = {}
         self.dv = dv
+        if tree:
+            if isinstance(tree, Tree):
+                self.tree = tree
+        else:
+            self.tree = Tree()
         if infile:
             if file_format == 'fasta':
                 self.get_fasta_file(infile, name=name,
@@ -624,8 +628,8 @@ class TCSeqRec(SequenceRecord):
 
     def get_bionj_tree(
         self,
-        model,
-        datatype,
+        model=None,
+        datatype=None,
         tmpdir='/tmp',
         overwrite=True,
         ):

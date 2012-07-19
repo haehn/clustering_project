@@ -769,7 +769,8 @@ class SequenceCollection(object):
         self.records = records
         self.clustering = Clustering()
         self.length = 0
-
+        sort_key = lambda item: tuple((int(num) if num else alpha)
+                for (num, alpha) in re.findall(r'(\d+)|(\D+)', item))
         if input_dir:
 
             files = self.get_files(input_dir, file_format)
@@ -779,7 +780,9 @@ class SequenceCollection(object):
             if not os.path.isfile(helper):
                 print 'There was a problem finding the darwin helper at {0}'.format(helper)
                 return
+            files.sort(key=sort_key)
             self.put_records(files, file_format, datatype)
+            self.length = len(self.records)
             self.sanitise_records()
             if not os.path.isdir(tmpdir):
                 os.mkdir(tmpdir)
@@ -799,7 +802,7 @@ class SequenceCollection(object):
                 self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
                         overwrite=overwrite)
 
-        self.length = len(self.records)
+            self.length = len(self.records)
 
     def __str__(self):
         s = 'SequenceCollection object:\n'
