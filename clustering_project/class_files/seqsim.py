@@ -15,7 +15,7 @@ import sys
 
 np.set_printoptions(precision=3,linewidth=200)
 
-class Simulation(object):
+class SeqSim(object):
 
     """ 
     This class is a front end to the ALF simulator
@@ -342,7 +342,7 @@ indelModels := [IndelModel({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7})];
         self,
         shape=1,
         ncat=5,
-        pinvar=0.01,
+        pinvar=0,
         ):
         """
         Models rate variation among sites
@@ -485,6 +485,7 @@ scaleTree := {5};
         filepath='./',
         nni=0,
         tmpdir='/tmp',
+        gtp_path='./class_files',
         unit_is_pam=True,
         quiet=True,
         ):
@@ -629,7 +630,7 @@ scaleTree := {5};
 
             ngenes = mk[k]
 
-            sim = Simulation(simulation_name='class{0}_1'.format(k
+            sim = SeqSim(simulation_name='class{0}_1'.format(k
                              + 1),
                              working_directory='{0}/alf_working_dir'.format(tmpdir),
                              outfile_path='{0}/alf_parameter_dir'.format(tmpdir),
@@ -682,28 +683,39 @@ scaleTree := {5};
         eucdists = []
         symdists = []
         wrfdists = []
+        with open('{0}/basetrees.nwk'.format(tmpdir),'w') as file:
+            file.write('\n'.join([x.newick.rstrip() for x in base_trees]))
+        os.system('java -jar {0}/gtp.jar -o {1}/baseout.txt {1}/basetrees.nwk'.format(gtp_path, tmpdir))
+        with open('{0}/baseout.txt'.format(tmpdir)) as file:
+            for line in file:
+                line=line.rstrip()
+                if line:
+                    i,j,value=line.split()
+                    geodists.append(float(value))
         for a in range(K):
             tree_a = dpy.Tree.get_from_string(base_trees[a].newick,
                     'newick')
             for b in range(a + 1, K):
                 tree_b = dpy.Tree.get_from_string(base_trees[b].newick,
                         'newick')
-                geodists.append(GeoMeTreeHack.main(base_trees[a].newick,
-                                base_trees[b].newick))
+                #geodists.append(GeoMeTreeHack.main(base_trees[a].newick,
+                #                base_trees[b].newick))
                 eucdists.append(tree_a.euclidean_distance(tree_b))
                 symdists.append(tree_a.symmetric_difference(tree_b))
                 wrfdists.append(tree_a.robinson_foulds_distance(tree_b))
 
         writer = open('{0}/treedistances.txt'.format(filepath), 'w')
-        writer.write('''Class base tree distances:
-geodesic\t{0}
-euclidean\t{1}
-RF\t{2}
-wRF\t{3}
+        writer.write('''True clustering:\t{0}
+Class base tree distances:
+geodesic\t{1}
+euclidean\t{2}
+RF\t{3}
+wRF\t{4}
 
-'''.format(np.mean(geodists),
-                     np.mean(eucdists), np.mean(symdists),
-                     np.mean(wrfdists)))
+'''.format(true_clustering, 
+				np.mean(geodists),
+                np.mean(eucdists), np.mean(symdists),
+                np.mean(wrfdists)))
         writer.flush()
 
 
@@ -768,24 +780,40 @@ wRF\t{3}
             else:
                 Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/{1}.nwk'.format(filepath,
                                     name))
-        
+
         # Intra- and inter-class stats
 
         alltrees = glob.glob('{0}/true_trees/*.nwk'.format(filepath))
+
         alltrees.sort(key=sort_key)
-        alltrees = [open(x).read() for x in alltrees]
+
+        alltrees = [open(x).read().rstrip() for x in alltrees]
+
         dpytrees = [dpy.Tree.get_from_string(x, 'newick') for x in alltrees]
+
         # for x in range(len(alltrees)):
         #     print x,'\n',alltrees[x], '\n',dpy.Tree.get_from_string(alltrees[x],'newick').as_newick_string()
         geodists = np.zeros( [M,M] )
         eucdists = np.zeros( [M,M] )
         symdists = np.zeros( [M,M] )
         wrfdists = np.zeros( [M,M] )
+        # using gtp.jar for geodesic distances
+
+        with open('{0}/geotrees.nwk'.format(tmpdir),'w') as file:
+            file.write('\n'.join(alltrees))
+        os.system('java -jar {0}/gtp.jar -o {1}/output.txt {1}/geotrees.nwk'.format(gtp_path, tmpdir))
+        with open('{0}/output.txt'.format(tmpdir)) as file:
+            for line in file:
+                line=line.rstrip()
+                if line:
+                    i,j,value = line.split()
+                    i = int(i)
+                    j = int(j)
+                    value=float(value)
+                    geodists[i,j] = geodists[j,i] = value 
+
         for a in range(M):
             for b in range(a + 1, M):
-                print a, b
-                geodists[a,b] = geodists[b,a] = (GeoMeTreeHack.main(alltrees[a],
-                                alltrees[b]))
                 eucdists[a,b] = eucdists[b,a] = (dpytrees[a].euclidean_distance(dpytrees[b]))               
                 symdists[a,b] = symdists[b,a] = (dpytrees[a].symmetric_difference(dpytrees[b]))          
                 wrfdists[a,b] = wrfdists[b,a] = (dpytrees[a].robinson_foulds_distance(dpytrees[b]))
@@ -820,7 +848,13 @@ wRF\t{3}
         writer.flush()
 
         writer.close()
-
+     
         shutil.rmtree('{0}/alf_parameter_dir'.format(tmpdir))
         shutil.rmtree('{0}/alf_trees_dir'.format(tmpdir))
         shutil.rmtree('{0}/alf_working_dir'.format(tmpdir))
+        os.remove('{0}/output.txt'.format(tmpdir))
+        os.remove('{0}/geotrees.nwk'.format(tmpdir))
+        os.remove('{0}/basetrees.nwk'.format(tmpdir))
+        os.remove('{0}/baseout.txt'.format(tmpdir))
+
+

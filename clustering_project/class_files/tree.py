@@ -168,7 +168,7 @@ class Tree(object):
                       ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
         output = \
             open('{0}_phyml_stats.txt'.format(alignment_file)).read()
-        #os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
+        os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
 
         (self.newick, self.score, self.program, self.name,
          self.output) = (tree, score, 'bionj', name, output)

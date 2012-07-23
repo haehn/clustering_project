@@ -414,6 +414,8 @@ class SequenceCollection(object):
         nclasses,
         criterion='distance',
         prune=True,
+        tmpdir='/tmp/',
+        gtp_path='./class_files/'
         ):
         """
         metrics, linkages and nclasses are given as lists, or coerced into 
@@ -432,7 +434,7 @@ class SequenceCollection(object):
         for metric in metrics:
             if not metric in self.get_distance_matrices():
                 trees = [rec.tree for rec in self.records]  # preserve ordering
-                self.clustering.put_distance_matrix(trees, metric)
+                self.clustering.put_distance_matrix(trees, metric, tmpdir=tmpdir, gtp_path=gtp_path)
             for linkage in linkages:
                 for n in nclasses:
                     self.clustering.put_partition(

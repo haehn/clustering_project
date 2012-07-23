@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import os
 import dendropy as dpy
 import GeoMeTreeHack
 from result import Result
@@ -57,6 +58,8 @@ class Clustering(object):
         metric,
         invert=False,
         normalise=False,
+        tmpdir='/tmp/',
+        gtp_path='./class_files/',
         ):
         """
         Generates pairwise distance matrix between trees
@@ -70,12 +73,28 @@ class Clustering(object):
 
         num_trees = len(trees)
         matrix = np.zeros((num_trees, num_trees), dtype='float')
-        if metric == 'geodesic':
+        if metric == 'geometree':
             geotrees = [tree.newick for tree in trees]
             for i in range(num_trees):
                 for j in range(i + 1, num_trees):
                     matrix[i][j] = matrix[j][i] = \
                         GeoMeTreeHack.main(geotrees[i], geotrees[j])
+        elif metric == 'geo':
+
+            with open('{0}/geotrees.nwk'.format(tmpdir),'w') as file:            
+                file.write('\n'.join([tree.newick.rstrip() for tree in trees]))
+            os.system('java -jar {1}/gtp.jar -o {0}/output.txt {0}/geotrees.nwk'.format(tmpdir, gtp_path))
+            with open('{0}/output.txt'.format(tmpdir)) as file:
+                for line in file:
+                    line = line.rstrip()
+                    if line:
+                        i,j,value=line.split()
+                        i = int(i)
+                        j = int(j)
+                        value=float(value)
+                        matrix[i,j] = matrix[j,i] = value
+            os.remove('{0}/output.txt'.format(tmpdir))
+            os.remove('{0}/geotrees.nwk'.format(tmpdir))
         else:
             taxa = dpy.TaxonSet()
             dpytrees = [dpy.Tree.get_from_string(tree.newick, 'newick',
@@ -107,6 +126,8 @@ class Clustering(object):
         metric,
         invert=False,
         normalise=False,
+        tmpdir='/tmp/',
+        gtp_path='./class_files'
         ):
 
         matrix = self.get_distance_matrix(trees, metric, invert=invert,

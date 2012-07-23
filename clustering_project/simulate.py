@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from simulation import Simulation
+from seqsim import SeqSim
 import numpy as np
 import argparse
 
@@ -64,7 +64,7 @@ indels = args['indels']
 ratevar = args['ratevar']
 quiet = args['quiet']
 
-sim = Simulation('base')
+sim = SeqSim('base')
 
 sim.hky_model(
     alpha=3.551,
@@ -79,7 +79,7 @@ if indels:
     sim.indels()
 
 if ratevar:
-    sim.ratevar()
+    sim.rate_variation()
 
 sim.simulate_set(
     K=K,
@@ -101,3 +101,4 @@ sim.simulate_set(
     unit_is_pam=True,
     quiet=quiet,
     )
+print '(Done).'
