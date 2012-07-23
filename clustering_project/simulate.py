@@ -94,6 +94,7 @@ sim.simulate_set(
     gene_length_theta=72.35,
     gene_length_min=10,
     filepath=filepath,
+    scale_func=np.random.gamma,
     scale_params=(1, 1),
     nni=nni,
     tmpdir=tmpdir,

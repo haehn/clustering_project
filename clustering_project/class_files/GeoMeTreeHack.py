@@ -50,11 +50,14 @@ def get_split_representation(splits1,splits2): #extract splits only in one tree 
             act1=set(i.split('*'))
             for j in s2r,s2l:
                 act2=set(j.split('*')) 
-                if len(act1.intersection(act2))==0:return True
+                if not act1 & act2:
+                    return True
         return False
 
-    splits1s=set(splits1).difference(set(splits2)) #splits only in T1
-    splits2s=set(splits2).difference(set(splits1)) #splits only in T2
+    set1 = set(splits1)
+    set2 = set(splits2)
+    splits1s = set1 - set2 #splits only in T1
+    splits2s = set2 - set1 #splits only in T2
 
     splits=list(splits1s)+list(splits2s) #now the splits are only those which occur in Exactly one tree, the first dim1 are from T1 and the last dim2 are from T2
     
@@ -69,8 +72,8 @@ def get_split_representation(splits1,splits2): #extract splits only in one tree 
         for j in range(0,dim2):
             c=is_compatible(splits[i],splits[dim1+j])
             adj[i][j]=c
-    
-    return splits, adj, len(splits1s), len(splits2s)
+            
+    return splits, adj, dim1, dim2
 
 
 #================================================================================#  
@@ -103,7 +106,8 @@ def geodesic(adj,bl1,bl2,neg,todo): #returns the last orthant
             elist.append(edge)
         return Path(elist)
 
-    def next_sub(str,i): return [x for (pos,x) in zip(range(len(str)), str) if (2**pos) & i] #enumerate all 2**str subsets by binary numbers
+    def next_sub(str,i):
+        return [x for (pos,x) in enumerate(str) if (2**pos) & i] #enumerate all 2**str subsets by binary numbers
 
     #set class variables
     Orthant.opt=True
@@ -430,3 +434,4 @@ def main(tree1, tree2):
     
     return distance(tree1[:-1],tree2[:-1],None)
     
+  

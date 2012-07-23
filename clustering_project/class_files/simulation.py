@@ -434,7 +434,7 @@ scaleTree := {5};
         if not os.path.isfile(parameter_file):
             self.write_parameters(parameter_file)
 
-        print 'Running ALF on ', parameter_file
+        print 'Running ALF on {0}'.format(parameter_file)
         command = 'alfsim {0}'.format(parameter_file)
         if quiet:
             command += ' > /dev/null 2> /dev/null'
@@ -477,11 +477,12 @@ scaleTree := {5};
         branch_length_func,
         inner_edge_params,
         leaf_params,
+        scale_func,
+        scale_params=(1, 1),
         gene_length_kappa=1,
         gene_length_theta=1,
         gene_length_min=10,
         filepath='./',
-        scale_params=(1, 1),
         nni=0,
         tmpdir='/tmp',
         unit_is_pam=True,
@@ -615,6 +616,8 @@ scaleTree := {5};
                 class_topology.randomise_branch_lengths(inner_edges=inner_edge_params,
                     leaves=leaf_params,
                     distribution_func=branch_length_func)
+            class_tree.write_to_file('{0}/true_trees/class{1}.tree'.format(filepath,
+                                    k + 1))
             if unit_is_pam:
                 class_tree = class_tree.pam2sps('sps2pam')
                 class_tree.write_to_file('{0}/alf_trees_dir/class{1}_1.nwk'.format(tmpdir,
@@ -648,7 +651,7 @@ scaleTree := {5};
 
             for genes in range(ngenes):
                 if regime == 3:
-                    scale_factor = np.random.gamma(*scale_params)
+                    scale_factor = scale_func(*scale_params)
                     class_tree = base_tree.scale(scale_factor)
                 elif regime == 4:
                     class_tree = \
@@ -771,37 +774,26 @@ wRF\t{3}
         alltrees = glob.glob('{0}/true_trees/*.nwk'.format(filepath))
         alltrees.sort(key=sort_key)
         alltrees = [open(x).read() for x in alltrees]
-        for x in range(len(alltrees)):
-            print x,'\n',alltrees[x], '\n',dpy.Tree.get_from_string(alltrees[x],'newick').as_newick_string()
+        dpytrees = [dpy.Tree.get_from_string(x, 'newick') for x in alltrees]
+        # for x in range(len(alltrees)):
+        #     print x,'\n',alltrees[x], '\n',dpy.Tree.get_from_string(alltrees[x],'newick').as_newick_string()
         geodists = np.zeros( [M,M] )
         eucdists = np.zeros( [M,M] )
         symdists = np.zeros( [M,M] )
         wrfdists = np.zeros( [M,M] )
         for a in range(M):
-            tree_a = dpy.Tree.get_from_string(alltrees[a],
-                    'newick')
             for b in range(a + 1, M):
-                tree_b = dpy.Tree.get_from_string(alltrees[b],
-                        'newick')
+                print a, b
                 geodists[a,b] = geodists[b,a] = (GeoMeTreeHack.main(alltrees[a],
                                 alltrees[b]))
-                eucdists[a,b] = eucdists[b,a] = (tree_a.euclidean_distance(tree_b))
-                symdists[a,b] = symdists[b,a] = (tree_a.symmetric_difference(tree_b))
-                wrfdists[a,b] = wrfdists[b,a] = (tree_a.robinson_foulds_distance(tree_b))
+                eucdists[a,b] = eucdists[b,a] = (dpytrees[a].euclidean_distance(dpytrees[b]))               
+                symdists[a,b] = symdists[b,a] = (dpytrees[a].symmetric_difference(dpytrees[b]))          
+                wrfdists[a,b] = wrfdists[b,a] = (dpytrees[a].robinson_foulds_distance(dpytrees[b]))
 
         geodic = class_stats(geodists, mk)
         eucdic = class_stats(eucdists, mk)
         symdic = class_stats(symdists, mk)
         wrfdic = class_stats(wrfdists, mk)
-
-        print geodists
-        print
-        print eucdists
-        print
-        print symdists
-        print
-        print wrfdists
-        print
 
         writer.write('Geodesic class stats\n')
         for key in sorted(geodic):

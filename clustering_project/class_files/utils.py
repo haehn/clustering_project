@@ -20,7 +20,8 @@ def norm(c):return math.sqrt(snorm(c))
 # Functions for Distance Computation
 def eucl(c):
     sum=0
-    for i in range(0,len(c[0])):
+    l = len(c[0])
+    for i in range(0,l):
         sum+=(c[0][i]-c[1][i])**2
     return math.sqrt(sum)
 
@@ -130,10 +131,7 @@ def index(plist,dim):
 # Functions for Sets ...
 
 def int_to_list(n,dim):
-    s=[]
-    for i in range(0,dim):
-        if n & (1<<i) : s.append(i)
-    return s
+    return [i for i in range(dim) if n & (1<<i)]
 
 def int_to_set(n,dim):
     return set(int_to_list(n,dim))

@@ -176,18 +176,18 @@ class Clustering(object):
         elif linkage_method == 'MDS':
 
             dbc = self.get_double_centre(dm)
-            (eigvals, eigvecs, cve) = self.get_eigen(dbc)
+            (eigvals, eigvecs, cve) = self.get_eigen(dbc, standardize=True)
             coords = self.get_coords_by_cutoff(eigvals, eigvecs, cve,
-                    95)
+                    95, normalise=False)
             est = KMeans(n_clusters=nclasses)
             est.fit(coords)
             T = est.labels_
         elif linkage_method == 'spectral':
 
             laplacian = self.spectral(dm, prune=prune)
-            (eigvals, eigvecs, cve) = self.get_eigen(laplacian)
+            (eigvals, eigvecs, cve) = self.get_eigen(laplacian, standardize=False)
             coords = self.get_coords_by_dimension(eigvals, eigvecs,
-                    cve, nclasses)[0]
+                    cve, nclasses, normalise=True)[0]
             est = KMeans(n_clusters=nclasses)
             est.fit(coords)
             T = est.labels_
@@ -223,6 +223,8 @@ class Clustering(object):
         nclasses,
         dimensions=3,
         embed='MDS',
+        standardize=False,
+        normalise=True
         ):
 
         if not dimensions in [2, 3]:
@@ -234,15 +236,15 @@ class Clustering(object):
 
         if embed == 'MDS':
             dbc = self.get_double_centre(dm)
-            (eigvals, eigvecs, cve) = self.get_eigen(dbc)
+            (eigvals, eigvecs, cve) = self.get_eigen(dbc, standardize=standardize)
             (coords, varexp) = self.get_coords_by_dimension(eigvals,
-                    eigvecs, cve, dimensions)
+                    eigvecs, cve, dimensions, normalise=normalise)
         elif embed == 'spectral':
 
             laplacian = self.spectral(dm)
-            (eigvals, eigvecs, cve) = self.get_eigen(laplacian)
+            (eigvals, eigvecs, cve) = self.get_eigen(laplacian, standardize=standardize)
             (coords, varexp) = self.get_coords_by_dimension(eigvals,
-                    eigvecs, cve, dimensions)
+                    eigvecs, cve, dimensions, normalise=normalise)
         else:
 
             print 'Embedding must be one of MDS or spectral (default=MDS)'
@@ -416,7 +418,7 @@ class Clustering(object):
         matrix += matrix_mean
         return matrix
 
-    def get_eigen(self, matrix):
+    def get_eigen(self, matrix, standardize=False):
         """
         Calculates the eigenvalues and eigenvectors from the double-
         centred matrix
@@ -431,15 +433,17 @@ class Clustering(object):
         vals = vals[ind]
         vecs = vecs[:, ind]
         cum_var_exp = np.cumsum(100 * abs(vals) / sum(abs(vals)))
-        norm_vecs = vecs * np.sqrt(abs(vals))
-        return (vals, norm_vecs, cum_var_exp)
+        if standardize:
+            vecs = vecs * np.sqrt(abs(vals))
+        return (vals, vecs, cum_var_exp)
 
     def get_coords_by_cutoff(
         self,
         vals,
-        norm_vecs,
+        vecs,
         cum_var_exp,
         cutoff=95,
+        normalise=True,
         ):
         """
         Returns fitted coordinates in as many dimensions as are
@@ -447,29 +451,36 @@ class Clustering(object):
         in the cutoff)
         """
 
-        maxsize = len(vals)
-        coords_matrix = np.zeros([maxsize, maxsize])
-        for i in range(len(cum_var_exp)):
-            coords_matrix[:, i] = norm_vecs[:, i]
-            if cum_var_exp[i] > cutoff:
-                break
-        return coords_matrix[:, :i + 1]
+        i = np.where(cum_var_exp >= cutoff)[0][0]
+        coords_matrix = vecs[:, :i + 1]
+
+        if normalise:
+            coords_matrix = self.normalise_coords(coords_matrix)
+        return coords_matrix
 
     def get_coords_by_dimension(
         self,
         vals,
-        norm_vecs,
+        vecs,
         cum_var_exp,
         dimensions=3,
+        normalise=True,
         ):
         """
         Returns fitted coordinates in specified number of dimensions,
         and the amount of variance explained)
         """
 
-        coords_matrix = norm_vecs[:, :dimensions]
+        coords_matrix = vecs[:, :dimensions]
         varexp = cum_var_exp[dimensions - 1]
+        if normalise:
+            coords_matrix = self.normalise_coords(coords_matrix)
         return (coords_matrix, varexp)
+
+    def normalise_coords(self, coords_matrix):
+        sqsum = np.sum(coords_matrix ** 2,
+                       axis=1).reshape(coords_matrix.shape[0], -1)
+        return coords_matrix / np.sqrt(sqsum)
 
     def affinity_propagation(
         self,
@@ -536,7 +547,12 @@ class Clustering(object):
             assert clusters_found == n_clusters
             return aff.labels_
 
-    def spectral(self, distance_matrix, prune=True, sigma7=False):
+    def spectral(
+        self,
+        distance_matrix,
+        prune=True,
+        sigma7=False,
+        ):
         """
         1st: Calculates an affinity matrix from a distance matrix, using the
         local scaling transform from Zelnik-Manor and Perona (2004):
@@ -621,7 +637,8 @@ class Clustering(object):
             for i in range(size):
                 sorted_dists = matrix[i].argsort()
                 for j in sorted_dists[:k]:
-                    kneighbour_matrix[i, j] = kneighbour_matrix[j, i] = 1
+                    kneighbour_matrix[i, j] = kneighbour_matrix[j, i] = \
+                        1
                     max_dists[i] = matrix[i, sorted_dists[k - 1]]
             return (kneighbour_matrix, max_dists)
 
@@ -670,7 +687,6 @@ class Clustering(object):
                     guessk = guessk + (maxk - guessk) / 2
             (kneighbour_matrix, max_dists) = knn(distance_matrix,
                     guessk + 1)
-               
         else:
 
             (kneighbour_matrix, max_dists) = knn(distance_matrix, size)
@@ -679,16 +695,17 @@ class Clustering(object):
                 kneighbour_matrix, max_dists)
         md7 = knn(distance_matrix, 7)[1]
         if nodivzero(md7):
-            am7 = get_affinity_matrix(distance_matrix, kneighbour_matrix, md7)
+            am7 = get_affinity_matrix(distance_matrix,
+                    kneighbour_matrix, md7)
         else:
             print 'Setting sigma(i) > d(S(i),S(7)) to avoid dividing by zero.'
-            if prune: 
-                print 'Sigma = d(S(i),S({0})'.format( guessk + 1 )
+            if prune:
+                print 'Sigma = d(S(i),S({0})'.format(guessk + 1)
             else:
-                print 'Sigma = d(S(i),S({0})'.format( size )
+                print 'Sigma = d(S(i),S({0})'.format(size)
             sigma7 = False
 
-        if sigma7: 
+        if sigma7:
             return laplace(am7)
         else:
             return laplace(affinity_matrix)

@@ -9,7 +9,7 @@ import re
 import matplotlib.pyplot as plt
 from sequence_record import TCSeqRec
 from clustering import Clustering
-from simulation import Simulation
+# from simulation import Simulation
 import copy_reg
 import types
 from random import shuffle

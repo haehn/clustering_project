@@ -2,13 +2,17 @@
 %	DOCUMENT CONFIGURATIONS
 %----------------------------------------------------------------------------------------
 
-\documentclass[10pt]{article}
+\documentclass[11pt]{article}
 \usepackage{cite}
 \usepackage{url}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{fullpage}
 \usepackage{mathpazo}
+\usepackage{book tabs, multi row, tabularx} 						% Table tools
+\usepackage[singlelinecheck=off]{caption}
+\newcommand{\head}[1]{\textnormal{\textbf{#1}}}
+\renewcommand{\arraystretch}{1.1}
 \renewcommand{\rmdefault}{bch}
 \renewcommand{\sfdefault}{phv}
 \usepackage[round,comma,authoryear]{natbib}
@@ -25,8 +29,7 @@
 
 \maketitle % Insert the title, author and date
 
-\begin{tabular}{lr}
-
+\begin{tabular}{l}
 Supervisors: Nick Goldman, Christophe Dessimoz % Instructor/supervisor
 \end{tabular}
 
@@ -34,43 +37,58 @@ Supervisors: Nick Goldman, Christophe Dessimoz % Instructor/supervisor
 
 %\renewcommand{\labelenumi}{\alph{enumi}.} % Make numbering in the enumerate environment by letter rather than number (e.g. section 6)
 
-%----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 %	SECTION
-%----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 
 \section{Objective}
-Phylogenetic inference on modern datasets containing large numbers of genes from a group of taxa will in most cases produce discordant trees. 
-This project aims to identify and characterise this discordance by applying a variety of clustering methods to a matrix of tree distances derived from single-gene tree inferences.
+Phylogenetic inference on modern datasets containing large numbers of 
+genes from a group of taxa will in most cases produce discordant trees. 
+This project aims to identify and characterise this discordance by applying 
+a variety of clustering methods to a matrix of tree distances derived from 
+single-gene tree inferences.
 
-% If you have more than one objective, uncomment the below:
-%\begin{description}
-%\item[First Objective] \hfill \\
-%Objective 1 text
-%\item[Second Objective] \hfill \\
-%Objective 2 text
-%\end{description}
-
- %----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 %	SECTION
-%----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 
 \section{Principles}
-%%(NB: using 'marker' to represent any sequences, and 'gene' to represent protein coding)
-Phylogenetic inference from molecular sequences aims to provide a description of the evolutionary history of the marker sequences being analysed. The resulting tree summarises two aspects of the evolutionary process: the branching order of the tree corresponds to the order of duplications of the marker sequences, and the branch lengths reflect the process of evolution along the branch - they estimate the evolutionary rate according to the model, multiplied by the time spent evolving. The tree describes the history of the marker sequences used, but if we are investigating species history we may wish to conflate the marker's branching history with the history of speciation events. However, there are many reasons why a segment of DNA can have a different history to the organism it resides in, including horizontal gene transfer, recombination, hybridisation, incomplete lineage sorting and others.\\
-To get a better estimate of the species history we can use several markers, in the hope that the speciation signal 
+%(NB: using 'marker' to represent any sequences, and 'gene' to represent 
+%protein coding)
+\subsection{Introduction}
+Phylogenetic inference from molecular sequences aims to provide a description of the evolutionary history of the marker sequences being analysed. The tree produced summarises two aspects of the evolutionary process: the branching order of the tree corresponds to the order of duplications of the marker sequences, and the branch lengths reflect the process of evolution along the branch -- they estimate the evolutionary rate according to the model, multiplied by the time spent evolving. The tree describes the history of the marker sequences used, but if we are investigating species history we may wish to conflate the marker's branching history with the history of speciation events. However, there are many reasons why a segment of DNA can have a different history to the organism it resides in, including population genetic events such as horizontal gene transfer, recombination, hybridisation and incomplete lineage sorting, and stochastic variation in the substitution process which results in the segment evolving differently by chance. This kind of gene-tree, species-tree incongruence makes single marker phylogenies unreliable for estimating species trees.\\
+To get a better estimate of the species history we can use several markers. An increased sample size should allow us to average out some of the stochastic variation, and we can hope that the speciation signal is present in enough of the markers that we can detect it as a common theme. Similarly, markers sharing non-speciation history can also be grouped together. Groups of markers sharing history can be found by clustering them according to their topological similarity, and by determining the number and relative sizes of the clusters found we can characterise the amount of discordance in the dataset. The process generating the discordance is not specified, but some inferences can be made, for example if markers from a particular class are found in a contiguous block in the genome, then we may be able to infer recombination breakpoints in their vicinity.
+
+\subsection{Modelling multiple classes}
+Suppose we have a dataset consisting of $M$ alignments on $n$ species. We want to estimate the number of classes, $K$, and for each class $k_{1 \leq i \leq K}$ estimate the underlying tree with $2n-3$ branch lengths. We can model this situation with increasing complexity:
+
+\begin{table}[!htbp]
+\begin{tabularx}{\linewidth}{XcccX}
+\toprule[1.5pt]
+\head{Model} & \head{Topologies} & \multicolumn{2}{c}{\head{Parameters}} & \head{Notes}\\
+ & & Branch lengths & Scale factors ($\tau$) & \\
+\midrule
+Supermatrix 	& $1$ & $2n-3$ &	0 & All markers are generated by the same topology\\ 
+Multiclass Supermatrix & $K$ & $K(2n-3)$ &	 0 & Markers are generated by $K$ class topologies; each has the same underlying branch lengths\\ 
+Proportional Branch Lengths & $K$ & 	$K(2n-3)$ &	$M-K$ & Markers are generated by $K$ class topologies; each marker within the class has a scaled set of branch lengths \\ 
+General Branch Lengths & $K$ & $M(2n-3)$	& 0 & Markers are generated by $K$ class topologies; each marker has independent branch lengths\\ 
+\bottomrule[1.2pt]
+\end{tabularx}
+\caption{General modelling scheme}\label{tab:table}
+\end{table}
 
 
- %----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 %	SECTION
-%----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 \section{Methods}
 
 \subsection{Tree Inference}
 I align sequences using some alignment method (for example Prank \citep{Loytynoja:2005cb}), and then infer trees using either a Maximum-Likelihood approach, for which I use PhyML \citep{Guindon:2010gf}, or a distance based approach, TreeCollection, for which distances and variances between sequences in an alignment are estimated using Darwin, with the resulting distance-variance matrices being the input for TreeCollection, which uses a Least-Squares approach to reconstruct the tree.
 
-%----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 %	SECTION
-%----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 
 \subsection{Estimating Tree Distances}
 
@@ -85,9 +103,9 @@ As a way of avoiding representing trees as vectors of features observed in a def
 \end{itemize}
 The first two of these measures are calculated using the Python module DendroPy \citep{Sukumaran:2010id}. The fourth is calculated using a modified version of the GeoMeTree program \citep{Kupczok:2008bh}. The unweighted Robinson-Foulds measure is based only on topology, the Branch Length distance is based only on branch lengths and the Geodesic distance is explicitly based on topology and branch lengths.
 
-%----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 %	SECTION
-%----------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------
 
 \subsection{Clustering Methods}
 Clustering is a process of separating data points into groups, the members of which share common characteristics more than they share the characteristics with members of other groups. There is a large number of methods available for doing clustering. 
