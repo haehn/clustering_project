@@ -195,6 +195,7 @@ class SequenceCollection(object):
         model=None,
         datatype=None,
         rec_list=None,
+        ncat=1,
         tmpdir='/tmp',
         overwrite=True,
         ):
@@ -209,7 +210,7 @@ class SequenceCollection(object):
         args = []
         names = []
         for rec in rec_list:
-            args.append((rec, model, datatype, tmpdir, overwrite))
+            args.append((rec, model, datatype, ncat, tmpdir, overwrite))
             names.append(rec.name)
         r = pool.map_async(self._unpack_bionj, args,
                            callback=results.append)
@@ -346,7 +347,8 @@ class SequenceCollection(object):
                                    overwrite=overwrite)
             elif program == 'bionj':
                 rec.get_bionj_tree(model=model, datatype=datatype,
-                                   tmpdir=tmpdir, overwrite=overwrite)
+                                   tmpdir=tmpdir, ncat=ncat,
+                                   overwrite=overwrite)
 
     def put_trees_parallel(
         self,
@@ -382,7 +384,7 @@ class SequenceCollection(object):
         elif program == 'bionj':
             trees_dict = self._bionj_parallel_call(rec_list=rec_list,
                     model=model, datatype=datatype, tmpdir=tmpdir,
-                    overwrite=overwrite)
+                    ncat=ncat, overwrite=overwrite)
         for rec in self.records:
             rec.tree = trees_dict[rec.name]
 
@@ -535,7 +537,7 @@ class SequenceCollection(object):
                 )
         elif program == 'bionj':
             cluster_trees_dict = self._bionj_parallel_call(rec_list=rec_list,
-                    model=model, datatype=datatype, tmpdir=tmpdir,
+                    model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir,
                     overwrite=overwrite)
         for rec in rec_list:
             rec.tree = cluster_trees_dict[rec.name]

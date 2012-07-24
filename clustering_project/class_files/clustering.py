@@ -58,8 +58,8 @@ class Clustering(object):
         metric,
         invert=False,
         normalise=False,
-        tmpdir='/tmp/',
-        gtp_path='./class_files/',
+        tmpdir='/tmp',
+        gtp_path='./class_files',
         ):
         """
         Generates pairwise distance matrix between trees
@@ -126,12 +126,11 @@ class Clustering(object):
         metric,
         invert=False,
         normalise=False,
-        tmpdir='/tmp/',
+        tmpdir='/tmp',
         gtp_path='./class_files'
         ):
-
-        matrix = self.get_distance_matrix(trees, metric, invert=invert,
-                normalise=normalise)
+    	matrix = self.get_distance_matrix(trees, metric, invert=invert,
+                normalise=normalise, tmpdir=tmpdir, gtp_path=gtp_path)
         self.distance_matrices[metric] = matrix
 
     def order(self, l, num=1):

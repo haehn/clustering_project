@@ -12,6 +12,7 @@ import random
 import re
 import shutil
 import sys
+import copy
 
 np.set_printoptions(precision=3,linewidth=200)
 
@@ -520,7 +521,7 @@ scaleTree := {5};
         to each class. A zero value makes all groups the same size.
 
         """
-
+        print 'nni = {0}'.format(nni)
         def class_stats(M, mk_list):
             d = {}
             nclasses = len(mk_list)
@@ -597,13 +598,13 @@ scaleTree := {5};
 
             if k == 0:
                 class_topology = Tree().random_topology(n, names=names)
-            elif k > 0 and nni:
+            elif k > 0 and nni > 0:
 
-                class_topology = topologies[0]
+                class_topology = copy.deepcopy(topologies[0])
                 while not self.check_diff_top(class_topology,
                         topologies):
                     for i in range(nni):
-                        class_topology = topologies[0].nni()
+                        class_topology = class_topology.nni()
             else:
                 class_topology = topologies[0]
                 while not self.check_diff_top(class_topology,

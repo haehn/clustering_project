@@ -4,6 +4,7 @@
 from seqsim import SeqSim
 import numpy as np
 import argparse
+import os
 
 def fpath(s):
     """
@@ -38,6 +39,8 @@ parser.add_argument(
     type=fpath,
     default='.',
     )
+parser.add_argument('-g', '--geodesic', help='path to gtp.jar, used to calculate geodesic distance',
+	                    type=fpath, default='./class_files')
 parser.add_argument('-tmp', '--temp-directory',
                     help='Directory to use for temp files', type=fpath,
                     default='/tmp')
@@ -63,6 +66,7 @@ tmpdir = args['temp_directory']
 indels = args['indels']
 ratevar = args['ratevar']
 quiet = args['quiet']
+gtp_path = args['geodesic']
 
 sim = SeqSim('base')
 
@@ -95,9 +99,10 @@ sim.simulate_set(
     gene_length_min=10,
     filepath=filepath,
     scale_func=np.random.gamma,
-    scale_params=(1, 1),
+    scale_params=(2, 0.5),
     nni=nni,
     tmpdir=tmpdir,
+    gtp_path=gtp_path,
     unit_is_pam=True,
     quiet=quiet,
     )

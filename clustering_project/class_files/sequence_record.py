@@ -630,6 +630,7 @@ class TCSeqRec(SequenceRecord):
         self,
         model=None,
         datatype=None,
+        ncat=1,
         tmpdir='/tmp',
         overwrite=True,
         ):
@@ -650,7 +651,7 @@ class TCSeqRec(SequenceRecord):
             else:
                 print 'I don\'t know this datatype: {0}'.format(self.datatype)
                 return
-        t = self.tree.run_bionj(model, input_file, datatype, self.name,
+        t = self.tree.run_bionj(model, input_file, datatype, ncat, self.name,
                                 overwrite=overwrite)
         os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
         return self.tree

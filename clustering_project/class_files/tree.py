@@ -156,11 +156,12 @@ class Tree(object):
          self.output) = (tree, score, 'phyml', name, output)
         return Tree(tree, score, 'phyml', name, output)
 
-    def run_bionj(self, model, alignment_file, datatype, name, overwrite=True):
+    def run_bionj(self, model, alignment_file, datatype, ncat, name, overwrite=True):
 
         if not overwrite and self.newick:
             return self
-        command = 'phyml -m {0} -i {1} -d {2} -b0 -o n --sequential #> /dev/null'.format(model, alignment_file, datatype)
+        command = 'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o n --sequential > /dev/null'.format(model,
+                      alignment_file, datatype, ncat)
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
                         stderr=PIPE).wait()
         tree = open('{0}_phyml_tree.txt'.format(alignment_file)).read()
