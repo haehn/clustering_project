@@ -2,7 +2,7 @@
 
 echo 'Arguments: 1=directory suffix($1), 2=number of NNIs($2), 3=program($3), 4=model($4), 5=ncat($5), 6=datatype($6), 7=regime($7)'
 
-WRITEDIR=/ebi/research/goldman/kevin/bionj/sim$1
+WRITEDIR=/ebi/research/goldman/kevin/phymlreg3/sim$1
 TMPWRAP=/net/isilon7/nobackup/research/goldman/kevin/clustering_project/tempdir_wrapper.sh
 SIMULATE=/net/isilon7/nobackup/research/goldman/kevin/clustering_project/simulate.py
 PICKLE=/net/isilon7/nobackup/research/goldman/kevin/clustering_test/pickle_simulation.py

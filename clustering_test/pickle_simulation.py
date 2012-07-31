@@ -32,7 +32,7 @@ gtp_path = os.environ['GTP_PATH']
 tmpdir = os.environ['TEMPORARY_DIRECTORY']
 
 seq = SequenceCollection('{0}/dna_alignments'.format(outdir), datatype='dna', tmpdir=tmpdir, helper=os.environ['DARWINHELPER'])
-seq.put_trees(program=program, model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir)
+seq.put_trees_parallel(program=program, model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir)
 print 'doing geodesic distance matrices'
 seq.put_distance_matrices('geo', gtp_path=gtp_path, tmpdir=tmpdir)
 print 'doing euc distance matrices'
