@@ -362,10 +362,15 @@ class SequenceRecord(object):
             s = file_header
             for i in range(num_lines):
                 for seq_header in self.headers:
-                    s += '{0:<{1}} {2}\n'.format(seq_header,
+                    if i == 0:
+                        s += '{0:<{1}} {2}\n'.format(seq_header,
                             max(maxheader + 1, 15),
                             (self.mapping[seq_header])[i
                             * line_length:(i + 1) * line_length])
+                    else:
+                        s += '{0} {1}\n'.format(' '*max(maxheader + 1, 15),
+                            (self.mapping[seq_header])[i * line_length:
+                            (i + 1) * line_length])
                 s += '\n'
         else:
             lines = ['{0:<14} {1:-<{2}}'.format(x, y, maxlen) for (x,
