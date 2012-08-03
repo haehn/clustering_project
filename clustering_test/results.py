@@ -2,6 +2,7 @@ import sys
 import glob
 import re
 import os
+import scipy.stats as ss
 from pylab import *
 
 sort_key = lambda item: tuple((int(num) if num else alpha) for (num,
@@ -181,7 +182,6 @@ for record in collect:
     symkmedoids.append((record['sym']['inter']-record['sym']['intra'],(record['sym']['kmedoids']['score']-record['truescore'])/record['truescore']))
     symspectral.append((record['sym']['inter']-record['sym']['intra'],(record['sym']['spectral']['score']-record['truescore'])/record['truescore']))
 
-figure()
-for (x,y) in symcomplete:
-	plot(x,y,ls='',marker='.',color='b')
-show()
+
+
+

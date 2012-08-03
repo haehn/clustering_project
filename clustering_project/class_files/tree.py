@@ -231,7 +231,7 @@ class Tree(object):
 
         if not overwrite and self.newick:
             return self
-        command = 'TreeCollection {0} {1} {2} {3}'.format(dv_file,
+        command = 'TreeCollection -D {0} -M {1} -L {2} -T {3}'.format(dv_file,
                 map_file, label_file, tree_file)
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
                         stderr=PIPE)
