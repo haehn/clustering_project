@@ -26,6 +26,7 @@ args = vars(parser.parse_args())
 
 dist = args['distance']
 method = args['method']
+all_methods = ['single', 'complete', 'average', 'ward', 'kmedoids', 'spectral', 'MDS']
 path = args['input']
 program = args['program']
 model = args['model']
@@ -36,15 +37,30 @@ gtp_path = os.environ['GTP_PATH']
 
 
 seq = cPickle.load(open('{0}/seq.pickle'.format(path)))
-seq.put_partitions(dist, method, 4, tmpdir=tmp, gtp_path=gtp_path)
-seq.put_clusters()
-seq.put_cluster_trees(program=program, model=model, datatype=datatype, ncat=ncat, overwrite=False)
-result = seq.get_clusters()[(dist,method,4)]
-partition = seq.get_partitions()[(dist,method,4)]
 truth = seq.get_partitions()['true']
-varinf = seq.clustering.variation_of_information(partition, truth)
-with open('{0}/{1}{2}.txt'.format(path,dist,method),'w') as file:
-	file.write('''Distance:\t{0}
+if method == 'all':
+    seq.put_partitions(dist, all_methods, 4, tmpdir=tmp, gtp_path=gtp_path)
+    seq.put_clusters()
+    seq.put_cluster_trees(program=program, model=model, datatype=datatype, ncat=ncat, overwrite=False)
+    for each_method in all_methods:  
+        result = seq.get_clusters()[(dist,each_method,4)]
+        partition = seq.get_partitions()[(dist,each_method,4)]
+        varinf = seq.clustering.variation_of_information(partition, truth)
+        with open('{0}/{1}{2}.txt'.format(path,dist,each_method),'w') as file:       
+            file.write('''Distance:\t{0}
+Method:\t{1}
+Score:\t{2}
+Varinf:\t{3}
+'''.format(dist,each_method,result.score,varinf))
+else:
+    seq.put_partitions(dist, method, 4, tmpdir=tmp, gtp_path=gtp_path)
+    seq.put_clusters()
+    seq.put_cluster_trees(program=program, model=model, datatype=datatype, ncat=ncat, overwrite=False)
+    result = seq.get_clusters()[(dist,method,4)]
+    partition = seq.get_partitions()[(dist,method,4)]
+    varinf = seq.clustering.variation_of_information(partition, truth)
+    with open('{0}/{1}{2}.txt'.format(path,dist,method),'w') as file:   
+        file.write('''Distance:\t{0}
 Method:\t{1}
 Score:\t{2}
 Varinf:\t{3}

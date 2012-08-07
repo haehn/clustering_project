@@ -144,7 +144,8 @@ class Tree(object):
         if verbose:
             command = command.replace('> /dev/null', '')
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
-                        stderr=PIPE).wait()
+                        stderr=PIPE)
+        process.wait()
         tree = open('{0}_phyml_tree.txt'.format(alignment_file)).read()
         score = float(re.compile('(?<=Log-likelihood: ).+'
                       ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
@@ -160,10 +161,11 @@ class Tree(object):
 
         if not overwrite and self.newick:
             return self
-        command = 'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o n --sequential > /dev/null'.format(model,
+        command = 'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o n --sequential #> /dev/null'.format(model,
                       alignment_file, datatype, ncat)
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
-                        stderr=PIPE).wait()
+                        stderr=PIPE)
+        process.wait()
         tree = open('{0}_phyml_tree.txt'.format(alignment_file)).read()
         score = float(re.compile('(?<=Log-likelihood: ).+'
                       ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
@@ -235,6 +237,7 @@ class Tree(object):
                 map_file, label_file, tree_file)
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
                         stderr=PIPE)
+        process.wait()
         (stdout, stderr) = process.communicate()
         info = stdout.split()
         tree = info[-2]

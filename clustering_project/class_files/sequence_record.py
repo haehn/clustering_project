@@ -125,6 +125,7 @@ class SequenceRecord(object):
         infile=None,
         file_format='fasta',
         name=None,
+        datatype=None,
         headers=None,
         sequences=None,
         ):
@@ -135,13 +136,13 @@ class SequenceRecord(object):
         self.mapping = None
         self.length = 0
         self.seqlength = 0
-        self.datatype = None
+        self.datatype = datatype
         self.is_aligned = False
         if infile:
             if file_format == 'fasta':
-                self.get_fasta_file(infile, **kwargs)
+                self.get_fasta_file(infile, name=name, datatype=datatype) 
             elif file_format == 'phylip':
-                self.get_phylip_file(infile, **kwargs)
+                self.get_phylip_file(infile, name=name, datatype=datatype) 
         self.index = -1
         self._update()
 
