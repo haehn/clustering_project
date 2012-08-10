@@ -400,7 +400,7 @@ class SequenceCollection(object):
                 return False
 
         def extract_jobid(s):
-            return int(re.findall('(?<=\<)[\d+]+(?=\>)',s))
+            return int(re.findall('(?<=\<)[\d+]+(?=\>)',s))[0]
 
 
         getname = lambda x: x[x.rindex('/') + 1:x.rindex('.')]
