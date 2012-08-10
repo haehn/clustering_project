@@ -7,6 +7,7 @@ import os
 import multiprocessing
 import copy
 import re
+import math
 from subprocess import Popen, PIPE, call
 import matplotlib.pyplot as plt
 from sequence_record import TCSeqRec
