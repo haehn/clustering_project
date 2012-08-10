@@ -8,6 +8,7 @@ import multiprocessing
 import copy
 import re
 import math
+import time
 from subprocess import Popen, PIPE, call
 import matplotlib.pyplot as plt
 from sequence_record import TCSeqRec
@@ -381,27 +382,47 @@ class SequenceCollection(object):
             returns the directory corresponding to the range the number
             fits into
             """
+
             for x in dirs:
                 (lower, upper) = x[x.rindex('/') + 1:].split('-')
                 if int(lower) <= n <= int(upper):
                     return x
 
-        getname = lambda x: x[x.rindex('/')+1:x.rindex('.')]
+        def is_bjob_done(id):
+
+            cmd = 'bjobs {0}'.format(id)
+            process = Popen(cmd, stdout=PIPE, shell=True)
+            process.wait()
+            output = process.communicate()[0].split('\n')[1]
+            if 'DONE' in output:
+                return True
+            else:
+                return False
+
+        def extract_jobid(s):
+            return int(re.findall('(?<=\<)[\d+]+(?=\>)',s))
+
+
+        getname = lambda x: x[x.rindex('/') + 1:x.rindex('.')]
 
         # Make paths into absolute paths, because these jobs will operate
         # on separate machines
+
         lsf_tmpdir = os.path.abspath(lsf_tmpdir)
         basepath = os.path.abspath(basepath)
 
         # Most cases will use self.records
+
         if not rec_list:
             rec_list = self.records
 
         # Create temp directory reachable by lsf machine
+
         if not os.path.isdir(lsf_tmpdir):
             os.mkdir(lsf_tmpdir)
 
         # Need a runner script to be called by lsf JobArray
+
         if program == 'phyml':
             runner_script = '{0}/lsf_phyml.py'.format(basepath)
         elif program == 'raxml':
@@ -416,9 +437,11 @@ class SequenceCollection(object):
 
         # Use tempwrapper script to create and delete tmp directories
         # on the lsf machines
+
         tempwrapper = '{0}/tempdir_wrapper.sh'.format(basepath)
 
         # Filechecks
+
         if not os.path.isfile(runner_script):
             print '{0}: file not found'.format(runner_script)
         if not os.path.isfile(tempwrapper):
@@ -426,6 +449,7 @@ class SequenceCollection(object):
 
         # Create batch directories for all jobs so that they run in
         # batches of no more than 1000 (max for JobArray)
+
         avail_dirs = []
         for i in range(int(math.floor(len(rec_list) / 1000) + 1)):
             dname = '{0}/{1}-{2}'.format(lsf_tmpdir, i * 1000 + 1, (i
@@ -436,6 +460,7 @@ class SequenceCollection(object):
 
         # Write a phylip file into the lsf_temp directory,
         # and write a jobfile pointing to it, with indexed file extension
+
         for (i, rec) in enumerate(rec_list, start=1):
             filename = '{0}/{1}.phy'.format(lsf_tmpdir, rec.name)
             rec.write_phylip(filename)
@@ -444,27 +469,44 @@ class SequenceCollection(object):
                 file.write(filename)
 
         # Use a masterscript so that we wait for all jobs to complete before moving on
-        with open('{0}/masterscript.sh'.format(lsf_tmpdir), 'w') as file:
-            for path in avail_dirs:
-                numbers = path[path.rindex('/') + 1:]
-                # the jobfile is selected by the indexed file extension, which
-                # is accessed using the $LSF_JOBINDEX environmental variable
-                # (accessed internally by the runner script)     
-                file.write('bsub -o /dev/null -J "trees[{0}]" bash {1} python {2} --model={3} --ncat={4} --datatype={5} -f {6}/job.\n'.format(numbers,
-                           tempwrapper, runner_script, model, ncat, datatype, path))
+        commands = []
+        for path in avail_dirs:
+            numbers = path[path.rindex('/') + 1:]
+            (lower, upper) = numbers.split('-')
+            lower = int(lower)
+            upper = min(i, int(upper))
+
+            # the jobfile is selected by the indexed file extension, which
+            # is accessed using the $LSF_JOBINDEX environmental variable
+            # (accessed internally by the runner script)
+
+            commands.append('bsub -o /dev/null -J "trees[{0}-{1}]" bash {2} python {3} --model={4} --ncat={5} --datatype={6} -f {7}/job.\n'.format(
+                lower,
+                upper,
+                tempwrapper,
+                runner_script,
+                model,
+                ncat,
+                datatype,
+                path,
+                ))
 
         # Set the masterscript running and wait for the results - pickled tree objects
-        print 'Running LSF masterscript...'
-        command = 'bsub -o /dev/null -K bash {0}/masterscript.sh'.format(lsf_tmpdir)
-        process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
-                        stderr=PIPE)
-        process.wait()
 
+        print 'Running LSF commands...'
+        processes = [Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
+                        stderr=PIPE) for command in commands]
+        jobids = [extract_jobid(process.communicate()[0]) for process in processes]
+        while not all(is_bjob_done(jobid) for jobid in jobids):
+            time.sleep(2)
 
-        pickles = dict( (getname(x),x) for x in glob.glob('{0}/*.pickle'.format(lsf_tmpdir)) )
+        pickles = dict((getname(x), x) for x in
+                       glob.glob('{0}/*.pickle'.format(lsf_tmpdir)))
 
         for rec in rec_list:
             rec.tree = cPickle.load(file(pickles[rec.name]))
+
+        shutil.rmtree(lsf_tmpdir)
 
     def put_trees_parallel(
         self,
