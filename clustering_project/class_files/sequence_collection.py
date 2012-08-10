@@ -2,14 +2,18 @@
 # -*- coding: utf-8 -*-
 
 import glob
+import cPickle
 import os
 import multiprocessing
 import copy
 import re
+from subprocess import Popen, PIPE, call
 import matplotlib.pyplot as plt
 from sequence_record import TCSeqRec
 from clustering import Clustering
+
 # from simulation import Simulation
+
 import copy_reg
 import types
 from random import shuffle
@@ -210,7 +214,14 @@ class SequenceCollection(object):
         args = []
         names = []
         for rec in rec_list:
-            args.append((rec, model, datatype, ncat, tmpdir, overwrite))
+            args.append((
+                rec,
+                model,
+                datatype,
+                ncat,
+                tmpdir,
+                overwrite,
+                ))
             names.append(rec.name)
         r = pool.map_async(self._unpack_bionj, args,
                            callback=results.append)
@@ -350,6 +361,110 @@ class SequenceCollection(object):
                                    tmpdir=tmpdir, ncat=ncat,
                                    overwrite=overwrite)
 
+    def put_trees_lsf(
+        self,
+        rec_list=None,
+        program='phyml',
+        model=None,
+        datatype=None,
+        ncat=4,
+        lsf_tmpdir='./lsf_tmp',
+        overwrite=True,
+        basepath='.',
+        ):
+
+        def which_dir(n, dirs):
+            """ 
+            Given a number, n, and a set of directories of the form:
+            /1-1000, /1001-2000, /2001-3000 ...
+            returns the directory corresponding to the range the number
+            fits into
+            """
+            for x in dirs:
+                (lower, upper) = x[x.rindex('/') + 1:].split('-')
+                if int(lower) <= n <= int(upper):
+                    return x
+
+        getname = lambda x: x[x.rindex('/')+1:x.rindex('.')]
+
+        # Make paths into absolute paths, because these jobs will operate
+        # on separate machines
+        lsf_tmpdir = os.path.abspath(lsf_tmpdir)
+        basepath = os.path.abspath(basepath)
+
+        # Most cases will use self.records
+        if not rec_list:
+            rec_list = self.records
+
+        # Create temp directory reachable by lsf machine
+        if not os.path.isdir(lsf_tmpdir):
+            os.mkdir(lsf_tmpdir)
+
+        # Need a runner script to be called by lsf JobArray
+        if program == 'phyml':
+            runner_script = '{0}/lsf_phyml.py'.format(basedir)
+        elif program == 'raxml':
+            runner_script = '{0}/lsf_raxml.py'.format(basedir)
+        elif program == 'bionj':
+            runner_script = '{0}/lsf_bionj.py'.format(basedir)
+        elif program == 'treecollection':
+            runner_script = '{0}/lsf_treecollection.py'.format(basedir)
+        else:
+            print 'Program {0} not recognised'.format(program)
+            return
+
+        # Use tempwrapper script to create and delete tmp directories
+        # on the lsf machines
+        tempwrapper = '{0}/tempdir_wrapper.sh'.format(basedir)
+
+        # Filechecks
+        if not os.path.isfile(runner_script):
+            print '{0}: file not found'.format(runner_script)
+        if not os.path.isfile(tempwrapper):
+            print '{0}: file not found'.format(tempwrapper)
+
+        # Create batch directories for all jobs so that they run in
+        # batches of no more than 1000 (max for JobArray)
+        avail_dirs = []
+        for i in range(int(math.floor(len(rec_list) / 1000) + 1)):
+            dname = '{0}/{1}-{2}'.format(lsf_tmpdir, i * 1000 + 1, (i
+                    + 1) * 1000)
+            avail_dirs.append(dname)
+            if not os.path.isdir(dname):
+                os.mkdir(dname)
+
+        # Write a phylip file into the lsf_temp directory,
+        # and write a jobfile pointing to it, with indexed file extension
+        for (i, rec) in enumerate(rec_list, start=1):
+            filename = '{0}/{1}.phy'.format(lsf_tmpdir, rec.name)
+            rec.write_phylip(filename)
+            d = which_dir(i, avail_dirs)
+            with open('{0}/job.{1}'.format(d, i), 'w') as file:
+                file.write(filename)
+
+        # Use a masterscript so that we wait for all jobs to complete before moving on
+        with open('{0}/masterscript.sh'.format(lsf_tmpdir), 'w') as file:
+            for path in avail_dirs:
+                numbers = path[path.rindex('/') + 1:]
+                # the jobfile is selected by the indexed file extension, which
+                # is accessed using the $LSF_JOBINDEX environmental variable
+                # (accessed internally by the runner script)     
+                file.write('bsub -o /dev/null -J "trees[{0}]" bash {1} python {2} --model={3} --ncat={4} --datatype={5} -f {6}/job.\n'.format(numbers,
+                           tempwrapper, runner_script, model, ncat, datatype, path))
+
+        # Set the masterscript running and wait for the results - pickled tree objects
+        print 'Running LSF masterscript...'
+        command = 'bsub -o /dev/null -K bash {0}/masterscript.sh'.format(lsf_tmpdir)
+        process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
+                        stderr=PIPE)
+        process.wait()
+
+
+        pickles = dict( (getname(x),x) for x in glob.glob('{0}/*.pickle'.format(lsf_tmpdir)) )
+
+        for rec in rec_list:
+            rec.tree = cPickle.load(file(pickles[rec.name]))
+
     def put_trees_parallel(
         self,
         rec_list=None,
@@ -382,9 +497,14 @@ class SequenceCollection(object):
                 overwrite=overwrite,
                 )
         elif program == 'bionj':
-            trees_dict = self._bionj_parallel_call(rec_list=rec_list,
-                    model=model, datatype=datatype, tmpdir=tmpdir,
-                    ncat=ncat, overwrite=overwrite)
+            trees_dict = self._bionj_parallel_call(
+                rec_list=rec_list,
+                model=model,
+                datatype=datatype,
+                tmpdir=tmpdir,
+                ncat=ncat,
+                overwrite=overwrite,
+                )
         for rec in self.records:
             rec.tree = trees_dict[rec.name]
 
@@ -417,7 +537,7 @@ class SequenceCollection(object):
         criterion='distance',
         prune=True,
         tmpdir='/tmp/',
-        gtp_path='./class_files/'
+        gtp_path='./class_files/',
         ):
         """
         metrics, linkages and nclasses are given as lists, or coerced into 
@@ -436,7 +556,8 @@ class SequenceCollection(object):
         for metric in metrics:
             if not metric in self.get_distance_matrices():
                 trees = [rec.tree for rec in self.records]  # preserve ordering
-                self.clustering.put_distance_matrix(trees, metric, tmpdir=tmpdir, gtp_path=gtp_path)
+                self.clustering.put_distance_matrix(trees, metric,
+                        tmpdir=tmpdir, gtp_path=gtp_path)
             for linkage in linkages:
                 for n in nclasses:
                     self.clustering.put_partition(
@@ -485,7 +606,7 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        if program not in ['treecollection', 'raxml', 'phyml','bionj']:
+        if program not in ['treecollection', 'raxml', 'phyml', 'bionj']:
             print 'unrecognised program {0}'.format(program)
             return
         rec_list = self.get_cluster_records()
@@ -514,7 +635,7 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        if program not in ['treecollection', 'raxml', 'phyml','bionj']:
+        if program not in ['treecollection', 'raxml', 'phyml', 'bionj']:
             print 'unrecognised program {0}'.format(program)
             return
         rec_list = self.get_cluster_records()
@@ -536,9 +657,14 @@ class SequenceCollection(object):
                 overwrite=overwrite,
                 )
         elif program == 'bionj':
-            cluster_trees_dict = self._bionj_parallel_call(rec_list=rec_list,
-                    model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir,
-                    overwrite=overwrite)
+            cluster_trees_dict = self._bionj_parallel_call(
+                rec_list=rec_list,
+                model=model,
+                datatype=datatype,
+                ncat=ncat,
+                tmpdir=tmpdir,
+                overwrite=overwrite,
+                )
         for rec in rec_list:
             rec.tree = cluster_trees_dict[rec.name]
         self.update_results()
