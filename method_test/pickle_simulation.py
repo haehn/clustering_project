@@ -14,7 +14,7 @@ def fpath(s):
         s = s[:-1]
     return s
 
-parser = argparse.ArgumentParser(prog='pickle.py')
+parser = argparse.ArgumentParser(prog='pickle_simulation.py')
 parser.add_argument('-d', '--directory', help='output directory', type=fpath, default='.')
 parser.add_argument('-g', '--geodesic', help='path to gtp.jar', type=fpath, default='.')
 parser.add_argument('-p', '--program', help='which program to use. can be used in conjunction with (-m, --model), (-n, --ncat) and (-data, --datatype)', type=str, default='bionj')
@@ -36,7 +36,7 @@ print 'Reading alignments into SequenceRecord object'
 seq = SequenceCollection('{0}/dna_alignments'.format(outdir), datatype='dna', tmpdir=tmpdir, helper=os.environ['DARWINHELPER'])
 print 'Calculating trees'
 print program,model,datatype,ncat,tmpdir
-seq.put_trees_parallel(program=program, model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir)
+seq.put_trees(program=program, model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir)
 print 'doing geodesic distance matrices'
 seq.put_distance_matrices('geo', gtp_path=gtp_path, tmpdir=tmpdir)
 print 'doing euc distance matrices'
@@ -49,7 +49,7 @@ with open('{0}/treedistances.txt'.format(outdir)) as file:
 	T = file.readline().rstrip().split('\t')[1][1:-1].split(', ')
 seq.clustering.partitions['true'] = T
 seq.put_clusters()
-seq.put_cluster_trees_parallel(program=program, model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir)
+seq.put_cluster_trees(program=program, model=model, datatype=datatype, ncat=ncat, tmpdir=tmpdir)
 r = seq.get_clusters()['true']
 print 'score: ', r.score
 with open('{0}/treedistances.txt'.format(outdir),'a') as file:

@@ -90,7 +90,7 @@ Estimates from yeast dataset:
 inner_edge_params=(2.13, 0.029),
 leaf_params=(1.45, 0.097),
 """
-
+print 'Regime = {0}'.format(regime)
 sim.simulate_set(
     K=K,
     M=M,

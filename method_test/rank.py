@@ -92,13 +92,13 @@ def get_rankings_by_vi(dic):
 parser = argparse.ArgumentParser(prog='rank.py')
 parser.add_argument('-d', '--base-directory', type=fpath)
 args = vars(parser.parse_args())
+basedir = args['base_directory']
 
 score_tracker = {'euc': defaultdict(float), 'geo': defaultdict(float),
                  'sym': defaultdict(float)}
 vi_tracker = {'euc': defaultdict(float), 'geo': defaultdict(float),
               'sym': defaultdict(float)}
 
-basedir = args['base_directory']
 simdirs = [x for x in glob.glob('{0}/sim*'.format(basedir)) if os.path.isdir(x)]
 
 for directory in simdirs:
