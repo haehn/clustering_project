@@ -402,20 +402,20 @@ class SequenceCollection(object):
 
         # Need a runner script to be called by lsf JobArray
         if program == 'phyml':
-            runner_script = '{0}/lsf_phyml.py'.format(basedir)
+            runner_script = '{0}/lsf_phyml.py'.format(basepath)
         elif program == 'raxml':
-            runner_script = '{0}/lsf_raxml.py'.format(basedir)
+            runner_script = '{0}/lsf_raxml.py'.format(basepath)
         elif program == 'bionj':
-            runner_script = '{0}/lsf_bionj.py'.format(basedir)
+            runner_script = '{0}/lsf_bionj.py'.format(basepath)
         elif program == 'treecollection':
-            runner_script = '{0}/lsf_treecollection.py'.format(basedir)
+            runner_script = '{0}/lsf_treecollection.py'.format(basepath)
         else:
             print 'Program {0} not recognised'.format(program)
             return
 
         # Use tempwrapper script to create and delete tmp directories
         # on the lsf machines
-        tempwrapper = '{0}/tempdir_wrapper.sh'.format(basedir)
+        tempwrapper = '{0}/tempdir_wrapper.sh'.format(basepath)
 
         # Filechecks
         if not os.path.isfile(runner_script):
