@@ -28,8 +28,18 @@ getname = lambda x: x[x.rindex('/')+1:x.rindex('.')]
 parser = argparse.ArgumentParser(prog='phymlwrap.py')
 parser.add_argument('-f', '--infile', help='input file', type=fpath, default='.')
 args = vars(parser.parse_args())
-infile = args['infile'] + os.environ['LSB_JOBINDEX']
-# infile = sys.argv[1]
+try: 
+    index = os.environ['LSB_JOBINDEX']
+except:
+    index = None
+infile = args['infile']
+if index:
+    infile += index
+
+if not infile[-1].isdigit():
+    print '{0} is not correct'.format(infile)
+    sys.exit(1)
+
 if not os.path.isfile(infile):
     print 'Input file not found:\n{0}'.format(os.path.abspath(infile))
     sys.exit(0)
@@ -39,15 +49,24 @@ with open(infile) as file:
 
 if not os.path.isfile(target):
     print 'Target file not found:\n{0}'.format(os.path.abspath(target))
-    sys.exit(0)
+    sys.exit(2)
 
 print target
 parent_dir = os.path.dirname(target)
 name = getname(target)
 
+#if os.path.isfile('{0}/{1}.nj.pickle'.format(parent_dir, name)):
+#    os.remove('{0}/{1}.nj.pickle'.format(parent_dir, name))
+#if os.path.isfile('{0}/{1}.pickle'.format(parent_dir, name)):
+#    os.remove('{0}/{1}.pickle'.format(parent_dir, name))
 record = TCSeqRec(target, file_format='phylip', name=name)
-if 'dna_alignments' in target:
+if 'phyml_clustering' in target:
     record.get_phyml_tree(model='GTR',ncat=4,datatype='nt')
-elif 'aa_alignments' in target:
-    record.get_phyml_tree(model='WAG',ncat=4,datatype='aa')
+elif 'bionj_clustering' in target:
+    record.get_bionj_tree(model='GTR',ncat=4,datatype='nt')
 cPickle.dump(record, open('{0}/{1}.pickle'.format(parent_dir, name),'w'))
+#record.get_bionj_tree(model='GTR',ncat=4,datatype='nt')
+#cPickle.dump(record, open('{0}/{1}.nj.pickle'.format(parent_dir, name),'w'))
+#record = TCSeqRec(target, file_format='phylip', name=name)
+#record.get_phyml_tree(model='GTR',ncat=4,datatype='nt')
+#cPickle.dump(record, open('{0}/{1}.pickle'.format(parent_dir, name), 'w'))

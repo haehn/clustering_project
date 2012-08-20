@@ -139,7 +139,7 @@ class Tree(object):
         if not overwrite and self.newick:
             return self
         command = \
-            'phyml -m {0} -i {1} -d {2} -c {3} -a e -b 0 --sequential > /dev/null'.format(model,
+            'phyml -m {0} -i {1} -d {2} -c {3} -a e -b 0 --sequential --no_memory_check #> /dev/null'.format(model,
                 alignment_file, datatype, ncat)
         if verbose:
             command = command.replace('> /dev/null', '')
@@ -161,7 +161,7 @@ class Tree(object):
 
         if not overwrite and self.newick:
             return self
-        command = 'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o n --sequential #> /dev/null'.format(model,
+        command = 'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o n --sequential --no_memory_check #> /dev/null'.format(model,
                       alignment_file, datatype, ncat)
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
                         stderr=PIPE)

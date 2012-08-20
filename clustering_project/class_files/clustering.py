@@ -105,8 +105,8 @@ class Clustering(object):
                         matrix[i][j] = matrix[j][i] = \
                             dpytrees[i].robinson_foulds_distance(dpytrees[j])
                     elif metric == 'sym':
-                        matrix[i][j] = matrix[j][i] = \
-                            dpytrees[i].symmetric_difference(dpytrees[j])
+                        dist = dpytrees[i].symmetric_difference(dpytrees[j])
+                        matrix[i][j] = matrix[j][i] = dist
                     elif metric == 'euc':
                         matrix[i][j] = matrix[j][i] = \
                             dpytrees[i].euclidean_distance(dpytrees[j])
@@ -215,7 +215,17 @@ class Clustering(object):
 
             T = self.affinity_propagation(dm, metric, nclasses)
         else:
-
+            if metric == 'sym':
+                size = len(dm)
+                new = np.zeros( (size,size) )
+                for i in range(size):
+                    for j in range(i+1,size):
+                        eps = np.random.normal(0,0.001)
+                        if dm[i,j] + eps > 0:
+                            new[i,j]=new[j,i]=dm[i,j]+eps
+                        else:
+                            new[i,j]=new[j,i]=dm[i,j]-eps
+                dm = new
             linkmat = linkage(dm, linkage_method)
 
             if criterion == 'distance':

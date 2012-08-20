@@ -933,6 +933,7 @@ class SequenceCollection(object):
         datatype='protein',
         helper='./class_files/DV_wrapper.drw',
         tmpdir='/tmp',
+        get_distances=True,
         parallel_load=True,
         overwrite=True,
         ):
@@ -947,33 +948,40 @@ class SequenceCollection(object):
         if input_dir:
 
             files = self.get_files(input_dir, file_format)
+
+            # file checks
             if files == 0:
                 print 'There was a problem reading files from {0}'.format(input_dir)
                 return
-            if not os.path.isfile(helper):
+
+            if get_distances and not os.path.isfile(helper):
                 print 'There was a problem finding the darwin helper at {0}'.format(helper)
                 return
+            # done
+
             files.sort(key=sort_key)
             self.put_records(files, file_format, datatype)
             self.length = len(self.records)
             self.sanitise_records()
             if not os.path.isdir(tmpdir):
                 os.mkdir(tmpdir)
-            if parallel_load:
-                self.put_dv_matrices_parallel(helper=helper,
-                        tmpdir=tmpdir, overwrite=overwrite)
-            else:
-                self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
-                        overwrite=overwrite)
+            if get_distances:
+                if parallel_load:
+                    self.put_dv_matrices_parallel(helper=helper,
+                            tmpdir=tmpdir, overwrite=overwrite)
+                else:
+                    self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
+                            overwrite=overwrite)
         elif records:
 
             self.sanitise_records()
-            if parallel_load:
-                self.put_dv_matrices_parallel(helper=helper,
-                        tmpdir=tmpdir, overwrite=overwrite)
-            else:
-                self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
-                        overwrite=overwrite)
+            if get_distances:
+                if parallel_load:
+                    self.put_dv_matrices_parallel(helper=helper,
+                            tmpdir=tmpdir, overwrite=overwrite)
+                else:
+                    self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
+                            overwrite=overwrite)
 
             self.length = len(self.records)
 

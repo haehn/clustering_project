@@ -757,7 +757,7 @@ wRF\t{4}
                 record.write_fasta('{0}/dna_alignments/class{1}_{2}.fas'.format(filepath,
                                    class_number, int(base_gene_number)
                                    + int(gene_number) - 1))
-                record.write_phylip('{0}/dna_alignments/class{1}_{2}.fas'.format(filepath,
+                record.write_phylip('{0}/dna_alignments/class{1}_{2}.phy'.format(filepath,
                                    class_number, int(base_gene_number)
                                    + int(gene_number) - 1))
 
@@ -773,7 +773,7 @@ wRF\t{4}
                 record.write_fasta('{0}/aa_alignments/class{1}_{2}.fas'.format(filepath,
                                    class_number, int(base_gene_number)
                                    + int(gene_number) - 1))
-                record.write_phylip('{0}/aa_alignments/class{1}_{2}.fas'.format(filepath,
+                record.write_phylip('{0}/aa_alignments/class{1}_{2}.phy'.format(filepath,
                                    class_number, int(base_gene_number)
                                    + int(gene_number) - 1))
 

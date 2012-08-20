@@ -6,6 +6,7 @@ import re
 import os
 import math
 import sys
+from sequence_record import TCSeqRec
 
 def which_dir(n,base):
     avail_dirs = [x for x in glob.glob('{0}/*'.format(base)) if os.path.isdir(x) and x[x.rindex('/')+1].isdigit()]
@@ -29,17 +30,19 @@ parser = argparse.ArgumentParser(prog='batchify.py')
 parser.add_argument('-d', '--directory', help='input directory', type=fpath, default='.')
 args = vars(parser.parse_args())
 regdir = args['directory']
-basedirs = glob.glob('{0}/nni*'.format(regdir))
-
+#basedirs = glob.glob('{0}/nni*'.format(regdir))
+basedirs = ['{0}/nni{1}'.format(regdir,i) for i in range(2,6)]
 l=[]
 
 print 'Reading locations of all phylip files...'
 for d in basedirs:
-    for sd in glob.glob('{0}/*'.format(d)):
-        for f in glob.glob('{0}/dna_alignments/*.phy'.format(sd))+glob.glob('{0}/aa_alignments/*.phy'.format(sd)):
-            l.append(os.path.abspath(f))
+    for sd in [x for x in glob.glob('{0}/*'.format(d)) if os.path.isdir(x)]:
+        for f in glob.glob('{0}/phyml_clustering/*.phy'.format(sd))+glob.glob('{0}/bionj_clustering/*.phy'.format(sd)):
+            if not os.path.isfile(f[:-3]+'pickle'):# or not os.path.isfile(f[:-3]+'nj.pickle'):
+                #print f
+                l.append(os.path.abspath(f))
 print '(done).'
-
+print l
 print 'Making necessary batch directories...'
 for i in range(int(math.floor(len(l)/1000)+1)):
     dname = '{0}/{1}-{2}'.format(regdir,i*1000+1,(i+1)*1000)
