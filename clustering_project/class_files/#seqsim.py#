@@ -342,7 +342,7 @@ indelModels := [IndelModel({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7})];
     def rate_variation(
         self,
         shape=1,
-        ncat=4,
+        ncat=5,
         pinvar=0,
         ):
         """
@@ -479,9 +479,8 @@ scaleTree := {5};
         inner_edge_params,
         leaf_params,
         scale_func,
-        master_tree_generator_method='random_topology',
+        base_tree_generator='random_topology',
         class_tree_permuter='nni',
-        guarantee_unique=False,
         num_permutations=0,
         scale_params=(1, 1),
         gene_length_kappa=1,
@@ -545,76 +544,6 @@ scaleTree := {5};
 
             return d
 
-        def make_master_tree(
-            n, 
-            names, 
-            method, 
-            inner_edge_params=(1,1), 
-            leaf_params=(1,1),
-            distribution_func=np.random.gamma,
-            ):
-            """
-            Function returns a tree object with n tips,
-            named according to `names`, and constructed
-            according to `method`, which is one of 'random_topology',
-            'random_yule' and 'random_coal'
-            """
-            if method == 'random_topology':
-                master_topology = Tree().random_topology(n, names=names)
-                master_tree = master_topology.randomise_branch_lengths(inner_edges=inner_edge_params,
-                            leaves=leaf_params,
-                            distribution_func=branch_length_func)
-            elif method == 'random_yule':
-                master_tree = Tree().random_yule(n, names=names)
-            elif method == 'random_coal':
-                master_tree = Tree().random_coal(n, names=names)
-            return master_tree
-
-        def make_class_tree(
-            master_tree, 
-            permutation_extent, 
-            method, 
-            with_check=True, 
-            checklist = [],
-            ):
-            """
-            Function returns a tree object derived from a master tree,
-            but with some permutation applied. The type of permutation
-            is defined by `method`, one of 'nni', 'spr' and 'coal'
-            If with_check is True, the generated tree is checked against
-            a checklist of other trees on the same species, and permutations
-            are applied until the new tree has a unique topology. This is 
-            only implemented for nni and spr.
-            """
-            if num_permutations == 0:
-                return master_tree            
-
-            new_tree = Tree(master_tree.newick)
-
-            if method == 'nni':
-                if with_check:
-                    while not self.check_diff_top(new_tree, checklist):
-                        new_tree = Tree(master_tree.newick)
-                        for i in range(permutation_extent):
-                            new_tree = new_tree.nni()
-                else:
-                    for i in range(num_permutations):
-                        new_tree = new_tree.nni()
-            elif method == 'spr':
-                if with_check:
-                    while not self.check_diff_top(new_tree, checklist):
-                        new_tree = Tree(master_tree.newick)
-                        for i in range(permutation_extent):
-                            new_tree = new_tree.spr()
-                else:
-                    for i in range(num_permutations):
-                        new_tree = new_tree.spr()
-            elif method == 'coal':
-                new_tree = master_tree.get_constrained_gene_tree(
-                            scale_to=permutation_extent)
-            return new_tree
-
-
         # Create directories for simulation trees and parameter files
 
         if not os.path.isdir('{0}/alf_parameter_dir'.format(tmpdir)):
@@ -625,8 +554,6 @@ scaleTree := {5};
             os.mkdir(filepath)
         if not os.path.isdir('{0}/true_trees'.format(filepath)):
             os.mkdir('{0}/true_trees'.format(filepath))
-        if not os.path.isdir('{0}/true_trees/individual'.format(filepath)):
-            os.mkdir('{0}/true_trees/individual'.format(filepath))
         if not os.path.isdir('{0}/dna_alignments'.format(filepath)):
             os.mkdir('{0}/dna_alignments'.format(filepath))
         if not os.path.isdir('{0}/aa_alignments'.format(filepath)):
@@ -663,56 +590,60 @@ scaleTree := {5};
         print 'Simulating {0} genes in {1} classes, distributed as {2}'.format(M,
                 K, mk)
 
-        names = ['Sp{0}'.format(i) for i in range(1, n + 1)]
-
-        print 'N classes =', K
-        print 'N genes = ', M
-        print 'N species =', n
-        print 'Regime = ', regime
-        print 'N permutations =', num_permutations
-        print 'Tuning =', tune
-        print 'mk =', mk
-        print 'true clustering = ', true_clustering
-        
         # Create simulation trees
 
-        # Make a master tree
-        master_tree = make_master_tree(n, names, method=master_tree_generator_method,
-            inner_edge_params=inner_edge_params, leaf_params=leaf_params, 
-            distribution_func=branch_length_func)
-        class_trees = []
+        topologies = []
+        base_trees = []
         parameter_files = []
-        
-        print 'Master tree = ', master_tree
-        master_tree.write_to_file('{0}/true_trees/master.tree'.format(filepath))
+        names = ['Sp{0}'.format(i) for i in range(1, n + 1)]
+        for k in range(K):
 
-        # make K class trees
-        for k in range(K): 
-            print 'Making class {0}/{1}'.format(k+1, K)
+            if k == 0:
+                if base_tree_generator == 'random_topology':
+                    class_topology = Tree().random_topology(n, names=names)
+                elif base_tree_generator == 'random_yule':
+                    pass
+                elif base_tree_generator == 'random_coal':
+                    pass
 
-            if num_permutations > 0:
-                class_tree = make_class_tree(master_tree, num_permutations, class_tree_permuter,
-                    with_check=guarantee_unique, checklist=[master_tree]+class_trees)
-                class_trees.append(class_tree)
+            elif k > 0 and num_permutations > 0:
+
+                class_topology = copy.deepcopy(topologies[0])
+                
+                if class_tree_permuter in ['nni','spr']:
+                    while not self.check_diff_top(class_topology,
+                            topologies):
+                        for i in range(num_permutations):
+                            if class_tree_permuter == 'nni':
+                                class_topology = class_topology.nni()
+                            else:
+                                class_topology = class_topology.spr()
 
             else:
-                class_tree = make_master_tree(n, names, method=master_tree_generator_method,
-                    inner_edge_params=inner_edge_params, leaf_params=leaf_params, 
-                    distribution_func=branch_length_func)
-                class_trees.append(class_tree)
+                class_topology = topologies[0]
+                while not self.check_diff_top(class_topology,
+                        topologies):
+                    class_topology = Tree().random_topology(n,
+                            names=names)
 
-            print 'class tree = ', class_tree
+            topologies.append(class_topology)
+            
+            if class_tree_permuter == 'random_topology':
+                class_tree = \
+                    class_topology.randomise_branch_lengths(inner_edges=inner_edge_params,
+                        leaves=leaf_params,
+                        distribution_func=branch_length_func)
+            else:
+                class_tree = class_topology
             class_tree.write_to_file('{0}/true_trees/class{1}.tree'.format(filepath,
                                     k + 1))
             
-            # ALF only behaves itself if trees are in PAM units,
-            # so we scale our newly-generated class trees to have branch lengths
-            # in PAM units.
-            # Our class_trees list contains unconverted trees
-            if unit_is_pam: # Default = True
-                class_tree_PAM = class_tree.pam2sps('sps2pam') # conversion from SPS to PAM
-                class_tree_PAM.write_to_file('{0}/alf_trees_dir/class{1}_1.nwk'.format(tmpdir,
+            if unit_is_pam:
+                class_tree = class_tree.pam2sps('sps2pam')
+                class_tree.write_to_file('{0}/alf_trees_dir/class{1}_1.nwk'.format(tmpdir,
                         k + 1))
+            base_tree = class_tree
+            base_trees.append(base_tree)
 
             # Write parameter files
 
@@ -738,20 +669,16 @@ scaleTree := {5};
 
                 continue
 
-            # For regimes 3 & 4 each gene within a class is simulated along its own tree:
-            #   Under regime 3 each gene within a class has its branch lengths scaled
-            #   by a scaling parameter, and under regime 4 each gene has random branch lengths
-            #   drawn from some distribution (although individual branch rescaling might be better)
             for genes in range(ngenes):
                 if regime == 3:
                     scale_factor = scale_func(*scale_params)
-                    class_tree = class_trees[k].scale(scale_factor)
+                    class_tree = base_tree.scale(scale_factor)
                 elif regime == 4:
                     class_tree = \
-                        class_trees[k].randomise_branch_lengths(inner_edges=inner_edge_params,
+                        base_tree.randomise_branch_lengths(inner_edges=inner_edge_params,
                             leaves=leaf_params,
                             distribution_func=branch_length_func)
-                    if unit_is_pam: # same conversion as before
+                    if unit_is_pam:
                         class_tree = class_tree.pam2sps('sps2pam')
 
                 class_tree.write_to_file('{0}/alf_trees_dir/class{1}_{2}.nwk'.format(tmpdir,
@@ -768,15 +695,15 @@ scaleTree := {5};
 
         # Estimate distances between base class trees
 
-        # if unit_is_pam:
-        #     class_trees = [x.pam2sps() for x in class_trees]
+        if unit_is_pam:
+            base_trees = [x.pam2sps() for x in base_trees]
 
         geodists = []
         eucdists = []
         symdists = []
         wrfdists = []
         with open('{0}/basetrees.nwk'.format(tmpdir),'w') as file:
-            file.write('\n'.join([x.newick.rstrip() for x in class_trees]))
+            file.write('\n'.join([x.newick.rstrip() for x in base_trees]))
         os.system('java -jar {0}/gtp.jar -o {1}/baseout.txt {1}/basetrees.nwk'.format(gtp_path, tmpdir))
         with open('{0}/baseout.txt'.format(tmpdir)) as file:
             for line in file:
@@ -785,11 +712,13 @@ scaleTree := {5};
                     i,j,value=line.split()
                     geodists.append(float(value))
         for a in range(K):
-            tree_a = dpy.Tree.get_from_string(class_trees[a].newick,
+            tree_a = dpy.Tree.get_from_string(base_trees[a].newick,
                     'newick')
             for b in range(a + 1, K):
-                tree_b = dpy.Tree.get_from_string(class_trees[b].newick,
+                tree_b = dpy.Tree.get_from_string(base_trees[b].newick,
                         'newick')
+                #geodists.append(GeoMeTreeHack.main(base_trees[a].newick,
+                #                base_trees[b].newick))
                 eucdists.append(tree_a.euclidean_distance(tree_b))
                 symdists.append(tree_a.symmetric_difference(tree_b))
                 wrfdists.append(tree_a.robinson_foulds_distance(tree_b))
@@ -870,16 +799,16 @@ wRF\t{4}
 
             if regime in [1,2]:
                 for g in range(mk[int(class_number)-1]):
-                    Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/individual/class{1}_{2}.nwk'.format(filepath,
+                    Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/class{1}_{2}.nwk'.format(filepath,
                                     class_number, g + 1))
 
             else:
-                Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/individual/{1}.nwk'.format(filepath,
+                Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/{1}.nwk'.format(filepath,
                                     name))
 
         # Intra- and inter-class stats
 
-        alltrees = glob.glob('{0}/true_trees/individual/*.nwk'.format(filepath))
+        alltrees = glob.glob('{0}/true_trees/*.nwk'.format(filepath))
 
         alltrees.sort(key=sort_key)
 
@@ -945,35 +874,12 @@ wRF\t{4}
 
         writer.close()
      
-        # shutil.rmtree('{0}/alf_parameter_dir'.format(tmpdir))
-        # shutil.rmtree('{0}/alf_trees_dir'.format(tmpdir))
-        # shutil.rmtree('{0}/alf_working_dir'.format(tmpdir))
+        shutil.rmtree('{0}/alf_parameter_dir'.format(tmpdir))
+        shutil.rmtree('{0}/alf_trees_dir'.format(tmpdir))
+        shutil.rmtree('{0}/alf_working_dir'.format(tmpdir))
         os.remove('{0}/output.txt'.format(tmpdir))
         os.remove('{0}/geotrees.nwk'.format(tmpdir))
         os.remove('{0}/basetrees.nwk'.format(tmpdir))
         os.remove('{0}/baseout.txt'.format(tmpdir))
 
-if __name__ == "__main__":
-    # Small test suite
-    sim = SeqSim()
-    sim.hky_model(
-        alpha=3.551,
-        beta=1,
-        Afreq=0.31,
-        Cfreq=0.18,
-        Gfreq=0.21,
-        Tfreq=0.3,
-        )
-    # sim.indels()
-    sim.rate_variation()
-    # sim.simulate_set(K=4,M=20,n=12,tune=1,regime=2,branch_length_func=np.random.gamma,inner_edge_params=(3.2,0.029),leaf_params=(2.2,0.097),scale_func=np.random.gamma,
-    #     master_tree_generator_method='random_yule',class_tree_permuter='spr',guarantee_unique=True,num_permutations=3,scale_params=(1,1),gene_length_kappa=5.53,gene_length_theta=72.35,gene_length_min=10,
-    #     filepath='/Users/kgori/scratch/testspr',tmpdir='/tmp',gtp_path='/Users/kgori/git/kevin/clustering_project/class_files/',unit_is_pam=True,quiet=True)
 
-    # sim.simulate_set(K=4,M=20,n=12,tune=1,regime=2,branch_length_func=np.random.gamma,inner_edge_params=(3.2,0.029),leaf_params=(2.2,0.097),scale_func=np.random.gamma,
-    #     master_tree_generator_method='random_yule',class_tree_permuter='nni',guarantee_unique=True,num_permutations=1,scale_params=(1,1),gene_length_kappa=5.53,gene_length_theta=72.35,gene_length_min=10,
-    #     filepath='/Users/kgori/scratch/testnni',tmpdir='/tmp',gtp_path='/Users/kgori/git/kevin/clustering_project/class_files/',unit_is_pam=True,quiet=True)
-
-    sim.simulate_set(K=4,M=20,n=12,tune=1,regime=2,branch_length_func=np.random.gamma,inner_edge_params=(3.2,0.029),leaf_params=(2.2,0.097),scale_func=np.random.gamma,
-        master_tree_generator_method='random_yule',class_tree_permuter='coal',guarantee_unique=True,num_permutations=200,scale_params=(1,1),gene_length_kappa=5,gene_length_theta=1000,gene_length_min=10,
-        filepath='/Users/kgori/scratch/testcoal',tmpdir='/tmp',gtp_path='/Users/kgori/git/kevin/clustering_project/class_files/',unit_is_pam=True,quiet=True)

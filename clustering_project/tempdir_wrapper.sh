@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export TEMPORARY_DIRECTORY=`mktemp -d /tmp/XXXXXXXX`
+export TEMPORARY_DIRECTORY=`mktemp -d /tmp/XXXXXXXXXX`
 
 $*
 

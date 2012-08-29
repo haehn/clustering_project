@@ -80,10 +80,15 @@ class Clustering(object):
                     matrix[i][j] = matrix[j][i] = \
                         GeoMeTreeHack.main(geotrees[i], geotrees[j])
         elif metric == 'geo':
-
+            rooted = all([tree.rooted for tree in trees])
             with open('{0}/geotrees.nwk'.format(tmpdir),'w') as file:            
                 file.write('\n'.join([tree.newick.rstrip() for tree in trees]))
-            os.system('java -jar {1}/gtp.jar -o {0}/output.txt {0}/geotrees.nwk'.format(tmpdir, gtp_path))
+            if rooted:
+                print 'All trees are rooted'
+                os.system('java -jar {1}/gtp.jar -o {0}/output.txt {0}/geotrees.nwk'.format(tmpdir, gtp_path))
+            else:
+                print 'Not all trees are rooted'
+                os.system('java -jar {1}/gtp.jar -u -o {0}/output.txt {0}/geotrees.nwk'.format(tmpdir, gtp_path))
             with open('{0}/output.txt'.format(tmpdir)) as file:
                 for line in file:
                     line = line.rstrip()

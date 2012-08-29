@@ -4,6 +4,8 @@
 import re
 import os
 import dendropy as dpy
+from dendropy import treesim
+from dendropy import TaxonSet
 import numpy as np
 import ete2
 import random
@@ -23,6 +25,7 @@ class Tree(object):
         program=None,
         name=None,
         output=None,
+        rooted=None,
         ):
 
         self.newick = newick
@@ -30,6 +33,7 @@ class Tree(object):
         self.program = program
         self.name = name
         self.output = output
+        self.rooted = rooted
 
     def __str__(self):
         """
@@ -43,6 +47,7 @@ class Tree(object):
             s += 'Name:\t' + self.name + '\n'
         s += 'Program:\t{0}\n'.format(self.program) \
             + 'Score:\t{0}\n'.format(self.score) \
+            + 'Rooted:\t{0}\n'.format(self.rooted) \
             + 'Tree:\t]{0}\n'.format(self.newick)
         return s
 
@@ -77,7 +82,7 @@ class Tree(object):
 
             output_string = reg_ex.sub(converter, input_string)
 
-        return Tree(output_string, self.score, self.program, self.name)
+        return Tree(output_string, self.score, self.program, self.name, self.rooted)
 
     def read_from_file(self, infile, name=None):
         """
@@ -119,11 +124,26 @@ class Tree(object):
         if metadata:
             writer.write(str(self))
         else:
-            if not self.newick.endswith('\n'):
-                self.newick += '\n'
-            writer.write(self.newick)
+            # Use regex to match and remove anything enclosed
+            # by square brackets, and any following spaces
+            writeable = re.sub(r'\[[^\]]*\][ ]*','',str(self))
+            if not writeable.endswith('\n'):
+                writeable += '\n'
+            writer.write(writeable)
         writer.close()
         return outfile
+
+    def check_rooted(self, newick):
+        t = dpy.Tree()
+        t.read_from_string(newick, 'newick')
+        root_degree = len(t.seed_node.child_nodes())
+        return root_degree == 2  
+
+    def deroot_tree(self, newick):
+        t = dpy.Tree()
+        t.read_from_string(newick, 'newick')
+        t.deroot()
+        return t.as_newick_string() + ';'
 
     def run_phyml(
         self,
@@ -151,11 +171,12 @@ class Tree(object):
                       ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
         output = \
             open('{0}_phyml_stats.txt'.format(alignment_file)).read()
+        rooted = self.check_rooted(tree)
         os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
 
         (self.newick, self.score, self.program, self.name,
-         self.output) = (tree, score, 'phyml', name, output)
-        return Tree(tree, score, 'phyml', name, output)
+         self.output, self.rooted) = (tree, score, 'phyml', name, output, rooted)
+        return Tree(tree, score, 'phyml', name, output, rooted)
 
     def run_bionj(self, model, alignment_file, datatype, ncat, name, overwrite=True):
 
@@ -171,11 +192,12 @@ class Tree(object):
                       ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
         output = \
             open('{0}_phyml_stats.txt'.format(alignment_file)).read()
+        rooted = self.check_rooted(tree)
         os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
 
         (self.newick, self.score, self.program, self.name,
-         self.output) = (tree, score, 'bionj', name, output)
-        return Tree(tree, score, 'bionj', name, output)
+         self.output, self.rooted) = (tree, score, 'bionj', name, output, rooted)
+        return Tree(tree, score, 'bionj', name, output, rooted)
 
     def run_raxml(
         self,
@@ -215,11 +237,12 @@ class Tree(object):
                           name)).read()).group())
             output = open('{0}/RAxML_info.{1}'.format(tmpdir,
                           name)).read()
+        rooted = self.check_rooted(tree)
         os.system('rm {0}/*.{1}'.format(tmpdir, name))  # Cleanup
 
         (self.newick, self.score, self.program, self.name,
-         self.output) = (tree, score, 'raxml', name, output)
-        return Tree(tree, score, 'raxml', name, output)
+         self.output, self.rooted) = (tree, score, 'raxml', name, output, rooted)
+        return Tree(tree, score, 'raxml', name, output, rooted)
 
     def run_treecollection(
         self,
@@ -229,6 +252,7 @@ class Tree(object):
         tree_file,
         name,
         overwrite=True,
+        deroot=True,
         ):
 
         if not overwrite and self.newick:
@@ -241,12 +265,15 @@ class Tree(object):
         (stdout, stderr) = process.communicate()
         info = stdout.split()
         tree = info[-2]
+        if deroot:
+            tree = self.deroot_tree(tree)
         score = float(info[-1])
+        rooted = self.check_rooted(tree)
 
         (self.newick, self.score, self.program, self.name,
-         self.output) = (tree, score, 'TreeCollection', name, stdout)
+         self.output, self.rooted) = (tree, score, 'TreeCollection', name, stdout, rooted)
         return Tree(tree, score, 'TreeCollection', name,
-                    stdout).pam2sps('pam2sps')
+                    stdout, rooted).pam2sps('pam2sps')
 
     def _unpack_raxml_args(packed_args):
         """
@@ -327,28 +354,240 @@ class Tree(object):
 
         return self.pam2sps(scaling_factor)
 
+    def random_yule(self, nspecies=None, names=None):
+        if names and nspecies:
+            if not nspecies == len(names):
+                nspecies = len(names)
+        elif names and not nspecies:
+            nspecies = len(names)
+        elif not names and nspecies:
+            names = ['Sp{0}'.format(i) for i in range(1, nspecies+1)]
+        elif not names and not nspecies:
+            nspecies = 16
+            names = ['Sp{0}'.format(i) for i in range(1, nspecies+1)]
+
+        taxon_set = dpy.TaxonSet(names)
+        tree = treesim.uniform_pure_birth(taxon_set)
+        
+        newick = '[&R] ' + tree.as_newick_string()
+        if not newick.endswith(';'):
+            newick += ';'
+
+        return Tree(newick)
+
+    def random_coal(self, nspecies=None, names=None):
+        if names and nspecies:
+            if not nspecies == len(names):
+                nspecies = len(names)
+        elif names and not nspecies:
+            nspecies = len(names)
+        elif not names and nspecies:
+            names = ['Sp{0}'.format(i) for i in range(1, nspecies+1)]
+        elif not names and not nspecies:
+            nspecies = 16
+            names = ['Sp{0}'.format(i) for i in range(1, nspecies+1)]
+
+        taxon_set = dpy.TaxonSet(names)
+        tree = treesim.pure_kingman(taxon_set)
+        
+        newick = '[&R] ' + tree.as_newick_string()
+        if not newick.endswith(';'):
+            newick += ';'
+
+        return Tree(newick)
+
+    def get_constrained_gene_tree(
+        self, 
+        scale_to=None, 
+        population_size=None,
+        trim_names=True,
+        ):
+        """
+        Using the current tree object as a species tree, generate
+        a gene tree using the constrained Kingman coalescent
+        process from dendropy.
+        The species tree should probably be a valid, ultrametric
+        tree, generated by some pure birth, birth-death or coalescent
+        process, but no checks are made.
+        Optional kwargs are: 
+        -- scale_to, which is a floating point value to
+        scale the total tree tip-to-root length to,
+        -- population_size, which is a floating point value which 
+        all branch lengths will be divided by to convert them to coalescent 
+        units, and
+        -- trim_names, boolean, defaults to true, trims off the number
+        which dendropy appends to the sequence name
+        """
+        tree = dpy.Tree()
+        tree.read_from_string(self.newick, 'newick')
+
+        for leaf in tree.leaf_iter():
+            leaf.num_genes=1
+
+        tree_height = tree.seed_node.distance_from_root() +\
+                      tree.seed_node.distance_from_tip()
+
+        if scale_to:
+            population_size = tree_height / scale_to
+
+        for edge in tree.preorder_edge_iter():
+            edge.pop_size = population_size
+
+        gene_tree = treesim.constrained_kingman(tree)[0]
+
+        if trim_names:
+            for leaf in gene_tree.leaf_iter():
+                leaf.taxon.label = \
+                    leaf.taxon.label.replace('\'','').split('_')[0]
+
+        newick = '[&R] ' + gene_tree.as_newick_string()
+        if not newick.endswith(';'):
+            newick += ';'
+
+        return Tree(newick)
+
     def nni(self):
+        # Function to perform a random nearest-neighbour interchange on a tree
+        # using Dendropy
 
-        t = ete2.Tree(self.newick)
-        original_outgroup = t.children[0]
+        # The dendropy representation of a tree is as if rooted (even when it's 
+        # not) The node which acts like the root is called the seed node, and this
+        # can sit in the middle of an edge which would be a leaf edge in the
+        # unrooted tree. NNI moves are only eligible on internal edges, so we
+        # need to check if the seed node is sat on a real internal edge, or
+        # a fake one.
+        
+        # Make a dendropy representation of the tree
+        tree = dpy.Tree()
+        tree.read_from_string(self.newick, 'newick')
+        seed = tree.seed_node
 
-        # Pick edge randomly by choosing a node and its parent
+        # Make a list of internal edges not including the root edge
+        edge_list = list(tree.preorder_edge_iter(lambda edge: \
+                         (True if edge.is_internal() and edge.head_node
+                         != seed and edge.tail_node != seed else False)))
 
-        inner_nodes = list(set(t.iter_descendants())
-                           - set(t.iter_leaves()))
-        node1 = random.choice(inner_nodes)
-        t.set_outgroup(node1)
-        node2 = node1.get_sisters()[0]
-        child1 = random.choice(node1.children)
-        child2 = random.choice(node2.children)
+        # Test whether root edge is eligible (i.e., the edge is not a
+        # leaf when the tree is unrooted). If the test passes, add 'root'
+        # tp the list of eligible edges
+        if not any([x.is_leaf() for x in seed.child_nodes()]):
+            edge_list += ['root']
 
-        child1.detach()
-        child2.detach()
-        node1.add_child(child2)
-        node2.add_child(child1)
+        chosen_edge = random.choice(edge_list)
 
-        t.set_outgroup(original_outgroup)
-        t_as_newick = t.write(format=5)
+        # The NNI is done with the chosen edge as root. This will 
+        # involve rerooting the tree if we choose an edge that isn't
+        # the root
+        if chosen_edge != 'root':
+            tree.reroot_at_edge(chosen_edge, length1=chosen_edge.length
+                                / 2, length2=chosen_edge.length / 2,
+                                delete_outdegree_one=False)
+            root = tree.seed_node
+        else:
+            root = seed
 
-        return Tree(t_as_newick, self.score, self.program, self.name,
-                    self.output)
+        # To do the swap: find the nodes on either side of root
+        (child_left, child_right) = root.child_nodes()
+        
+        # Pick a child node from each of these
+        neighbour1 = random.choice(child_left.child_nodes())
+        neighbour2 = random.choice(child_right.child_nodes())
+        
+        # Prune the chosen nearest neighbours - but don't
+        # do any tree structure updates
+        tree.prune_subtree(neighbour1, update_splits=False,
+                           delete_outdegree_one=False)
+        tree.prune_subtree(neighbour2, update_splits=False,
+                           delete_outdegree_one=False)
+        
+        # Reattach the pruned neighbours to the opposite side
+        # of the tree
+        child_left.add_child(neighbour2)
+        child_right.add_child(neighbour1)
+
+        # Reroot the tree using the original seed node, and
+        # update splits
+        if not chosen_edge == 'root':
+            tree.reroot_at_node(seed, update_splits=True)
+        else:
+            tree.update_splits()
+        
+        newick = tree.as_newick_string()
+        if not newick.endswith(';'):
+            newick += ';'
+        if tree.is_rooted:
+            newick = '[&R] ' + newick
+
+        return Tree(newick, self.score, self.program, self.name, self.output)
+
+    def spr(self):
+        
+        def get_dists(tree, include_leaf_nodes=True):
+            dists = []
+            if include_leaf_nodes:
+                iterator = tree.preorder_node_iter()
+            else:
+                iterator = tree.preorder_internal_node_iter()
+            for n in iterator:
+                node_height = n.distance_from_root()
+                if not n.parent_node:
+                    root_height = n.distance_from_root()
+                    tree_height = root_height + n.distance_from_tip()
+                    parent_height = 0
+                else:
+                    parent_height = n.parent_node.distance_from_root()
+                dists.append( (n, parent_height, node_height) )
+                
+            dists.sort(key=lambda x:x[2])
+            return { 'dists': dists, 
+                     'root_height': root_height,
+                     'tree_height': tree_height}
+
+        def get_time(dists):
+            time = random.uniform(dists['root_height'], dists['tree_height'])
+            print 'LGT event at time: {0}'.format(time)
+            return time
+
+        def choose_prune_and_regraft_nodes(time, dists):
+            prune, regraft = random.sample([x for x in dists['dists'] if x[1]<time<x[2]], 2)
+            prune_taxa = [n.taxon.label for n in prune[0].leaf_iter()] 
+            regraft_taxa = [n.taxon.label for n in regraft[0].leaf_iter()] 
+            print 'Donor group = {0}'.format(regraft_taxa)
+            print 'Receiver group = {0}'.format(prune_taxa)
+            return prune, regraft
+
+        def add_node(tree, time, regraft_node):
+            parent_node = regraft_node[0].parent_node
+            new_node = parent_node.add_child(dpy.Node(), edge_length=time-regraft_node[1])
+            tree.reindex_subcomponent_taxa()
+            tree.update_splits()
+            return new_node
+
+        def prunef(tree, node):
+            tree.prune_subtree(node, update_splits=False, delete_outdegree_one=True)
+
+        def regraftf(tree, time, target_node, child_node):
+            target_node.add_child(child_node[0], edge_length=child_node[2]-time)
+            return tree
+
+        tree = dpy.Tree()
+        tree.read_from_string(self.newick, 'newick')
+        dists = get_dists(tree)
+        time = get_time(dists)
+        p,r = choose_prune_and_regraft_nodes(time, dists)
+        new_node = add_node(tree, time, r)
+        prunef(tree, p[0])
+        prunef(tree, r[0])
+        regraftf(tree, time, new_node, p)
+        regraftf(tree, time, new_node, r)
+        tree.reindex_subcomponent_taxa()
+        tree.update_splits()
+
+        newick = tree.as_newick_string()
+        if not newick.endswith(';'):
+            newick += ';'
+
+        if tree.is_rooted:
+            newick = '[&R] ' + newick
+
+        return Tree(newick, self.score, self.program, self.name, self.output)
