@@ -4,6 +4,7 @@ import os
 import cPickle
 import argparse
 
+
 def fpath(s):
     """
     Helper function used when passing filepath arguments with argparse module.

@@ -461,7 +461,11 @@ class Tree(object):
         tree = dpy.Tree()
         tree.read_from_string(self.newick, 'newick')
         seed = tree.seed_node
-
+        resolved=False
+        if len(seed.child_nodes()) > 2:
+            print 'Resolve root trisomy'
+            tree.resolve_polytomies()
+            resolved=True
         # Make a list of internal edges not including the root edge
         edge_list = list(tree.preorder_edge_iter(lambda edge: \
                          (True if edge.is_internal() and edge.head_node
@@ -474,6 +478,7 @@ class Tree(object):
             edge_list += ['root']
 
         chosen_edge = random.choice(edge_list)
+        print chosen_edge
 
         # The NNI is done with the chosen edge as root. This will 
         # involve rerooting the tree if we choose an edge that isn't
@@ -511,6 +516,10 @@ class Tree(object):
             tree.reroot_at_node(seed, update_splits=True)
         else:
             tree.update_splits()
+
+        if resolved:
+            print 'Reinstating root trisomy'
+            tree.deroot()
         
         newick = tree.as_newick_string()
         if not newick.endswith(';'):

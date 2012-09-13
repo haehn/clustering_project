@@ -9,6 +9,13 @@ import re
 import sys
 import shutil
 
+"""
+Usage: bsub -o /dev/null -e error.%J.%I -J "jobname[1-x]" bash <path>/tempdir_wrapper.sh python doclustering.py -d <path>/nni/level1/sim_
+
+Where the path endswith an underscore above, JobArray will fill in the number of the sim from 1 to x
+
+"""
+
 def fpath(s):
     """
     Helper function used when passing filepath arguments with argparse module.
@@ -34,15 +41,13 @@ try:
 except:
     tmpdir = '/tmp'
 
-if os.path.isdir('{0}/true_clustering'.format(indir)):
-    shutil.rmtree('{0}/true_clustering'.format(indir))
 if os.path.isdir('{0}/bionj_clustering'.format(indir)):
     shutil.rmtree('{0}/bionj_clustering'.format(indir))
 if os.path.isdir('{0}/phyml_clustering'.format(indir)):
     shutil.rmtree('{0}/phyml_clustering'.format(indir))
 
-phymlpickles = [x for x in glob.glob('{0}/*.pickle'.format(dnadir)) if not '.nj.' in x]
-bionjpickles = [x for x in glob.glob('{0}/*.pickle'.format(dnadir)) if '.nj.' in x]
+phymlpickles = [x for x in glob.glob('{0}/*.ml.pickle'.format(dnadir)) if not '.nj.' in x]
+bionjpickles = [x for x in glob.glob('{0}/*.nj.pickle'.format(dnadir)) if '.nj.' in x]
 phymlrecords = sorted([cPickle.load(file(x)) for x in phymlpickles], key=lambda x:sort_key(x.name))
 bionjrecords = sorted([cPickle.load(file(x)) for x in bionjpickles], key=lambda x:sort_key(x.name))
 
@@ -62,8 +67,8 @@ except:
 phyml_sc = SequenceCollection(records=phymlrecords, datatype='dna', helper=os.environ['DARWINHELPER'],tmpdir=tmpdir, get_distances=False)
 bionj_sc = SequenceCollection(records=bionjrecords, datatype='dna', helper=os.environ['DARWINHELPER'],tmpdir=tmpdir, get_distances=False)
 
-phyml_sc.put_partitions(['geo','euc','sym'],['single','complete','average','ward','kmedoids','MDS','spectral'], 4, gtp_path='/net/isilon7/nobackup/research/goldman/kevin/clustering_project/class_files')
-bionj_sc.put_partitions(['geo','euc','sym'],['single','complete','average','ward','kmedoids','MDS','spectral'], 4, gtp_path='/net/isilon7/nobackup/research/goldman/kevin/clustering_project/class_files')
+phyml_sc.put_partitions(['geo','euc','sym'],['single','complete','average','ward','kmedoids','MDS','spectral'], 4, gtp_path='/net/isilon7/nobackup/research/goldman/kevin/clustering_project/class_files', tmpdir=tmpdir)
+bionj_sc.put_partitions(['geo','euc','sym'],['single','complete','average','ward','kmedoids','MDS','spectral'], 4, gtp_path='/net/isilon7/nobackup/research/goldman/kevin/clustering_project/class_files', tmpdir=tmpdir)
 phyml_sc.clustering.partitions['true']=true
 bionj_sc.clustering.partitions['true']=true
 
@@ -93,6 +98,6 @@ for rec in bionj_sc.get_cluster_records():
     rec.datatype='dna'
     rec.write_phylip('{0}/bionj_clustering/{1}.phy'.format(indir,rec.name))
 
-cPickle.dump(phyml_sc, open('{0}/phyml_sc.pickle'.format(indir),'w'))
+cPickle.dump(phyml_sc, open('{0}/phyml_sc.pickle'.format(indir),'w')) # Let's not pickle the whole SequenceCollection, it's too big
 cPickle.dump(bionj_sc, open('{0}/bionj_sc.pickle'.format(indir),'w'))
 

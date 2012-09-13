@@ -8,6 +8,10 @@ import math
 import sys
 from sequence_record import TCSeqRec
 
+"""
+Usage: python batchify.py -b <-path-/basedir-> -p <dna_alignments>
+"""
+
 def which_dir(n,base):
     avail_dirs = [x for x in glob.glob('{0}/*'.format(base)) if os.path.isdir(x) and x[x.rindex('/')+1].isdigit()]
     for x in avail_dirs:
@@ -27,28 +31,33 @@ def fpath(s):
 sort_key = lambda item: tuple((int(num) if num else alpha) for (num,alpha) in re.findall(r'(\d+)|(\D+)', item))
 
 parser = argparse.ArgumentParser(prog='batchify.py')
-parser.add_argument('-d', '--directory', help='input directory', type=fpath, default='.')
+parser.add_argument('-b', '--basedir', help='Path of directory containing all the simulation replicates', type=fpath, default='.')
+parser.add_argument('-p', '--phylip_dir', help='Subpath of simdir in which to find the phylip files', type=fpath)
+parser.add_argument('-r', '--just_read', help='Quit program after reading files, without writing to disk', action='store_true')
 args = vars(parser.parse_args())
-regdir = args['directory']
-#basedirs = glob.glob('{0}/nni*'.format(regdir))
-basedirs = ['{0}/nni{1}'.format(regdir,i) for i in range(2,6)]
+basedir = args['basedir']
+nsims = len(glob.glob('{0}/sim*'.format(basedir)))
+just_read = args['just_read']
+#phydirs = [basedir + '/sim{0}/'.format(i) + args['phylip_dir'] for i in range(1,nsims+1)]
+phydirs = [basedir + '/level{0}'.format(i) + '/sim{0}/'.format(j) + args['phylip_dir'] for i in range(1,11) for j in range(1,51)]
 l=[]
 
 print 'Reading locations of all phylip files...'
-for d in basedirs:
-    for sd in [x for x in glob.glob('{0}/*'.format(d)) if os.path.isdir(x)]:
-        for f in glob.glob('{0}/phyml_clustering/*.phy'.format(sd))+glob.glob('{0}/bionj_clustering/*.phy'.format(sd)):
-            if not os.path.isfile(f[:-3]+'pickle'):# or not os.path.isfile(f[:-3]+'nj.pickle'):
-                #print f
-                l.append(os.path.abspath(f))
+
+for d in phydirs:
+    for f in glob.glob('{0}/*.phy'.format(d)):
+        if not os.path.isfile(f[:f.rindex('.')]+'.ml.pickle'):
+            print f
+            l.append(os.path.abspath(f))
 print '(done).'
-print l
+if just_read: sys.exit()
 print 'Making necessary batch directories...'
-for i in range(int(math.floor(len(l)/1000)+1)):
-    dname = '{0}/{1}-{2}'.format(regdir,i*1000+1,(i+1)*1000)
+for i in range(int(math.floor((len(l)-1)/1000)+1)):
+    dname = '{0}/{1}-{2}'.format(basedir,i*1000+1,(i+1)*1000)
     if not os.path.isdir(dname):
         print '   ',dname
         os.mkdir(dname)
+
 print '(done).'
 
 if not all(l):
@@ -59,7 +68,7 @@ print 'Writing locations to batch directories...'
 for i,p in enumerate(l,start=1):
     if i%1000 == 0:
         print i
-    d = which_dir(i,regdir)
+    d = which_dir(i,basedir)
     with open('{0}/phylip.{1}'.format(d,i),'w') as file:
         file.write(p)
 print 'Finished.'

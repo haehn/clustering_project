@@ -9,6 +9,7 @@ from result import Result
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from Bio.Cluster import kmedoids
 import matplotlib.pyplot as plt
+from matplotlib import cm as CM
 from math import log
 from copy import copy, deepcopy
 from sklearn.cluster import KMeans, spectral_clustering, \
@@ -138,37 +139,61 @@ class Clustering(object):
                 normalise=normalise, tmpdir=tmpdir, gtp_path=gtp_path)
         self.distance_matrices[metric] = matrix
 
-    def order(self, l, num=1):
-        """ The clustering returned by the hcluster module gives 
-            group membership without regard for numerical order 
-            This function preserves the group membership, but sorts 
-            the labelling into numerical order
+    def order(self, l):
+        """
+        The clustering returned by the hcluster module gives 
+        group membership without regard for numerical order 
+        This function preserves the group membership, but sorts 
+        the labelling into numerical order
+        
+        *Faster version without recursion*
         """
 
-        # base case
+        list_length = len(l)
 
-        if num >= max(l):
-            return l
-        else:
+        d = defaultdict(list)
+        for (i, element) in enumerate(l):
+            d[element].append(i)
 
-        # recursion on num
+        l2 = [None]*list_length
 
-            outl = []
-            change_places = None
-            for i in range(len(l)):
-                if l[i] < num:
-                    outl.append(l[i])
-                else:
-                    change_places = l[i]
-                    break
-            for j in range(i, len(l)):
-                if l[j] == change_places:
-                    outl.append(num)
-                elif l[j] == num:
-                    outl.append(change_places)
-                else:
-                    outl.append(l[j])
-            return self.order(outl, num + 1)
+        for (name, index_list) in enumerate(sorted(d.values(), key=min), start=1):
+            for index in index_list:            
+                l2[index] = name
+
+        return l2
+
+    # def order(self, l, num=1):
+    #     """ The clustering returned by the hcluster module gives 
+    #         group membership without regard for numerical order 
+    #         This function preserves the group membership, but sorts 
+    #         the labelling into numerical order
+    #     """
+
+    #     # base case
+
+    #     if num >= max(l):
+    #         return l
+    #     else:
+
+    #     # recursion on num
+
+    #         outl = []
+    #         change_places = None
+    #         for i in range(len(l)):
+    #             if l[i] < num:
+    #                 outl.append(l[i])
+    #             else:
+    #                 change_places = l[i]
+    #                 break
+    #         for j in range(i, len(l)):
+    #             if l[j] == change_places:
+    #                 outl.append(num)
+    #             elif l[j] == num:
+    #                 outl.append(change_places)
+    #             else:
+    #                 outl.append(l[j])
+    #         return self.order(outl, num + 1)
 
     def put_partition(
         self,
@@ -320,6 +345,31 @@ class Clustering(object):
         plt.xlabel('Gene')
         plt.ylabel('Distance')
         return fig
+
+    def plot_heatmap(self, metric, gridsize=None):
+
+        dm = self.distance_matrices[metric]
+        length = len(dm)
+        X, Y = np.meshgrid( np.arange(length),
+                            np.arange(length))
+        x = X.ravel()
+        y = Y.ravel()
+        z = dm.ravel()
+
+        if not gridsize:
+            gridsize = length/2
+
+        fig = plt.figure(figsize=(11.7, 8.3))
+        plt.subplot(111)
+        plt.hexbin(x, y, C=z, gridsize=gridsize, 
+            cmap=CM.jet, bins=None)
+        plt.axis([x.min(), x.max(), y.min(), y.max()])
+
+        cb = plt.colorbar()
+        cb.set_label('Distance')
+
+        return fig
+
 
     def get_memberships(self, partition):
         clusters = list(set(partition))

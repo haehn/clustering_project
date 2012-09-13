@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export TEMPORARY_DIRECTORY=`mktemp -d /tmp/XXXXXXXXXX`
+export TEMPORARY_DIRECTORY=`mktemp -d /tmp/tdwrap.XXXXXXXXXX`
 
 $*
 

@@ -24,14 +24,20 @@ def fpath(s):
 
 getname = lambda x: x[x.rindex('/')+1:x.rindex('.')]
 
-
 parser = argparse.ArgumentParser(prog='phymlwrap.py')
 parser.add_argument('-f', '--infile', help='input file', type=fpath, default='.')
+# parser.add_argument('-nj', '--bionj', help='Use neighbour-joining, not full ML tree search', action='store-true')
 args = vars(parser.parse_args())
 try: 
     index = os.environ['LSB_JOBINDEX']
 except:
     index = None
+
+try:
+    tmpdir = os.environ['TEMPORARY_DIRECTORY']
+except:
+    tmpdir = '/tmp'
+
 infile = args['infile']
 if index:
     infile += index
@@ -55,18 +61,7 @@ print target
 parent_dir = os.path.dirname(target)
 name = getname(target)
 
-#if os.path.isfile('{0}/{1}.nj.pickle'.format(parent_dir, name)):
-#    os.remove('{0}/{1}.nj.pickle'.format(parent_dir, name))
-#if os.path.isfile('{0}/{1}.pickle'.format(parent_dir, name)):
-#    os.remove('{0}/{1}.pickle'.format(parent_dir, name))
 record = TCSeqRec(target, file_format='phylip', name=name)
-if 'phyml_clustering' in target:
-    record.get_phyml_tree(model='GTR',ncat=4,datatype='nt')
-elif 'bionj_clustering' in target:
-    record.get_bionj_tree(model='GTR',ncat=4,datatype='nt')
-cPickle.dump(record, open('{0}/{1}.pickle'.format(parent_dir, name),'w'))
-#record.get_bionj_tree(model='GTR',ncat=4,datatype='nt')
-#cPickle.dump(record, open('{0}/{1}.nj.pickle'.format(parent_dir, name),'w'))
-#record = TCSeqRec(target, file_format='phylip', name=name)
-#record.get_phyml_tree(model='GTR',ncat=4,datatype='nt')
-#cPickle.dump(record, open('{0}/{1}.pickle'.format(parent_dir, name), 'w'))
+if not os.path.isfile('{0}/{1}.ml.pickle'.format(parent_dir, name)):
+    record.get_phyml_tree(model='GTR',ncat=4,datatype='nt', tmpdir=tmpdir)
+    cPickle.dump(record, open('{0}/{1}.ml.pickle'.format(parent_dir, name),'w')) # In future let's just pickle trees; sequences already stored on disk

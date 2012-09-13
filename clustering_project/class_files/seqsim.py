@@ -463,7 +463,7 @@ scaleTree := {5};
                 checklist.append(False)
 
         if all(checklist):
-            return True
+            return True # evaluates to True if list is empty
         else:
 
             return False
@@ -560,10 +560,11 @@ scaleTree := {5};
             'random_yule' and 'random_coal'
             """
             if method == 'random_topology':
-                master_topology = Tree().random_topology(n, names=names)
+                master_topology = Tree().random_topology(n, names=names, rooted=True)
                 master_tree = master_topology.randomise_branch_lengths(inner_edges=inner_edge_params,
                             leaves=leaf_params,
                             distribution_func=branch_length_func)
+                master_tree.newick = '[&R] ' + master_tree.newick
             elif method == 'random_yule':
                 master_tree = Tree().random_yule(n, names=names)
             elif method == 'random_coal':
@@ -692,7 +693,7 @@ scaleTree := {5};
 
             if num_permutations > 0:
                 class_tree = make_class_tree(master_tree, num_permutations, class_tree_permuter,
-                    with_check=guarantee_unique, checklist=[master_tree]+class_trees)
+                    with_check=guarantee_unique, checklist=class_trees)
                 class_trees.append(class_tree)
 
             else:
@@ -945,9 +946,9 @@ wRF\t{4}
 
         writer.close()
      
-        # shutil.rmtree('{0}/alf_parameter_dir'.format(tmpdir))
-        # shutil.rmtree('{0}/alf_trees_dir'.format(tmpdir))
-        # shutil.rmtree('{0}/alf_working_dir'.format(tmpdir))
+        shutil.rmtree('{0}/alf_parameter_dir'.format(tmpdir))
+        shutil.rmtree('{0}/alf_trees_dir'.format(tmpdir))
+        shutil.rmtree('{0}/alf_working_dir'.format(tmpdir))
         os.remove('{0}/output.txt'.format(tmpdir))
         os.remove('{0}/geotrees.nwk'.format(tmpdir))
         os.remove('{0}/basetrees.nwk'.format(tmpdir))
@@ -974,6 +975,6 @@ if __name__ == "__main__":
     #     master_tree_generator_method='random_yule',class_tree_permuter='nni',guarantee_unique=True,num_permutations=1,scale_params=(1,1),gene_length_kappa=5.53,gene_length_theta=72.35,gene_length_min=10,
     #     filepath='/Users/kgori/scratch/testnni',tmpdir='/tmp',gtp_path='/Users/kgori/git/kevin/clustering_project/class_files/',unit_is_pam=True,quiet=True)
 
-    sim.simulate_set(K=4,M=20,n=12,tune=1,regime=2,branch_length_func=np.random.gamma,inner_edge_params=(3.2,0.029),leaf_params=(2.2,0.097),scale_func=np.random.gamma,
-        master_tree_generator_method='random_yule',class_tree_permuter='coal',guarantee_unique=True,num_permutations=200,scale_params=(1,1),gene_length_kappa=5,gene_length_theta=1000,gene_length_min=10,
-        filepath='/Users/kgori/scratch/testcoal',tmpdir='/tmp',gtp_path='/Users/kgori/git/kevin/clustering_project/class_files/',unit_is_pam=True,quiet=True)
+    # sim.simulate_set(K=4,M=20,n=12,tune=1,regime=2,branch_length_func=np.random.gamma,inner_edge_params=(3.2,0.029),leaf_params=(2.2,0.097),scale_func=np.random.gamma,
+    #     master_tree_generator_method='random_yule',class_tree_permuter='coal',guarantee_unique=True,num_permutations=200,scale_params=(1,1),gene_length_kappa=5,gene_length_theta=100,gene_length_min=25,
+    #     filepath='/Users/kgori/scratch/testcoal',tmpdir='/tmp',gtp_path='/Users/kgori/git/kevin/clustering_project/class_files/',unit_is_pam=True,quiet=True)
