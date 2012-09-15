@@ -720,12 +720,9 @@ class SequenceCollection(object):
 
     def get_randomised_alignments(self):
 
-        def pivot(list):
-            length = len(list[0])
-            new_list = []
-            for i in range(length):
-                new_list.append(''.join([x[i] for x in list]))
-            return new_list
+        def pivot(lst):
+            new_lst = zip(*lst)
+            return [''.join(x) for x in new_lst]
 
         lengths = [rec.seqlength for rec in self.records]
         datatype = self.records[0].datatype
@@ -736,7 +733,7 @@ class SequenceCollection(object):
         shuffle(columns)
         newcols = []
         for l in lengths:
-            newcols.append(columns[:l])
+            newcols.append( columns[:l])
             columns = columns[l:]
         newrecs = []
         for col in newcols:
@@ -809,46 +806,46 @@ class SequenceCollection(object):
         plt.plot(x, y, *args)
         return fig
 
-    def find_mergeable_groups(self, compound_key):
+    # def find_mergeable_groups(self, compound_key):
 
-        result_object = self.get_clusters()[compound_key]
-        cluster_trees = [rec.tree for rec in result_object.concats]
-        cluster_names = [tree.name for tree in cluster_trees]
-        matrix = self.clustering.get_distance_matrix(cluster_trees,
-                'sym')
-        groups = result_object.find_mergeable_groups(matrix)
-        return groups
+    #     result_object = self.get_clusters()[compound_key]
+    #     cluster_trees = [rec.tree for rec in result_object.concats]
+    #     cluster_names = [tree.name for tree in cluster_trees]
+    #     matrix = self.clustering.get_distance_matrix(cluster_trees,
+    #             'sym')
+    #     groups = result_object.find_mergeable_groups(matrix)
+    #     return groups
 
-    def merge_groups(self, compound_key):
+    # def merge_groups(self, compound_key):
 
-        group_dict = self.find_mergeable_groups(compound_key)[0]
-        old_memberships = self.get_clusters()[compound_key].members
-        new_memberships = []
-        skips = []
-        for i in range(len(old_memberships)):
-            if i in skips:
-                continue
-            elif i in group_dict:
-                new = []
-                new += old_memberships[i]
-                for val in group_dict[i]:
-                    new += old_memberships[val]
-                    skips.append(val)
-                new_memberships.append(new)
-                continue
-            new_memberships.append(old_memberships[i])
+    #     group_dict = self.find_mergeable_groups(compound_key)[0]
+    #     old_memberships = self.get_clusters()[compound_key].members
+    #     new_memberships = []
+    #     skips = []
+    #     for i in range(len(old_memberships)):
+    #         if i in skips:
+    #             continue
+    #         elif i in group_dict:
+    #             new = []
+    #             new += old_memberships[i]
+    #             for val in group_dict[i]:
+    #                 new += old_memberships[val]
+    #                 skips.append(val)
+    #             new_memberships.append(new)
+    #             continue
+    #         new_memberships.append(old_memberships[i])
 
-        new_partition = [0 for rec in self.records]
-        i = 1
-        for group in new_memberships:
-            for member in group:
-                index = self.records.index(member)
-                new_partition[index] = i
-            i += 1
+    #     new_partition = [0 for rec in self.records]
+    #     i = 1
+    #     for group in new_memberships:
+    #         for member in group:
+    #             index = self.records.index(member)
+    #             new_partition[index] = i
+    #         i += 1
 
-        new_key = compound_key + ('merge', )
-        self.clustering.partitions[new_key] = new_partition
-        self.put_clusters()
+    #     new_key = compound_key + ('merge', )
+    #     self.clustering.partitions[new_key] = new_partition
+    #     self.put_clusters()
 
     def simulate_from_result(
         self,

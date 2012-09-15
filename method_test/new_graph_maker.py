@@ -22,6 +22,7 @@ parser.add_argument('-s', '--score', help='Either <\'lnl\'> or <\'vi\'>', type=s
 parser.add_argument('-p', '--program', help='Either <\'phyml\'> or <\'bionj\'>', type=str, default='phyml')
 parser.add_argument('-x', '--xaxis', help='Which xaxis label to use: nni, spr or coal', type=str, default='nni')
 parser.add_argument('-o', '--outfile', help='Outfile (for pdf image)', type=fpath, default='plot.pdf')
+parser.add_argument('-n', '--normalise', action='store_true')
 args = vars(parser.parse_args())
 indir = args['directory']
 metric = args['metric']
@@ -29,6 +30,7 @@ scoring_system = args['score']
 program = args['program']
 outfile = args['outfile']
 xax = args['xaxis']
+normalise = args['normalise']
 subdirs = glob.glob('{0}/level*'.format(indir))
 print 'done.'
 getlevel = lambda x: re.search(r'[\d+]+', x[x.rindex('/')+1:]).group()
@@ -97,16 +99,31 @@ linestyles = dict(euc = '--',
     sym = '-.',
     geo = ':')
 print 'plotting points...'
-for xval in scoresdic:
+
+
+xarray = sorted(scoresdic.keys())
+yarrays = defaultdict(list)
+
+for xval in xarray:    
     for key in scoresdic[xval]:
-        if key == 'true':
-            continue
-        markerkey, colorkey = key.split(' ')
-        if not metric in key and metric != 'all':
-            continue
         score = scoresdic[xval][key]
         truescore = scoresdic[xval]['true']
-        ax.plot(xval,np.mean(score)-np.mean(truescore), marker=markers[markerkey], ls=linestyles[markerkey], color=colors[colorkey])
+        if normalise:
+            yarrays[key].append(((np.mean(score)-np.mean(truescore))/np.mean(truescore)))
+        else:
+            yarrays[key].append((np.mean(score)-np.mean(truescore)))
+
+
+for k in yarrays:
+    if k == 'true': continue
+    elif not metric in k and metric != 'all':
+        continue
+    yarray = yarrays[k]
+    markerkey, colorkey = k.split(' ') 
+    ax.plot(xarray,yarray, ls=linestyles[markerkey], lw=1, color=colors[colorkey], zorder=1)
+    ax.scatter(xarray,yarray, marker=markers[markerkey], color=colors[colorkey], zorder=2)
+
+
 
 # leg = ax.legend(loc='best')
 fig.savefig(outfile)

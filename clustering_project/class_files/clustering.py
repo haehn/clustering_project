@@ -34,12 +34,12 @@ class Clustering(object):
         self.partitions = {}
         self.plotting_info = {}
         self.clusters = {}
-        self._affinity_propagation = {
-            'euc': defaultdict(list),
-            'geodesic': defaultdict(list),
-            'sym': defaultdict(list),
-            'rf': defaultdict(list),
-            }
+        # self._affinity_propagation = {
+        #     'euc': defaultdict(list),
+        #     'geodesic': defaultdict(list),
+        #     'sym': defaultdict(list),
+        #     'rf': defaultdict(list),
+        #     }
 
     def __str__(self):
         s = ''
@@ -162,38 +162,6 @@ class Clustering(object):
                 l2[index] = name
 
         return l2
-
-    # def order(self, l, num=1):
-    #     """ The clustering returned by the hcluster module gives 
-    #         group membership without regard for numerical order 
-    #         This function preserves the group membership, but sorts 
-    #         the labelling into numerical order
-    #     """
-
-    #     # base case
-
-    #     if num >= max(l):
-    #         return l
-    #     else:
-
-    #     # recursion on num
-
-    #         outl = []
-    #         change_places = None
-    #         for i in range(len(l)):
-    #             if l[i] < num:
-    #                 outl.append(l[i])
-    #             else:
-    #                 change_places = l[i]
-    #                 break
-    #         for j in range(i, len(l)):
-    #             if l[j] == change_places:
-    #                 outl.append(num)
-    #             elif l[j] == num:
-    #                 outl.append(change_places)
-    #             else:
-    #                 outl.append(l[j])
-    #         return self.order(outl, num + 1)
 
     def put_partition(
         self,
@@ -369,7 +337,6 @@ class Clustering(object):
         cb.set_label('Distance')
 
         return fig
-
 
     def get_memberships(self, partition):
         clusters = list(set(partition))
@@ -567,70 +534,70 @@ class Clustering(object):
                        axis=1).reshape(coords_matrix.shape[0], -1)
         return coords_matrix / np.sqrt(sqsum)
 
-    def affinity_propagation(
-        self,
-        distance_matrix,
-        metric,
-        n_clusters,
-        p=None,
-        ):
-        """
-        Uses scikit-learn's AffinityPropagation class to do
-        affinity propagation clustering.
-        """
+    # def affinity_propagation(
+    #     self,
+    #     distance_matrix,
+    #     metric,
+    #     n_clusters,
+    #     p=None,
+    #     ):
+    #     """
+    #     Uses scikit-learn's AffinityPropagation class to do
+    #     affinity propagation clustering.
+    #     """
 
-        if not metric in self._affinity_propagation:
-            print '{0} metric not supported by affinity propagation'
+    #     if not metric in self._affinity_propagation:
+    #         print '{0} metric not supported by affinity propagation'
 
-            # If this message occurs, add missing metric to
-            # self._affinity_propagation dictionary in __init__
+    #         # If this message occurs, add missing metric to
+    #         # self._affinity_propagation dictionary in __init__
 
-        if n_clusters in self._affinity_propagation[metric]:
-            p = self._affinity_propagation[metric][n_clusters][0]
+    #     if n_clusters in self._affinity_propagation[metric]:
+    #         p = self._affinity_propagation[metric][n_clusters][0]
 
-        affinity_matrix = -distance_matrix ** 2
-        ind = np.triu_indices(len(affinity_matrix), 1)
-        minval = np.min(affinity_matrix[ind])
-        medval = np.median(affinity_matrix[ind])
-        maxval = np.max(affinity_matrix[ind])
-        step = (medval - minval) / 100
+    #     affinity_matrix = -distance_matrix ** 2
+    #     ind = np.triu_indices(len(affinity_matrix), 1)
+    #     minval = np.min(affinity_matrix[ind])
+    #     medval = np.median(affinity_matrix[ind])
+    #     maxval = np.max(affinity_matrix[ind])
+    #     step = (medval - minval) / 100
 
-        aff = AffinityPropagation(damping=0.75)
+    #     aff = AffinityPropagation(damping=0.75)
 
-        if not p:
-            for pref in np.arange(minval, medval, step):
-                aff.fit(affinity_matrix, pref)
-                clusters_found = len(aff.cluster_centers_indices_)
-                self._affinity_propagation[metric][clusters_found].append(pref)
-                if clusters_found == n_clusters:
-                    return aff.labels_
+    #     if not p:
+    #         for pref in np.arange(minval, medval, step):
+    #             aff.fit(affinity_matrix, pref)
+    #             clusters_found = len(aff.cluster_centers_indices_)
+    #             self._affinity_propagation[metric][clusters_found].append(pref)
+    #             if clusters_found == n_clusters:
+    #                 return aff.labels_
 
-            for x in sorted(self._affinity_propagation[metric]):
-                if x < n_clusters:
-                    minval = self._affinity_propagation[metric][x][0]
-                else:
-                    maxval = self._affinity_propagation[metric][x][0]
-                    break
+    #         for x in sorted(self._affinity_propagation[metric]):
+    #             if x < n_clusters:
+    #                 minval = self._affinity_propagation[metric][x][0]
+    #             else:
+    #                 maxval = self._affinity_propagation[metric][x][0]
+    #                 break
 
-            step = (maxval - minval) / 200
+    #         step = (maxval - minval) / 200
 
-            for pref in np.arange(minval, maxval, step):
-                aff.fit(affinity_matrix, pref)
-                clusters_found = len(aff.cluster_centers_indices_)
-                self._affinity_propagation[metric][clusters_found].append(pref)
-                if clusters_found == n_clusters:
-                    return aff.labels_
+    #         for pref in np.arange(minval, maxval, step):
+    #             aff.fit(affinity_matrix, pref)
+    #             clusters_found = len(aff.cluster_centers_indices_)
+    #             self._affinity_propagation[metric][clusters_found].append(pref)
+    #             if clusters_found == n_clusters:
+    #                 return aff.labels_
 
-            print 'Unable to find {0} clusters'.format(n_clusters)
-            return
-        else:
-            print 'Using dictionary for {0} clusters: P = {1}'.format(n_clusters,
-                    p)
-            aff.fit(affinity_matrix, p)
-            clusters_found = len(aff.cluster_centers_indices_)
-            print 'Clusters found = ', clusters_found
-            assert clusters_found == n_clusters
-            return aff.labels_
+    #         print 'Unable to find {0} clusters'.format(n_clusters)
+    #         return
+    #     else:
+    #         print 'Using dictionary for {0} clusters: P = {1}'.format(n_clusters,
+    #                 p)
+    #         aff.fit(affinity_matrix, p)
+    #         clusters_found = len(aff.cluster_centers_indices_)
+    #         print 'Clusters found = ', clusters_found
+    #         assert clusters_found == n_clusters
+    #         return aff.labels_
 
     def spectral(
         self,
