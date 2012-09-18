@@ -4,7 +4,7 @@
 import numpy as np
 import os
 import dendropy as dpy
-import GeoMeTreeHack
+#import GeoMeTreeHack
 from result import Result
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from Bio.Cluster import kmedoids
