@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 
 import re
 import os
@@ -140,9 +139,11 @@ class SequenceRecord(object):
         self.is_aligned = False
         if infile:
             if file_format == 'fasta':
-                self.get_fasta_file(infile, name=name, datatype=datatype) 
+                self.get_fasta_file(infile, name=name,
+                                    datatype=datatype)
             elif file_format == 'phylip':
-                self.get_phylip_file(infile, name=name, datatype=datatype) 
+                self.get_phylip_file(infile, name=name,
+                        datatype=datatype)
         self.index = -1
         self._update()
 
@@ -365,13 +366,13 @@ class SequenceRecord(object):
                 for seq_header in self.headers:
                     if i == 0:
                         s += '{0:<{1}} {2}\n'.format(seq_header,
-                            max(maxheader + 1, 15),
-                            (self.mapping[seq_header])[i
-                            * line_length:(i + 1) * line_length])
+                                max(maxheader + 1, 15),
+                                (self.mapping[seq_header])[i
+                                * line_length:(i + 1) * line_length])
                     else:
-                        s += '{0} {1}\n'.format(' '*max(maxheader + 1, 15),
-                            (self.mapping[seq_header])[i * line_length:
-                            (i + 1) * line_length])
+                        s += '{0} {1}\n'.format(' ' * max(maxheader
+                                + 1, 15), (self.mapping[seq_header])[i
+                                * line_length:(i + 1) * line_length])
                 s += '\n'
         else:
             lines = ['{0:<14} {1:-<{2}}'.format(x, y, maxlen) for (x,
@@ -578,9 +579,12 @@ class TCSeqRec(SequenceRecord):
 
         # Write the guidetree
 
-        guidetree = self.get_guide_tree(tmpdir)
-        guidetree = guidetree.newick
-        guidetree_tmpfile.write(guidetree)
+        guidetree = self.get_bionj_tree(ncat=1, tmpdir=tmpdir)
+        dpy_guidetree = dpy.Tree()
+        dpy_guidetree.read_from_string(guidetree.newick, 'newick')
+        dpy_guidetree.resolve_polytomies()
+        newick_string = dpy_guidetree.as_newick_string()+';\n'
+        guidetree_tmpfile.write(newick_string)
         guidetree_tmpfile.flush()
         guidetree_tmpfile.close()
 
@@ -640,6 +644,7 @@ class TCSeqRec(SequenceRecord):
         tmpdir='/tmp',
         overwrite=True,
         ):
+
         if not overwrite and self.tree.newick:
             print '{0}: Tree exists and overwrite set to false'.format(self.name)
             return self.tree
@@ -657,8 +662,14 @@ class TCSeqRec(SequenceRecord):
             else:
                 print 'I don\'t know this datatype: {0}'.format(self.datatype)
                 return
-        t = self.tree.run_bionj(model, input_file, datatype, ncat, self.name,
-                                overwrite=overwrite)
+        t = self.tree.run_bionj(
+            model,
+            input_file,
+            datatype,
+            ncat,
+            self.name,
+            overwrite=overwrite,
+            )
         os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
         return self.tree
 

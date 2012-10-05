@@ -55,7 +55,7 @@ class Result(object):
         number_of_genes,
         gene_length,
         tree_file,
-        output_filename='alf-params.drw',
+        outfilename='alf-params.drw',
         ):
         """ Function to write parameter files for ALF """
 

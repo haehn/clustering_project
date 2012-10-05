@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
 import numpy as np
+import os
+import dendropy as dpy
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from Bio.Cluster import kmedoids
 import matplotlib.pyplot as plt
-from copy import copy
+from matplotlib import cm as CM
+from math import log
+from copy import copy, deepcopy
 from sklearn.cluster import KMeans
+from mpl_toolkits.mplot3d import Axes3D
 from collections import defaultdict
 
 
@@ -37,6 +42,7 @@ class Clustering(object):
         #     s += ' '.join(str(x) for x in p) + '\n'
         # return s
 
+
     def run_kmedoids(self, dm, nclusters):
 
         if dm.metric == 'rf':
@@ -57,7 +63,10 @@ class Clustering(object):
         prune=True,
         ):
 
-        matrix = dm.matrix
+        if dm.metric == 'rf':
+            matrix = dm.add_noise(dm.matrix)
+        else:
+            matrix = dm.matrix
 
         laplacian = self.spectral(matrix, prune=prune)
         (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
@@ -112,25 +121,6 @@ class Clustering(object):
         T = self.order(est.labels_)
         return T
 
-    def run_clustering(
-        self,
-        dm,
-        method,
-        nclusters,
-        prune=True,
-        ):
-
-        if method == 'kmedoids':
-            return self.run_kmedoids(dm, nclusters)
-        elif method == 'spectral':
-            return self.run_spectral(dm, nclusters, prune)
-        elif method == 'MDS':
-            return self.run_MDS(dm, nclusters)
-        elif method in ['single', 'complete', 'average', 'ward']:
-            return self.run_hierarchical(dm, nclusters, method)
-        else:
-            print 'Unrecognised method: {0}'.format(method)
-
     def order(self, l):
         """
         The clustering returned by the hcluster module gives 
@@ -152,7 +142,7 @@ class Clustering(object):
             for index in index_list:
                 l2[index] = name
 
-        return tuple(l2)
+        return l2
 
     def plot_embedding(
         self,
@@ -435,7 +425,6 @@ class Clustering(object):
             return np.dot(np.dot(invRootD, affinity_matrix), invRootD)
 
         # prune graph edges, but require graph be fully connected
-
         if prune:  # 'guess a number' strategy
             mink = 1
             maxk = size
