@@ -151,13 +151,22 @@ class DistanceMatrix(object):
                     new[i, j] = new[j, i] = dm[i, j] - eps
         return new
 
-    def plot_heatmap(self):
-        dm = self.matrix
+    def plot_heatmap(self, sort_partition=None):
+        """
+        Sort partition should be a flatlist of the clusters
+        as returned by Partition().get_memberships(..., flatten=True)
+        """
+
+        dm = np.array(self.matrix, copy=True)
         length = dm.shape[0]
         datamax = abs(dm).max()
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ticks_at = [0, 0.5*datamax, datamax]
+        ticks_at = [0, 0.5 * datamax, datamax]
+        if sort_partition:
+            p = self.get_permutation_matrix(range(len(sort_partition)),
+                    sort_partition)
+            dm = np.dot(p.T, np.dot(dm, p))
         cax = ax.imshow(
             dm,
             interpolation='nearest',
@@ -170,3 +179,38 @@ class DistanceMatrix(object):
         cbar = fig.colorbar(cax, ticks=ticks_at, format='%1.2g')
         cbar.set_label('Distance')
         return fig
+
+    def get_permutation_matrix(self, input_ordering, desired_ordering):
+        length = len(input_ordering)
+        if not len(desired_ordering) == length:
+            print 'List lengths don\'t match'
+            return
+        P = np.zeros((length, length), dtype=np.int)
+        for i in range(length):
+            j = desired_ordering.index(input_ordering[i])
+            P[i, j] = 1
+        return P
+
+    def check_euclidean(self):
+        """
+        A distance matrix is euclidean iff
+        F = -0.5 * (I - 1/n)D(I - 1/n) is PSD,
+        where I is the identity matrix
+              D is the distance matrix
+              1 is a square matrix of ones
+              n is the matrix size, common to all
+        """
+
+        D = self.matrix
+        I = np.identity( D.shape )
+        ones = np.ones( D.shape )
+
+        bracket = I - ones/D.shape[0]
+        F = -0.5 * np.dot(bracket, np.dot(D, bracket))
+
+        # Can calculate Cholesky decomp iff F is PSD
+        try:
+            np.linalg.cholesky(F)
+        except: return False
+        
+        return True

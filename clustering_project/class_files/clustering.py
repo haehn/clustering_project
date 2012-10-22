@@ -4,7 +4,6 @@ import numpy as np
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from Bio.Cluster import kmedoids
 import matplotlib.pyplot as plt
-from copy import copy
 from sklearn.cluster import KMeans
 from collections import defaultdict
 
@@ -21,7 +20,7 @@ class Clustering(object):
         key = tuple of (distance_metric, linkage_method, num_classes)
         """
 
-        pass
+        self.cache = {}
 
     def __str__(self):
         pass
@@ -55,13 +54,86 @@ class Clustering(object):
         dm,
         nclusters,
         prune=True,
+        sigma7=False,
+        recalculate=False,
         ):
 
-        matrix = dm.matrix
+        if dm.metric == 'rf':
+            print 'metric = rf, adding noise...'
+            matrix = dm.add_noise(dm.matrix)
+        else:
+            matrix = dm.matrix
+        if recalculate or not 'spectral_decomp' in self.cache:
+            laplacian = self.spectral(matrix, prune=prune)
 
-        laplacian = self.spectral(matrix, prune=prune)
-        (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
-                standardize=False)
+            (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
+                    standardize=False)
+            self.cache['spectral_decomp'] = (eigvals, eigvecs, cve)
+            self.cache['laplacian'] = laplacian
+        else:
+
+            (eigvals, eigvecs, cve) = self.cache['spectral_decomp']
+
+        coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
+                nclusters, normalise=True)[0]
+        est = KMeans(n_clusters=nclusters)
+        est.fit(coords)
+        T = self.order(est.labels_)
+        return T
+
+    def run_NJW(
+        self,
+        dm,
+        nclusters,
+        recalculate=False,
+        ):
+
+        if dm.metric == 'rf':
+            print 'metric = rf, adding noise...'
+            matrix = dm.add_noise(dm.matrix)
+        else:
+            matrix = dm.matrix
+        if recalculate or not 'NJW_decomp' in self.cache:
+            laplacian = self.NJW(matrix, sigma=np.median(matrix))
+
+            (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
+                    standardize=False)
+            self.cache['NJW_decomp'] = (eigvals, eigvecs, cve)
+            self.cache['NJW_laplacian'] = laplacian
+        else:
+
+            (eigvals, eigvecs, cve) = self.cache['NJW_decomp']
+
+        coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
+                nclusters, normalise=True)[0]
+        est = KMeans(n_clusters=nclusters)
+        est.fit(coords)
+        T = self.order(est.labels_)
+        return T
+
+    def run_ShiMalik(
+        self,
+        dm,
+        nclusters,
+        recalculate=False,
+        ):
+
+        if dm.metric == 'rf':
+            print 'metric = rf, adding noise...'
+            matrix = dm.add_noise(dm.matrix)
+        else:
+            matrix = dm.matrix
+        if recalculate or not 'SM_decomp' in self.cache:
+            laplacian = self.ShiMalik(matrix, sigma=np.median(matrix))
+
+            (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
+                    standardize=False)
+            self.cache['SM_decomp'] = (eigvals, eigvecs, cve)
+            self.cache['SM_laplacian'] = laplacian
+        else:
+
+            (eigvals, eigvecs, cve) = self.cache['SM_decomp']
+
         coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
                 nclusters, normalise=True)[0]
         est = KMeans(n_clusters=nclusters)
@@ -96,15 +168,29 @@ class Clustering(object):
         T = self.order(T)
         return T
 
-    def run_MDS(self, dm, nclusters):
+    def run_MDS(
+        self,
+        dm,
+        nclusters,
+        recalculate=False,
+        ):
 
-        if dm.metric == 'rf':
-            matrix = dm.add_noise(dm.matrix)
+        if recalculate or not 'MDS_decomp' in self.cache:
+
+            if dm.metric == 'rf':
+                matrix = dm.add_noise(dm.matrix)
+            else:
+                matrix = dm.matrix
+
+            dbc = self.get_double_centre(matrix)
+            (eigvals, eigvecs, cve) = self.get_eigen(dbc,
+                    standardize=True)
+            self.cache['MDS_decomp'] = (eigvals, eigvecs, cve)
+            self.cache['dbc'] = dbc
         else:
-            matrix = dm.matrix
 
-        dbc = self.get_double_centre(matrix)
-        (eigvals, eigvecs, cve) = self.get_eigen(dbc, standardize=True)
+            (eigvals, eigvecs, cve) = self.cache['MDS_decomp']
+
         coords = self.get_coords_by_cutoff(eigvals, eigvecs, cve, 95,
                 normalise=False)
         est = KMeans(n_clusters=nclusters)
@@ -118,14 +204,23 @@ class Clustering(object):
         method,
         nclusters,
         prune=True,
+        recalculate=False,
         ):
 
         if method == 'kmedoids':
             return self.run_kmedoids(dm, nclusters)
         elif method == 'spectral':
-            return self.run_spectral(dm, nclusters, prune)
+            return self.run_spectral(dm, nclusters, prune,
+                    recalculate=recalculate)
+        elif method == 'spectral-prune':
+            return self.run_spectral(dm, nclusters, prune=False,
+                    sigma7=True, recalculate=recalculate)
+        elif method == 'NJW':
+            return self.run_NJW(dm, nclusters, recalculate=recalculate)
+        elif method == 'ShiMalik':
+            return self.run_ShiMalik(dm, nclusters, recalculate=recalculate)
         elif method == 'MDS':
-            return self.run_MDS(dm, nclusters)
+            return self.run_MDS(dm, nclusters, recalculate=recalculate)
         elif method in ['single', 'complete', 'average', 'ward']:
             return self.run_hierarchical(dm, nclusters, method)
         else:
@@ -228,28 +323,29 @@ class Clustering(object):
 
     # ## Methods for multidimensional scaling
 
-    def get_double_centre(self, matrix):
+    def get_double_centre(self, m, square_input=False):
         """ 
-        Double-centres (Gower centres) the input matrix as follows:
-        square the input matrix and divide by -2
-        from each element subtract the row and column means,
-            and add the overall mean
-        Returns the double-centred matrix
+        Double-centres the input matrix:
+          From each element:
+            Subtract the row mean
+            Subtract the column mean
+            Add the grand mean
+            Divide by -2
+        Method from:
+        Torgerson, W S (1952). 
+        Multidimensional scaling: I. Theory and method.
         """
 
-        matrix = copy(matrix)
-        matrix *= matrix
-        matrix /= -2.0
-        size = len(matrix)
-        output = np.zeros([size, size])
-        row_means = np.array([np.mean(row) for row in matrix])
-        col_means = np.array([np.mean(col) for col in matrix.T])
-        col_means.shape = (size, 1)
-        matrix_mean = np.mean(matrix)
-        matrix -= row_means
-        matrix -= col_means
-        matrix += matrix_mean
-        return matrix
+        M = np.array(m, copy=True)
+        if square_input:
+            M *= M
+        (rows, cols) = M.shape
+        cm = np.mean(M, axis=0)  # column means
+        rm = np.mean(M, axis=1).reshape((rows, 1))  # row means
+        gm = np.mean(cm)  # grand mean
+        M -= rm + cm - gm
+        M /= -2
+        return M
 
     def get_eigen(self, matrix, standardize=False):
         """
@@ -479,3 +575,21 @@ class Clustering(object):
             return laplace(am7)
         else:
             return laplace(affinity_matrix)
+
+    def NJW(self, distance_matrix, sigma):
+        size = distance_matrix.shape[0]
+        A = np.exp(-distance_matrix**2/(2*sigma))
+        A.flat[::size+1] = 0.0
+        D = np.diag(A.sum(axis=1))
+        invRootD = np.sqrt(np.linalg.inv(D))
+        L = np.dot(invRootD, np.dot(A, invRootD))
+        return L
+
+    def ShiMalik(self, distance_matrix, sigma):
+        size = distance_matrix.shape[0]
+        A = np.exp(-distance_matrix**2/(2*sigma))
+        A.flat[::size+1] = 0.0
+        D = np.diag(A.sum(axis=1))
+        invD = np.linalg.inv(D)
+        L = np.dot(invD,A)
+        return L

@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 
 import glob
-import cPickle
 import os
 import multiprocessing
 import copy
 import re
-import math
-import time
 from subprocess import Popen, PIPE, call
-import matplotlib.pyplot as plt
 from sequence_record import TCSeqRec
 from distance_matrix import DistanceMatrix
 from clustering import Clustering
@@ -80,22 +76,6 @@ class SequenceCollection(object):
     _[something]     - private method
     """
 
-    # Store some mappings for data retrieval
-
-    records_to_keys = {}
-    keys_to_records = {}
-    clusters_to_partitions = {}
-    partitions = {}
-    distance_matrices = {}
-    concats = {}
-    inferred_trees = {}
-
-    # Store some data
-
-    files = None
-    records = []
-    length = 0
-
     def __init__(
         self,
         input_dir=None,
@@ -110,7 +90,31 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        self.records = records
+        # Unset Variables
+
+        # Store some mappings for data retrieval
+
+        self.records_to_keys = {}
+        self.keys_to_records = {}
+        self.clusters_to_partitions = {}
+        self.partitions = {}
+        self.distance_matrices = {}
+        self.concats = {}
+        self.inferred_trees = {}
+        self.Clustering = Clustering()
+
+        # Store some data
+
+        self.files = None
+        self.file_format = file_format
+        self.datatype = datatype
+        self.records = []
+        self.length = 0
+        self.helper = helper
+        self.gtp_path = gtp_path
+
+        # Set Variables
+
         self.gtp_path = gtp_path
         self.tmpdir = tmpdir
 
@@ -142,32 +146,34 @@ class SequenceCollection(object):
             # done
 
             files.sort(key=sort_key)
-            self.put_records(files, file_format, datatype)
-            self.length = len(self.records)
+            self.put_records(files=files, record_list=None,
+                             file_format=file_format, datatype=datatype)
+
+                               # takes care of self.length for us
+
             self.sanitise_records()
             if not os.path.isdir(tmpdir):
                 os.mkdir(tmpdir)
-            if get_distances:
-                if parallel_load:
-                    self.put_dv_matrices_parallel(helper=helper,
-                            tmpdir=tmpdir, overwrite=overwrite)
-                else:
-                    self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
-                            overwrite=overwrite)
         elif records:
 
         # Can optionally give record objects directly if no input dir specified
 
-            self.sanitise_records()
-            if get_distances:
-                if parallel_load:
-                    self.put_dv_matrices_parallel(helper=helper,
-                            tmpdir=tmpdir, overwrite=overwrite)
-                else:
-                    self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
-                            overwrite=overwrite)
+            self.put_records(files=None, record_list=records,
+                             file_format=file_format, datatype=datatype)
 
-            self.length = len(self.records)
+                               # takes care of self.length for us
+
+            self.sanitise_records()
+
+        # Optionally use Darwin to calculate pairwise distances
+
+        if get_distances:
+            if parallel_load:
+                self.put_dv_matrices_parallel(helper=helper,
+                        tmpdir=tmpdir, overwrite=overwrite)
+            else:
+                self.put_dv_matrices(helper=helper, tmpdir=tmpdir,
+                        overwrite=overwrite)
 
     def __str__(self):
         s = 'SequenceCollection object:\n'
@@ -197,7 +203,8 @@ class SequenceCollection(object):
 
     def put_records(
         self,
-        files,
+        files=None,
+        record_list=None,
         file_format='fasta',
         datatype='protein',
         ):
@@ -208,15 +215,21 @@ class SequenceCollection(object):
 
         get_name = lambda i: i[i.rindex('/') + 1:i.rindex('.')]
 
-        record_list = [TCSeqRec(f, file_format=file_format,
-                       name=get_name(f), datatype=datatype) for f in
-                       files]
+        if files and not record_list:
+            record_list = [TCSeqRec(f, file_format=file_format,
+                           name=get_name(f), datatype=datatype)
+                           for f in files]
+        elif not files and not record_list:
+
+            print 'Can\'t load records - no records or alignment files given'
+            return
 
         enumeration = enumerate(record_list, start=1)
-        records_to_keys = dict([(name, number) for (number, name) in
-                               enumerate(record_list)])
+        records_to_keys = dict([(record.name, number) for (number,
+                               record) in enumerate(record_list)])
         keys_to_records = dict(enumerate(record_list))
         self.records = record_list
+        self.length = len(record_list)
         self.records_to_keys = records_to_keys
         self.keys_to_records = keys_to_records
 
@@ -228,7 +241,13 @@ class SequenceCollection(object):
         return [self.keys_to_records[i] for i in range(self.length)]
 
     def sanitise_records(self):
-        for rec in self.records:
+        """
+        Sorts records alphabetically, trims whitespace from beginning 
+        of record headers, removes '/' characters from headers, 
+        replaces spaces with underscores, puts sequences into upper case
+        """
+
+        for rec in self.get_records():
             rec.sanitise()
 
     def put_dv_matrices(
@@ -238,7 +257,7 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        for rec in self.records:
+        for rec in self.get_records():
             rec.dv = [rec.get_dv_matrix(tmpdir=tmpdir, helper=helper,
                       overwrite=overwrite)]
 
@@ -252,15 +271,14 @@ class SequenceCollection(object):
         overwrite=True,
         ):
 
-        nprocesses = min(len(self.records), multiprocessing.cpu_count()
-                         - 1)
+        nprocesses = min(self.length, multiprocessing.cpu_count() - 1)
         print 'Initialising a pool of {0} processes running {1} jobs...'.format(nprocesses,
-                len(self.records))
+                self.length)
         pool = multiprocessing.Pool(nprocesses)
         results = []
         args = []
         names = []
-        for rec in self.records:
+        for rec in self.get_records():
             new_dir = tmpdir + '/' + rec.name
             if not os.path.isdir(new_dir):
                 os.mkdir(new_dir)
@@ -289,7 +307,7 @@ class SequenceCollection(object):
 
         dv_matrices_dict = self._dv_parallel_call(tmpdir, helper,
                 overwrite=overwrite)
-        for rec in self.records:
+        for rec in self.get_records():
             rec.dv = [dv_matrices_dict[rec.name]]
 
     def get_dv_matrices(self):
@@ -448,8 +466,9 @@ class SequenceCollection(object):
         tmpdir=None,
         overwrite=True,
         ):
+
         if tmpdir is None:
-            tmpdir=self.tmpdir
+            tmpdir = self.tmpdir
         if not program in ['treecollection', 'raxml', 'phyml', 'bionj']:
             print 'unrecognised program {0}'.format(program)
             return
@@ -474,152 +493,6 @@ class SequenceCollection(object):
                         datatype=datatype, tmpdir=tmpdir, ncat=ncat,
                         overwrite=overwrite)
             self.inferred_trees[rec.name] = tree
-
-    def put_trees_lsf(
-        self,
-        rec_list=None,
-        program='phyml',
-        model=None,
-        datatype=None,
-        ncat=4,
-        lsf_tmpdir='./lsf_tmp',
-        overwrite=True,
-        basepath='.',
-        ):
-
-        def which_dir(n, dirs):
-            """ 
-            Given a number, n, and a set of directories of the form:
-            /1-1000, /1001-2000, /2001-3000 ...
-            returns the directory corresponding to the range the number
-            fits into
-            """
-
-            for x in dirs:
-                (lower, upper) = x[x.rindex('/') + 1:].split('-')
-                if int(lower) <= n <= int(upper):
-                    return x
-
-        def is_bjob_done(id):
-
-            cmd = 'bjobs {0}'.format(id)
-            process = Popen(cmd, stdout=PIPE, shell=True)
-            process.wait()
-            output = process.communicate()[0].split('\n')[1]
-            if 'DONE' in output:
-                return True
-            else:
-                return False
-
-        def extract_jobid(s):
-            return int(re.findall('(?<=\<)[\d+]+(?=\>)', s)[0])
-
-        getname = lambda x: x[x.rindex('/') + 1:x.rindex('.')]
-
-        # Make paths into absolute paths, because these jobs will operate
-        # on separate machines
-
-        lsf_tmpdir = os.path.abspath(lsf_tmpdir)
-        basepath = os.path.abspath(basepath)
-
-        # Most cases will use self.records
-
-        if not rec_list:
-            rec_list = self.records
-
-        # Create temp directory reachable by lsf machine
-
-        if not os.path.isdir(lsf_tmpdir):
-            os.mkdir(lsf_tmpdir)
-
-        # Need a runner script to be called by lsf JobArray
-
-        if program == 'phyml':
-            runner_script = '{0}/lsf_phyml.py'.format(basepath)
-        elif program == 'raxml':
-            runner_script = '{0}/lsf_raxml.py'.format(basepath)
-        elif program == 'bionj':
-            runner_script = '{0}/lsf_bionj.py'.format(basepath)
-        elif program == 'treecollection':
-            runner_script = '{0}/lsf_treecollection.py'.format(basepath)
-        else:
-            print 'Program {0} not recognised'.format(program)
-            return
-
-        # Use tempwrapper script to create and delete tmp directories
-        # on the lsf machines
-
-        tempwrapper = '{0}/tempdir_wrapper.sh'.format(basepath)
-
-        # Filechecks
-
-        if not os.path.isfile(runner_script):
-            print '{0}: file not found'.format(runner_script)
-        if not os.path.isfile(tempwrapper):
-            print '{0}: file not found'.format(tempwrapper)
-
-        # Create batch directories for all jobs so that they run in
-        # batches of no more than 1000 (max for JobArray)
-
-        avail_dirs = []
-        for i in range(int(math.floor(len(rec_list) / 1000) + 1)):
-            dname = '{0}/{1}-{2}'.format(lsf_tmpdir, i * 1000 + 1, (i
-                    + 1) * 1000)
-            avail_dirs.append(dname)
-            if not os.path.isdir(dname):
-                os.mkdir(dname)
-
-        # Write a phylip file into the lsf_temp directory,
-        # and write a jobfile pointing to it, with indexed file extension
-
-        for (i, rec) in enumerate(rec_list, start=1):
-            filename = '{0}/{1}.phy'.format(lsf_tmpdir, rec.name)
-            rec.write_phylip(filename)
-            d = which_dir(i, avail_dirs)
-            with open('{0}/job.{1}'.format(d, i), 'w') as file:
-                file.write(filename)
-
-        # Use a masterscript so that we wait for all jobs to complete before moving on
-
-        commands = []
-        for path in avail_dirs:
-            numbers = path[path.rindex('/') + 1:]
-            (lower, upper) = numbers.split('-')
-            lower = int(lower)
-            upper = min(i, int(upper))
-
-            # the jobfile is selected by the indexed file extension, which
-            # is accessed using the $LSF_JOBINDEX environmental variable
-            # (accessed internally by the runner script)
-
-            commands.append('bsub -o /dev/null -J "trees[{0}-{1}]" bash {2} python {3} --model={4} --ncat={5} --datatype={6} -f {7}/job.\n'.format(
-                lower,
-                upper,
-                tempwrapper,
-                runner_script,
-                model,
-                ncat,
-                datatype,
-                path,
-                ))
-
-        # Set the masterscript running and wait for the results - pickled tree objects
-
-        print 'Running LSF commands...'
-        processes = [Popen(command, shell=True, stdin=PIPE,
-                     stdout=PIPE, stderr=PIPE) for command in commands]
-        jobids = [extract_jobid(process.communicate()[0])
-                  for process in processes]
-        while not all(is_bjob_done(jobid) for jobid in jobids):
-            time.sleep(2)
-
-        pickles = dict((getname(x), x) for x in
-                       glob.glob('{0}/*.pickle'.format(lsf_tmpdir)))
-
-        for rec in rec_list:
-            rec.tree = cPickle.load(file(pickles[rec.name]))
-
-        shutil.rmtree(lsf_tmpdir)
 
     def put_trees_parallel(
         self,
@@ -661,7 +534,7 @@ class SequenceCollection(object):
                 ncat=ncat,
                 overwrite=overwrite,
                 )
-        for rec in self.records:
+        for rec in self.get_records():
             rec.tree = trees_dict[rec.name]
             self.inferred_trees[rec.name] = trees_dict[rec.name]
 
@@ -684,7 +557,7 @@ class SequenceCollection(object):
             gtp_path = self.gtp_path
         if not isinstance(metrics, list):
             metrics = [metrics]
-        trees = [rec.tree for rec in self.records]
+        trees = [rec.tree for rec in self.get_records()]
         for metric in metrics:
             dm = DistanceMatrix(trees, tmpdir=tmpdir, gtp_path=gtp_path)
             dm.get_distance_matrix(metric, normalise=normalise)
@@ -701,6 +574,7 @@ class SequenceCollection(object):
         prune=True,
         tmpdir=None,
         gtp_path=None,
+        recalculate=False,
         ):
 
         if not tmpdir:
@@ -711,8 +585,8 @@ class SequenceCollection(object):
             self.put_distance_matrices(metric, tmpdir=tmpdir,
                     gtp_path=gtp_path)
         partition_vector = \
-            Clustering().run_clustering(self.distance_matrices[metric],
-                cluster_method, nclusters, prune=prune)
+            self.Clustering.run_clustering(self.distance_matrices[metric],
+                cluster_method, nclusters, prune=prune, recalculate=recalculate)
 
         self.clusters_to_partitions[(metric, cluster_method,
                                     nclusters)] = partition_vector
@@ -727,6 +601,7 @@ class SequenceCollection(object):
         prune=True,
         tmpdir=None,
         gtp_path=None,
+        recalculate=False,
         ):
         """
         metrics, linkages and nclasses are given as lists, or coerced into 
@@ -745,7 +620,7 @@ class SequenceCollection(object):
             gtp_path = self.gtp_path
         else:
             nclusters = sorted(nclusters, reverse=True)
-        names = [rec.name for rec in self.records]
+        names = [rec.name for rec in self.get_records()]
         for metric in metrics:
             for cluster_method in cluster_methods:
                 for n in nclusters:
@@ -760,6 +635,7 @@ class SequenceCollection(object):
                             prune=prune,
                             tmpdir=tmpdir,
                             gtp_path=gtp_path,
+                            recalculate=recalculate,
                             )
 
     def concatenate_records(self):
@@ -770,23 +646,22 @@ class SequenceCollection(object):
                     self.concats[concat.name] = concat
 
     def get_partitions(self):
-        return self.clustering.partitions
+        pass
 
     def put_clusters(self):
-        for key in self.clustering.partitions:
-            if key not in self.clustering.clusters:
-                self.clustering.concatenate_records(key, self.records)
+        pass
 
     def get_clusters(self):
-        return self.clustering.clusters
+        pass
 
     def get_cluster_records(self):
         """
         Returns all concatenated records from cluster analysis
         """
-        print 'Inferring {0} cluster trees'.format(len(self.concats))
+
         sort_key = lambda item: tuple((int(num) if num else alpha)
-                for (num, alpha) in re.findall(r'(\d+)|(\D+)', item.name))
+                for (num, alpha) in re.findall(r'(\d+)|(\D+)',
+                item.name))
         return sorted(self.concats.values(), key=sort_key)
 
     def put_cluster_trees(
@@ -803,6 +678,7 @@ class SequenceCollection(object):
             print 'unrecognised program {0}'.format(program)
             return
         rec_list = self.get_cluster_records()
+        print 'Inferring {0} cluster trees'.format(len(rec_list))
         self.put_trees(
             rec_list=rec_list,
             program=program,
@@ -832,6 +708,7 @@ class SequenceCollection(object):
             print 'unrecognised program {0}'.format(program)
             return
         rec_list = self.get_cluster_records()
+        print 'Inferring {0} cluster trees'.format(len(rec_list))
         if program == 'treecollection':
             cluster_trees_dict = \
                 self._TC_parallel_call(rec_list=rec_list,
@@ -874,10 +751,10 @@ class SequenceCollection(object):
             new_lst = zip(*lst)
             return [''.join(x) for x in new_lst]
 
-        lengths = [rec.seqlength for rec in self.records]
+        lengths = [rec.seqlength for rec in self.get_records()]
         datatype = self.records[0].datatype
         concat = copy.deepcopy(self.records[0])
-        for rec in self.records[1:]:
+        for rec in self.get_records()[1:]:
             concat += rec
         columns = pivot(concat.sequences)
         shuffle(columns)
@@ -895,22 +772,27 @@ class SequenceCollection(object):
             newrecs[i].name = self.records[i].name
         return newrecs
 
-    def make_randomised_copy(self, program='treecollection',
-                             tmpdir='/tmp'):
+    def make_randomised_copy(self,
+                             tmpdir='/tmp',
+                             get_distances=True,
+                             parallel_load=True,
+                             overwrite=True,
+                             ):
 
-        other = copy.deepcopy(self)
-        other.records = self.get_randomised_alignments()
-        other.put_dv_matrices_parallel()
-        other.put_trees_parallel(program=program, tmpdir=tmpdir)
-        if self.get_clusters():
-            other.clustering.clusters = {}
-            other.put_clusters()
-        if self.get_cluster_trees()[0].newick:
-            cluster_program = \
-                self.get_cluster_trees()[0].program.lower()
-            other.put_cluster_trees_parallel(program=cluster_program,
-                    tmpdir=tmpdir)
-        return other
+        shuffled_records = self.get_randomised_alignments()
+        randomised_copy = SequenceCollection(
+            input_dir=None,
+            records=shuffled_records,
+            file_format=self.file_format,
+            datatype=self.datatype,
+            helper=self.helper,
+            gtp_path=self.gtp_path,
+            tmpdir='/tmp',
+            get_distances=get_distances,
+            parallel_load=parallel_load,
+            overwrite=overwrite,
+            )
+        return randomised_copy
 
     def show_memberships(self):
 
@@ -934,64 +816,6 @@ class SequenceCollection(object):
         if show:
             plot_object.show()
         return plot_object
-
-    def scree_plot(
-        self,
-        metric,
-        link,
-        *args
-        ):
-
-        fig = plt.figure()
-        cl = self.get_clusters()
-        (x, y) = ([], [])
-        for k in sorted(cl):
-            if metric in k and link in k:
-                y.append(cl[k].score)
-                x.append(k[-1])
-        plt.plot(x, y, *args)
-        return fig
-
-    # def find_mergeable_groups(self, compound_key):
-
-    #     result_object = self.get_clusters()[compound_key]
-    #     cluster_trees = [rec.tree for rec in result_object.concats]
-    #     cluster_names = [tree.name for tree in cluster_trees]
-    #     matrix = self.clustering.get_distance_matrix(cluster_trees,
-    #             'sym')
-    #     groups = result_object.find_mergeable_groups(matrix)
-    #     return groups
-
-    # def merge_groups(self, compound_key):
-
-    #     group_dict = self.find_mergeable_groups(compound_key)[0]
-    #     old_memberships = self.get_clusters()[compound_key].members
-    #     new_memberships = []
-    #     skips = []
-    #     for i in range(len(old_memberships)):
-    #         if i in skips:
-    #             continue
-    #         elif i in group_dict:
-    #             new = []
-    #             new += old_memberships[i]
-    #             for val in group_dict[i]:
-    #                 new += old_memberships[val]
-    #                 skips.append(val)
-    #             new_memberships.append(new)
-    #             continue
-    #         new_memberships.append(old_memberships[i])
-
-    #     new_partition = [0 for rec in self.records]
-    #     i = 1
-    #     for group in new_memberships:
-    #         for member in group:
-    #             index = self.records.index(member)
-    #             new_partition[index] = i
-    #         i += 1
-
-    #     new_key = compound_key + ('merge', )
-    #     self.clustering.partitions[new_key] = new_partition
-    #     self.put_clusters()
 
     def simulate_from_result(
         self,

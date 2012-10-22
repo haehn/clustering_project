@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from math import log
-from copy import copy, deepcopy
+from copy import deepcopy
 
 
 class Partition(object):
@@ -51,7 +51,7 @@ class Partition(object):
     def update_score(self, concats_dict):
         self.score = sum([concats_dict[rec.name].tree.score for rec in self.concats])
 
-    def get_memberships(self, partition_vector=None):
+    def get_memberships(self, partition_vector=None, flatten=False):
             if not partition_vector:
                 partition_vector = self.partition_vector
 
@@ -64,6 +64,12 @@ class Partition(object):
                         members.append(i)
                 result.append(set(members))
             result = sorted(result, key=len, reverse=True)
+            if flatten:
+                flatlist = []
+                ext = flatlist.extend
+                for cluster in result:
+                    ext(list(cluster))
+                return flatlist
             return result
 
     def variation_of_information(self, partition_1, partition_2):

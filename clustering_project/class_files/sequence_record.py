@@ -5,6 +5,7 @@ import os
 import dendropy as dpy
 from subprocess import Popen, PIPE
 from tree import Tree
+import hashlib
 
 
 class SequenceRecord(object):
@@ -518,8 +519,15 @@ class TCSeqRec(SequenceRecord):
         self.sequences = [seq.upper() for seq in self.sequences]
         self._update()
 
-    def _write_temp_phylip(self, tmpdir='/tmp'):
-        self.write_phylip('{0}/{1}.phy'.format(tmpdir, self.name))
+    def _write_temp_phylip(self, tmpdir='/tmp', hashname=False):
+        if not hashname:
+            filename = self.name
+        else:
+            H = hashlib.sha1()
+            H.update(self.name)
+            filename = H.hexdigest()
+        self.write_phylip('{0}/{1}.phy'.format(tmpdir, filename))
+        return filename
 
     def _write_temp_tc(self, tmpdir='/tmp'):
         num_matrices = len(self.dv)
@@ -612,9 +620,9 @@ class TCSeqRec(SequenceRecord):
             print '{0}: Tree exists and overwrite set to false'.format(self.name)
             return self.tree
         self.tree = Tree()
-        self._write_temp_phylip(tmpdir=tmpdir)
+        filename = self._write_temp_phylip(tmpdir=tmpdir, hashname=True)
         print 'Running phyml on ' + str(self.name) + '...'
-        input_file = '{0}/{1}.phy'.format(tmpdir, self.name)
+        input_file = '{0}/{1}.phy'.format(tmpdir, filename)
         if not model and not datatype:  # quick-fix to allow specification of other
             if self.datatype == 'dna':  # models when calling phyml
                 model = 'GTR'
@@ -633,7 +641,7 @@ class TCSeqRec(SequenceRecord):
             ncat=ncat,
             overwrite=overwrite,
             )
-        os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
+        os.remove('{0}/{1}.phy'.format(tmpdir, filename))
         return self.tree
 
     def get_bionj_tree(
@@ -649,9 +657,9 @@ class TCSeqRec(SequenceRecord):
             print '{0}: Tree exists and overwrite set to false'.format(self.name)
             return self.tree
         self.Tree = Tree()
-        self._write_temp_phylip(tmpdir=tmpdir)
+        filename = self._write_temp_phylip(tmpdir=tmpdir, hashname=True)
         print 'Running bionj on ' + str(self.name) + '...'
-        input_file = '{0}/{1}.phy'.format(tmpdir, self.name)
+        input_file = '{0}/{1}.phy'.format(tmpdir, filename)
         if not model and not datatype:  # quick-fix to allow specification of other
             if self.datatype == 'dna':  # models when calling phyml
                 model = 'GTR'
@@ -670,7 +678,7 @@ class TCSeqRec(SequenceRecord):
             self.name,
             overwrite=overwrite,
             )
-        os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
+        os.remove('{0}/{1}.phy'.format(tmpdir, filename))
         return self.tree
 
     def get_raxml_tree(self, tmpdir='/tmp', overwrite=True):
