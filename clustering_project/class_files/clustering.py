@@ -6,6 +6,7 @@ from Bio.Cluster import kmedoids
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from collections import defaultdict
+import evrot
 
 
 class Clustering(object):
@@ -76,10 +77,47 @@ class Clustering(object):
 
         coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
                 nclusters, normalise=True)[0]
-        est = KMeans(n_clusters=nclusters)
-        est.fit(coords)
-        T = self.order(est.labels_)
+        T = self.run_Kmeans(coords, nclusters)
         return T
+
+    def run_spectral_rotate(
+        self,
+        dm,
+        prune=True,
+        KMeans=True,
+        recalculate=False,
+        ):
+
+        if dm.metric == 'rf':
+            print 'metric = rf, adding noise...'
+            matrix = dm.add_noise(dm.matrix)
+        else:
+            matrix = dm.matrix
+        if recalculate or not 'spectral_decomp' in self.cache:
+            laplacian = self.spectral(matrix, prune=prune)
+
+            (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
+                    standardize=False)
+            self.cache['spectral_decomp'] = (eigvals, eigvecs, cve)
+            self.cache['laplacian'] = laplacian
+        else:
+
+            (eigvals, eigvecs, cve) = self.cache['spectral_decomp']
+
+        # ######################
+        # CLUSTER_ROTATE STUFF HERE
+
+        (nclusters, clustering, quality_scores, rotated_vectors) = \
+            self.cluster_rotate(eigvecs, max_groups=int(np.sqrt(matrix.shape[0])))
+
+        # ######################
+
+        print 'Discovered {0} clusters'.format(nclusters)
+        print 'Quality scores: {0}'.format(quality_scores)
+        T = self.run_Kmeans(rotated_vectors, nclusters=nclusters)
+        return T
+
+        # ######################
 
     def run_NJW(
         self,
@@ -106,9 +144,7 @@ class Clustering(object):
 
         coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
                 nclusters, normalise=True)[0]
-        est = KMeans(n_clusters=nclusters)
-        est.fit(coords)
-        T = self.order(est.labels_)
+        T = self.run_Kmeans(coords, nclusters)
         return T
 
     def run_ShiMalik(
@@ -136,9 +172,7 @@ class Clustering(object):
 
         coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
                 nclusters, normalise=True)[0]
-        est = KMeans(n_clusters=nclusters)
-        est.fit(coords)
-        T = self.order(est.labels_)
+        T = self.run_Kmeans(coords, nclusters)
         return T
 
     def run_hierarchical(
@@ -193,6 +227,10 @@ class Clustering(object):
 
         coords = self.get_coords_by_cutoff(eigvals, eigvecs, cve, 95,
                 normalise=False)
+        T = self.run_Kmeans(coords, nclusters)
+        return T
+
+    def run_Kmeans(self, coords, nclusters):
         est = KMeans(n_clusters=nclusters)
         est.fit(coords)
         T = self.order(est.labels_)
@@ -212,13 +250,16 @@ class Clustering(object):
         elif method == 'spectral':
             return self.run_spectral(dm, nclusters, prune,
                     recalculate=recalculate)
+        elif method == 'spectral_rotate':
+            return self.run_spectral_rotate(dm, recalculate=recalculate)
         elif method == 'spectral-prune':
             return self.run_spectral(dm, nclusters, prune=False,
                     sigma7=True, recalculate=recalculate)
         elif method == 'NJW':
             return self.run_NJW(dm, nclusters, recalculate=recalculate)
         elif method == 'ShiMalik':
-            return self.run_ShiMalik(dm, nclusters, recalculate=recalculate)
+            return self.run_ShiMalik(dm, nclusters,
+                    recalculate=recalculate)
         elif method == 'MDS':
             return self.run_MDS(dm, nclusters, recalculate=recalculate)
         elif method in ['single', 'complete', 'average', 'ward']:
@@ -251,6 +292,7 @@ class Clustering(object):
 
     def plot_embedding(
         self,
+        dm,
         metric,
         linkage,
         nclasses,
@@ -578,8 +620,8 @@ class Clustering(object):
 
     def NJW(self, distance_matrix, sigma):
         size = distance_matrix.shape[0]
-        A = np.exp(-distance_matrix**2/(2*sigma))
-        A.flat[::size+1] = 0.0
+        A = np.exp(-distance_matrix ** 2 / (2 * sigma))
+        A.flat[::size + 1] = 0.0
         D = np.diag(A.sum(axis=1))
         invRootD = np.sqrt(np.linalg.inv(D))
         L = np.dot(invRootD, np.dot(A, invRootD))
@@ -587,9 +629,42 @@ class Clustering(object):
 
     def ShiMalik(self, distance_matrix, sigma):
         size = distance_matrix.shape[0]
-        A = np.exp(-distance_matrix**2/(2*sigma))
-        A.flat[::size+1] = 0.0
+        A = np.exp(-distance_matrix ** 2 / (2 * sigma))
+        A.flat[::size + 1] = 0.0
         D = np.diag(A.sum(axis=1))
         invD = np.linalg.inv(D)
-        L = np.dot(invD,A)
+        L = np.dot(invD, A)
         return L
+
+    def cluster_rotate(self, eigen_vectors, max_groups):
+        groups = range(2, max_groups + 1)
+        vector_length = eigen_vectors.shape[0]
+        current_vector = eigen_vectors[:, :groups[0]]
+        quality_scores = []
+        clusters = []
+        rotated_vectors = []
+
+        for g in range(max_groups - 1):
+            if g > 0:
+                current_vector = np.concatenate((rotated_vector,
+                        eigen_vectors[:, g + 1:g + 2]), axis=1)
+
+            (cluster, quality, rotated_vector) = \
+                evrot.main(current_vector)
+            quality_scores.append(quality)
+            clusters.append(cluster)
+            rotated_vectors.append(rotated_vector)
+
+        # Find the highest index of quality scores where the
+        # score is within 0.005 of the maximum:
+        # this is our chosen number of groups
+
+        max_score = max(quality_scores)
+        index = quality_scores.index(max_score)
+        start = index + 1
+        for i, score in enumerate(quality_scores[index+1:], start=start):
+            if abs(score - max_score) < 0.005:
+                index = i
+
+        return (groups[index], clusters[index], quality_scores,
+                rotated_vectors[index])

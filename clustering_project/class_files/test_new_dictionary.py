@@ -42,12 +42,16 @@ sc_yeast = SequenceCollection(
     )
 
 sc.put_trees(program='bionj', overwrite=False)
-sc.put_partitions(['geo', 'rf'], ['spectral','NJW','ShiMalik'], range(1, 41))
+sc.put_partitions(['geo', 'rf'], ['spectral'], range(1, 41))
+sc.Clustering.run_spectral_rotate(sc.distance_matrices['geo'])
+sc.Clustering.run_spectral_rotate(sc.distance_matrices['rf'],recalculate=True)
 # sc.put_partitions(['geo', 'rf'], ['spectral', 'MDS', 'kmedoids','single','complete','average','ward','NJW'], range(1, 41))
 # sc.put_partitions(['geo', 'rf'], ['spectral-prune'], range(1, 41), recalculate=True)
 
 sc_yeast.put_trees(program='bionj', overwrite=False)
 sc_yeast.put_partitions(['geo', 'rf'], ['spectral', 'MDS'], range(1, 50))
+sc_yeast.Clustering.run_spectral_rotate(sc_yeast.distance_matrices['geo'],recalculate=True)
+sc_yeast.Clustering.run_spectral_rotate(sc_yeast.distance_matrices['rf'],recalculate=True)
 
 # yr = sc_yeast.make_randomised_copy(get_distances=False)
 # yr.put_trees(program='bionj', overwrite=False)
@@ -57,8 +61,8 @@ sc_yeast.put_partitions(['geo', 'rf'], ['spectral', 'MDS'], range(1, 50))
 sc.concatenate_records()
 sc.put_cluster_trees_parallel(program='bionj', overwrite=False)
 
-sc_yeast.concatenate_records()
-sc_yeast.put_cluster_trees(program='bionj', overwrite=False)
+# sc_yeast.concatenate_records()
+# sc_yeast.put_cluster_trees(program='bionj', overwrite=False)
 
 # yr.concatenate_records()
 # yr.put_cluster_trees(program='bionj', overwrite=False)
@@ -136,24 +140,24 @@ dShiMalikrf=extract(sc, 'ShiMalik', 'rf')
 
 
 
-# d2 = {}
-# print '''
+d2 = {}
+print '''
 
 
-# :::YEAST:::
+:::YEAST:::
 
 
-# '''
-# for k in sorted(sc_yeast.clusters_to_partitions, key=lambda x: (x[0],
-#                 x[2], x[1])):
-#     if 'MDS' in k and 'geo' in k:
-#         score = \
-#             sc_yeast.partitions[sc_yeast.clusters_to_partitions[k]].score
-#         free_params = k[2] * 18
-#         BIC = -2 * score + free_params * np.log(106)
-#         print k, score, BIC
-#         d2[k[2]] = BIC
-# print '''
+'''
+for k in sorted(sc_yeast.clusters_to_partitions, key=lambda x: (x[0],
+                x[2], x[1])):
+    if 'MDS' in k and 'geo' in k:
+        score = \
+            sc_yeast.partitions[sc_yeast.clusters_to_partitions[k]].score
+        free_params = k[2] * 18
+        BIC = -2 * score + free_params * np.log(106)
+        print k, score, BIC
+        d2[k[2]] = BIC
+print '''
 
 
 # :::RANDOMISED YEAST:::

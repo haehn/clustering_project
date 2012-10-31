@@ -142,8 +142,9 @@ class DistanceMatrix(object):
             dm = self.matrix
         size = len(dm)
         new = np.zeros((size, size))
-        for i in range(size):
-            for j in range(i + 1, size):
+        r = range(size)
+        for i in r:
+            for j in r[i+1:]:
                 eps = np.random.normal(0, 0.001)
                 if dm[i, j] + eps > 0:
                     new[i, j] = new[j, i] = dm[i, j] + eps
@@ -206,7 +207,7 @@ class DistanceMatrix(object):
         ones = np.ones( D.shape )
 
         bracket = I - ones/D.shape[0]
-        F = -0.5 * np.dot(bracket, np.dot(D, bracket))
+        F = -0.5 * bracket.dot(D.dot(bracket))
 
         # Can calculate Cholesky decomp iff F is PSD
         try:

@@ -124,7 +124,8 @@ static PyObject *build_Uab(PyObject *self, PyObject *args) {
     npy_long *p_m1, *p_m2;                  // pointers to integer values
     double *p_theta, **p_Uab; // pointers to float values
     double tmp, cos_theta, sin_theta;       // float data
-    int dims[2];
+    // int dims[2];
+    npy_intp dims[2];
 
     // parse input
     if (!PyArg_ParseTuple(args, "O!iiO!O!i",
@@ -152,8 +153,9 @@ static PyObject *build_Uab(PyObject *self, PyObject *args) {
     }
 
     dims[0] = dims[1] = dim;
-    Uab = (PyArrayObject *) PyArray_FromDims(2,dims,NPY_DOUBLE); // 2D Array
-    
+    // Uab = (PyArrayObject *) PyArray_FromDims(2,dims,NPY_DOUBLE); // 2D Array
+    Uab = (PyArrayObject *) PyArray_SimpleNew(2,dims,NPY_DOUBLE); // 2D Array
+
     // pointers
     p_theta = pyvector_to_Carrayptrs(theta);
     p_Uab = pymatrix_to_Carrayptrs(Uab); // remember to free this memory!
