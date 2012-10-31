@@ -1,6 +1,0 @@
-initial distance fit: 0.10296476
-after fitting edges with FitLabeledEdgesC, fit 0.102964755261
-after FiveOptim, dst fit 0.10296476 (0 swaps)
-after fitting edges with FitLabeledEdgesC, 0.10296476
-((C_medius:2.45145,M_coquereli__DLC2037_:1.95504):0.520856,(((P_tattersalli__DLC6196_:0.151173,P_coquereli__DLC6583_:0.0235156):0.381075,P_diadema__DLC6564_:0.492794):1.94237,L_ruficaudatus:2.25603):0.520856);
-0.102965
