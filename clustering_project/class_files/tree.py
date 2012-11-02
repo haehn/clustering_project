@@ -135,13 +135,15 @@ class Tree(object):
         writer.close()
         return outfile
 
-    def check_rooted(self, newick):
+    @classmethod
+    def check_rooted(cls, newick):
         t = dpy.Tree()
         t.read_from_string(newick, 'newick')
         root_degree = len(t.seed_node.child_nodes())
         return root_degree == 2
 
-    def deroot_tree(self, newick):
+    @classmethod
+    def deroot_tree(cls, newick):
         t = dpy.Tree()
         t.read_from_string(newick, 'newick')
         t.deroot()
@@ -315,6 +317,42 @@ class Tree(object):
             rooted,
             )
 
+    @classmethod
+    def new_treecollection_tree(
+        cls,
+        dv_file,
+        map_file,
+        label_file,
+        tree_file,
+        name,
+        overwrite=True,
+        deroot=True,
+        ):
+
+        print 'cls = ', cls
+        command = \
+            'TreeCollection -D {0} -M {1} -L {2} -T {3}'.format(dv_file,
+                map_file, label_file, tree_file)
+        process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
+                        stderr=PIPE)
+        process.wait()
+        (stdout, stderr) = process.communicate()
+        info = stdout.split()
+        tree = info[-2]
+        if deroot:
+            tree = cls.deroot_tree(tree)
+        score = float(info[-1])
+        rooted = cls.check_rooted(tree)
+
+        return Tree(
+            tree,
+            score,
+            'TreeCollection',
+            name,
+            stdout,
+            rooted,
+            ).pam2sps('pam2sps')
+
     def run_treecollection(
         self,
         dv_file,
@@ -328,19 +366,16 @@ class Tree(object):
 
         if not overwrite and self.newick:
             return self
-        command = \
-            'TreeCollection -D {0} -M {1} -L {2} -T {3}'.format(dv_file,
-                map_file, label_file, tree_file)
-        process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
-                        stderr=PIPE)
-        process.wait()
-        (stdout, stderr) = process.communicate()
-        info = stdout.split()
-        tree = info[-2]
-        if deroot:
-            tree = self.deroot_tree(tree)
-        score = float(info[-1])
-        rooted = self.check_rooted(tree)
+
+        new_tree = self.new_treecollection_tree(
+            dv_file,
+            map_file,
+            label_file,
+            tree_file,
+            name,
+            overwrite,
+            deroot,
+            )
 
         (
             self.newick,
@@ -350,21 +385,13 @@ class Tree(object):
             self.output,
             self.rooted,
             ) = (
-            tree,
-            score,
-            'TreeCollection',
-            name,
-            stdout,
-            rooted,
+            new_tree.newick,
+            new_tree.score,
+            new_tree.program,
+            new_tree.name,
+            new_tree.output,
+            new_tree.rooted,
             )
-        return Tree(
-            tree,
-            score,
-            'TreeCollection',
-            name,
-            stdout,
-            rooted,
-            ).pam2sps('pam2sps')
 
     def _unpack_raxml_args(packed_args):
         """
@@ -691,6 +718,7 @@ class Tree(object):
             target_node,
             child_node,
             ):
+
             target_node.add_child(child_node[0],
                                   edge_length=child_node[2] - time)
             return tree

@@ -4,7 +4,6 @@
 from seqsim import SeqSim
 import numpy as np
 import argparse
-import os
 
 
 def fpath(s):
@@ -134,10 +133,10 @@ help_unique = \
 If selected, constrains class trees to have different topologies
 
 '''
-
+desc = 'Run ALF simulator to generate different topological classes'
 parser = argparse.ArgumentParser(
                     prog='testsim.py',
-                    description='Run ALF simulator to generate different topological classes',
+                    description=desc,
                     formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-k', '--classes', help='Number of classes',
                     type=int, default=2)
@@ -149,7 +148,8 @@ parser.add_argument('-r', '--regime', help=help_regime, type=int,
                     default=2)
 parser.add_argument('-t', '--tune', help=help_tuning, type=int,
                     default=1)
-parser.add_argument('-master', help=help_master, type=str, default='random_yule')
+parser.add_argument('-master', help=help_master, type=str, 
+                    default='random_yule')
 parser.add_argument('-c', '--class_permuter', help=help_permuter, type=str,
                     default='nni')
 parser.add_argument('-p', '--permutations', help=help_permutations,
@@ -157,7 +157,8 @@ parser.add_argument('-p', '--permutations', help=help_permutations,
 parser.add_argument('-d','--directory', help='Base output directory\n', 
                     type=fpath, default='.')
 parser.add_argument('-g', '--geodesic',
-                    help='path to gtp.jar, used to calculate geodesic distance\n',
+                    help=\
+                    'path to gtp.jar, used to calculate geodesic distance\n',
                     type=fpath, default='./class_files')
 parser.add_argument('-tmp', '--temp-directory',
                     help='Directory to use for temp files\n', type=fpath,
@@ -166,8 +167,9 @@ parser.add_argument('-i', '--indels',
                     help='Simulate indels (default=no)\n',
                     action='store_true')
 parser.add_argument('-ratevar', '--ratevar',
-                    help='Simulate rate variation among sites (default=no)\n'
-                    , action='store_true')
+                    help=\
+                    'Simulate rate variation among sites (default=no)\n',
+                    action='store_true')
 parser.add_argument('-q', '--quiet', help='Less printing to screen\n',
                     action='store_true')
 parser.add_argument('-u', '--unique', help=help_unique, action='store_true')
