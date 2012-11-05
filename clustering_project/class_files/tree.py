@@ -4,7 +4,6 @@ import re
 import os
 import dendropy as dpy
 from dendropy import treesim
-from dendropy import TaxonSet
 import numpy as np
 import ete2
 import random
@@ -53,9 +52,9 @@ class Tree(object):
     def pam2sps(self, multiplier=0.01):
         """
         Scales branch lengths by an order of `multiplier`.
-        Default is 0.01, converting PAM units to substitutions 
+        Default is 0.01, converting PAM units to substitutions
         per site.
-        multiplier = 'sps2pam' scales by 100, performing the 
+        multiplier = 'sps2pam' scales by 100, performing the
         opposite operation.
         multiplier = 'strip' removes branch lengths entirely
         """
@@ -115,7 +114,7 @@ class Tree(object):
     def write_to_file(self, outfile, metadata=False):
         """
         Writes a string representation of the object's contents
-        to file. This can be read using read_from_file to 
+        to file. This can be read using read_from_file to
         reconstruct the Tree object, if metadata is included (i.e.
         metadata=True)
         """
@@ -329,7 +328,6 @@ class Tree(object):
         deroot=True,
         ):
 
-        print 'cls = ', cls
         command = \
             'TreeCollection -D {0} -M {1} -L {2} -T {3}'.format(dv_file,
                 map_file, label_file, tree_file)

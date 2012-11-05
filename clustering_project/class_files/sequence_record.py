@@ -126,14 +126,14 @@ class SequenceRecord(object):
         file_format='fasta',
         name=None,
         datatype=None,
-        headers=None,
-        sequences=None,
+        headers=[],
+        sequences=[],
         ):
 
         self.name = name
         self.headers = headers
         self.sequences = sequences
-        self.mapping = None
+        self.mapping = {}
         self.length = 0
         self.seqlength = 0
         self.datatype = datatype
@@ -406,8 +406,8 @@ class TCSeqRec(SequenceRecord):
         infile=None,
         file_format='fasta',
         name=None,
-        headers=None,
-        sequences=None,
+        headers=[],
+        sequences=[],
         dv=[],
         datatype=None,
         tree=None,
@@ -416,6 +416,7 @@ class TCSeqRec(SequenceRecord):
         self.name = name
         self.headers = headers
         self.sequences = sequences
+        self.mapping = {}
         self.datatype = datatype
         self.length = 0
         self.seqlength = 0
