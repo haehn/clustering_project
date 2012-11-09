@@ -31,7 +31,7 @@ class Tree(object):
         self.program = program
         self.name = name
         self.output = output
-        self.rooted = rooted
+        self.rooted = self.check_rooted(self.newick)
 
     def __str__(self):
         """
@@ -133,6 +133,10 @@ class Tree(object):
 
     @classmethod
     def check_rooted(cls, newick):
+        if newick is None:
+            return None
+        if newick == '':
+            return None
         t = dpy.Tree()
         t.read_from_string(newick, 'newick')
         root_degree = len(t.seed_node.child_nodes())
@@ -657,36 +661,9 @@ class Tree(object):
         return Tree(newick, self.score, self.program, self.name,
                     self.output)
 
-    def spr(self, disallow_sibling_SPRs=False):
-
-        def choose_prune_and_regraft_nodes(time, blocks,
-                disallow_sibling_SPRs):
-            matching_branches = [x for x in dists if x[1] < time
-                                 < x[2]]
-
-            prune = random.sample(matching_branches, 1)[0]
-
-            if disallow_sibling_SPRs:
-                siblings = prune[0].sister_nodes()
-                for br in matching_branches:
-                    if br[0] in siblings:
-                        matching_branches.remove(br)
-
-            matching_branches.remove(prune)
-            
-            if matching_branches == []:
-                print 'No non-sibling branches available'
-                return None, None
-
-            regraft = random.sample(matching_branches, 1)[0]
-
-            prune_taxa = [n.taxon.label for n in prune[0].leaf_iter()]
-            regraft_taxa = [n.taxon.label for n in regraft[0].leaf_iter()]
-            print 'Donor group = {0}'.format(regraft_taxa)
-            print 'Receiver group = {0}'.format(prune_taxa)
-            return (prune, regraft)
-
-        def get_blocks(tree, include_leaf_nodes=True):
+    def spr(self, time=None, disallow_sibling_SPRs=False):
+        
+        def _get_blocks(tree, include_leaf_nodes=True):
             dists = []
             blocks = {}
             if include_leaf_nodes:
@@ -717,18 +694,20 @@ class Tree(object):
             dists.sort(key=lambda x: x[2])
             return (blocks, dists)
 
-        def weight_by_branches(blocks):
+
+        def _weight_by_branches(blocks):
             intervals = sorted(blocks.keys())
             weighted_intervals = [0] + [None] * (len(intervals) - 1)
             for i in range(1, len(intervals)):
                 time_range = intervals[i] - intervals[i - 1]
                 num_branches = len(blocks[intervals[i]])
                 weighted_range = time_range * num_branches
-                weighted_intervals[i] = weighted_range \
-                    + weighted_intervals[i - 1]
+                weighted_intervals[i] = weighted_range + weighted_intervals[i
+                        - 1]
             return weighted_intervals
 
-        def get_time(blocks, weights=None):
+
+        def _get_time(blocks, weights=None):
             d = sorted(blocks.keys())
             if weights:
                 samp = random.uniform(weights[0], weights[-1])
@@ -746,42 +725,86 @@ class Tree(object):
 
             return time
 
-        def add_node(tree, time, regraft_node):
+
+        def _choose_prune_and_regraft_nodes(time, blocks,
+                disallow_sibling_SPRs):
+            matching_branches = [x for x in dists if x[1] < time
+                                 < x[2]]
+
+            prune = random.sample(matching_branches, 1)[0]
+
+            if disallow_sibling_SPRs:
+                siblings = prune[0].sister_nodes()
+                for br in matching_branches:
+                    if br[0] in siblings:
+                        matching_branches.remove(br)
+
+            matching_branches.remove(prune)
+            
+            if matching_branches == []:
+                print 'No non-sibling branches available'
+                return None, None
+
+            regraft = random.sample(matching_branches, 1)[0]
+
+            prune_taxa = [n.taxon.label for n in prune[0].leaf_iter()]
+            regraft_taxa = [n.taxon.label for n in regraft[0].leaf_iter()]
+            print 'Donor group = {0}'.format(regraft_taxa)
+            print 'Receiver group = {0}'.format(prune_taxa)
+            return (prune, regraft)
+
+
+        def _add_node(tree, time, regraft_node):
             parent_node = regraft_node[0].parent_node
-            new_node = parent_node.add_child(dpy.Node(),
-                    edge_length=time - regraft_node[1])
+            new_node = parent_node.add_child(dpy.Node(), edge_length=time
+                    - regraft_node[1])
             tree.reindex_subcomponent_taxa()
             tree.update_splits()
             return new_node
 
-        def prunef(tree, node):
+
+        def _prunef(tree, node):
             tree.prune_subtree(node, update_splits=False,
                                delete_outdegree_one=True)
 
-        def regraftf(
+
+        def _regraftf(
             tree,
             time,
             target_node,
             child_node,
             ):
 
-            target_node.add_child(child_node[0],
-                                  edge_length=child_node[2] - time)
+            target_node.add_child(child_node[0], edge_length=child_node[2]
+                                  - time)
             return tree
+
 
         tree = dpy.Tree()
         tree.read_from_string(self.newick, 'newick')
-        (blocks, dists) = get_blocks(tree)
-        time = get_time(blocks)
-        (p, r) = choose_prune_and_regraft_nodes(time, dists,
+        if self.rooted is None:
+            tree.is_rooted = Tree.check_rooted(self.newick)
+        else:
+            tree.is_rooted = self.rooted
+        (blocks, dists) = _get_blocks(tree)
+        if not time:
+            weights = _weight_by_branches(blocks)
+            time = _get_time(blocks, weights)
+        (p, r) = _choose_prune_and_regraft_nodes(time, dists,
                 disallow_sibling_SPRs=disallow_sibling_SPRs)
+
         if (p, r) == (None, None):
-            return self
-        new_node = add_node(tree, time, r)
-        prunef(tree, p[0])
-        prunef(tree, r[0])
-        regraftf(tree, time, new_node, p)
-        regraftf(tree, time, new_node, r)
+            return spr(self, disallow_sibling_SPRs=disallow_sibling_SPRs)
+
+        new_node = _add_node(tree, time, r)
+        _prunef(tree, p[0])
+
+        _prunef(tree, r[0])
+
+        _regraftf(tree, time, new_node, p)
+
+        _regraftf(tree, time, new_node, r)
+
         tree.reindex_subcomponent_taxa()
         tree.update_splits()
 
@@ -792,5 +815,4 @@ class Tree(object):
         if tree.is_rooted:
             newick = '[&R] ' + newick
 
-        return Tree(newick, self.score, self.program, self.name,
-                    self.output)
+        return Tree(newick=newick, rooted=tree.is_rooted)
