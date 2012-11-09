@@ -124,10 +124,7 @@ class Tree(object):
             writer.write(str(self))
         else:
 
-            # Use regex to match and remove anything enclosed
-            # by square brackets, and any following spaces
-
-            writeable = re.sub(r'\[[^\]]*\][ ]*', '', str(self))
+            writeable = self.newick
             if not writeable.endswith('\n'):
                 writeable += '\n'
             writer.write(writeable)
@@ -660,10 +657,38 @@ class Tree(object):
         return Tree(newick, self.score, self.program, self.name,
                     self.output)
 
-    def spr(self):
+    def spr(self, disallow_sibling_SPRs=False):
 
-        def get_dists(tree, include_leaf_nodes=True):
+        def choose_prune_and_regraft_nodes(time, blocks,
+                disallow_sibling_SPRs):
+            matching_branches = [x for x in dists if x[1] < time
+                                 < x[2]]
+
+            prune = random.sample(matching_branches, 1)[0]
+
+            if disallow_sibling_SPRs:
+                siblings = prune[0].sister_nodes()
+                for br in matching_branches:
+                    if br[0] in siblings:
+                        matching_branches.remove(br)
+
+            matching_branches.remove(prune)
+            
+            if matching_branches == []:
+                print 'No non-sibling branches available'
+                return None, None
+
+            regraft = random.sample(matching_branches, 1)[0]
+
+            prune_taxa = [n.taxon.label for n in prune[0].leaf_iter()]
+            regraft_taxa = [n.taxon.label for n in regraft[0].leaf_iter()]
+            print 'Donor group = {0}'.format(regraft_taxa)
+            print 'Receiver group = {0}'.format(prune_taxa)
+            return (prune, regraft)
+
+        def get_blocks(tree, include_leaf_nodes=True):
             dists = []
+            blocks = {}
             if include_leaf_nodes:
                 iterator = tree.preorder_node_iter()
             else:
@@ -676,27 +701,50 @@ class Tree(object):
                     parent_height = 0
                 else:
                     parent_height = n.parent_node.distance_from_root()
+                node_height = round(node_height, 8)
+                parent_height = round(parent_height, 8)
+
+                if not node_height in blocks:
+                    blocks[node_height] = []
+
                 dists.append((n, parent_height, node_height))
 
+            for time in blocks:
+                for (node, parent_h, node_h) in dists:
+                    if parent_h < time <= node_h:
+                        blocks[time].append(node)
+
             dists.sort(key=lambda x: x[2])
-            return {'dists': dists, 'root_height': root_height,
-                    'tree_height': tree_height}
+            return (blocks, dists)
 
-        def get_time(dists):
-            time = random.uniform(dists['root_height'],
-                                  dists['tree_height'])
+        def weight_by_branches(blocks):
+            intervals = sorted(blocks.keys())
+            weighted_intervals = [0] + [None] * (len(intervals) - 1)
+            for i in range(1, len(intervals)):
+                time_range = intervals[i] - intervals[i - 1]
+                num_branches = len(blocks[intervals[i]])
+                weighted_range = time_range * num_branches
+                weighted_intervals[i] = weighted_range \
+                    + weighted_intervals[i - 1]
+            return weighted_intervals
+
+        def get_time(blocks, weights=None):
+            d = sorted(blocks.keys())
+            if weights:
+                samp = random.uniform(weights[0], weights[-1])
+                for i in range(len(weights) - 1):
+                    if weights[i + 1] >= samp > weights[i]:
+                        interval = weights[i + 1] - weights[i]
+                        proportion = (samp - weights[i]) / interval
+                        break
+                drange = d[i + 1] - d[i]
+                time = drange * proportion + d[i]
+            else:
+                time = random.uniform(d[0], d[-1])
+
             print 'LGT event at time: {0}'.format(time)
-            return time
 
-        def choose_prune_and_regraft_nodes(time, dists):
-            (prune, regraft) = random.sample([x for x in dists['dists']
-                    if x[1] < time < x[2]], 2)
-            prune_taxa = [n.taxon.label for n in prune[0].leaf_iter()]
-            regraft_taxa = [n.taxon.label for n in
-                            regraft[0].leaf_iter()]
-            print 'Donor group = {0}'.format(regraft_taxa)
-            print 'Receiver group = {0}'.format(prune_taxa)
-            return (prune, regraft)
+            return time
 
         def add_node(tree, time, regraft_node):
             parent_node = regraft_node[0].parent_node
@@ -723,9 +771,12 @@ class Tree(object):
 
         tree = dpy.Tree()
         tree.read_from_string(self.newick, 'newick')
-        dists = get_dists(tree)
-        time = get_time(dists)
-        (p, r) = choose_prune_and_regraft_nodes(time, dists)
+        (blocks, dists) = get_blocks(tree)
+        time = get_time(blocks)
+        (p, r) = choose_prune_and_regraft_nodes(time, dists,
+                disallow_sibling_SPRs=disallow_sibling_SPRs)
+        if (p, r) == (None, None):
+            return self
         new_node = add_node(tree, time, r)
         prunef(tree, p[0])
         prunef(tree, r[0])

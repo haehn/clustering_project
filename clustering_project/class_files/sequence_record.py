@@ -560,6 +560,8 @@ class TCSeqRec(SequenceRecord):
         """
 
         items = self.mapping.items()
+        if items == []:
+            return self
         sort_key = lambda item: tuple((int(num) if num else alpha)
                 for (num, alpha) in re.findall(r'(\d+)|(\D+)', item[0]))
         items = sorted(items, key=sort_key)
@@ -567,6 +569,7 @@ class TCSeqRec(SequenceRecord):
         if in_place:
             self.headers = h
             self.sequences = s
+            return self
         else:
             return TCSeqRec(name=self.name, headers=h, sequences=s,
                             datatype=self.datatype)
@@ -595,7 +598,13 @@ class TCSeqRec(SequenceRecord):
         self.write_phylip('{0}/{1}.phy'.format(tmpdir, filename))
         return filename
 
-    def _write_temp_tc(self, tmpdir='/tmp'):
+    def _write_temp_tc(self, tmpdir='/tmp', make_guide_tree=True, hashname=False):
+        if not hashname:
+            filename = self.name
+        else:
+            H = hashlib.sha1()
+            H.update(self.name)
+            filename = H.hexdigest()
         num_matrices = len(self.dv)
         if num_matrices == 0:
             print 'No distance-variance matrix available'
@@ -605,14 +614,15 @@ class TCSeqRec(SequenceRecord):
 
         # Temporary files
 
-        dv_tmpfile = open('{0}/{1}_dv.txt'.format(tmpdir, self.name),
+        dv_tmpfile = open('{0}/{1}_dv.txt'.format(tmpdir, filename),
                           'w')
         labels_tmpfile = open('{0}/{1}_labels.txt'.format(tmpdir,
-                              self.name), 'w')
-        map_tmpfile = open('{0}/{1}_map.txt'.format(tmpdir, self.name),
+                              filename), 'w')
+        map_tmpfile = open('{0}/{1}_map.txt'.format(tmpdir, filename),
                            'w')
-        guidetree_tmpfile = open('{0}/{1}_tree.nwk'.format(tmpdir,
-                                 self.name), 'w')
+        if make_guide_tree:
+            guidetree_tmpfile = open('{0}/{1}_tree.nwk'.format(tmpdir,
+                                 filename), 'w')
 
         # Write headers to temp files
 
@@ -652,26 +662,28 @@ class TCSeqRec(SequenceRecord):
         labels_tmpfile.close()
 
         # Write the guidetree
-
-        guidetree = self.get_bionj_tree(ncat=1, tmpdir=tmpdir)
-        dpy_guidetree = dpy.Tree()
-        dpy_guidetree.read_from_string(guidetree.newick, 'newick')
-        dpy_guidetree.resolve_polytomies()
-        newick_string = dpy_guidetree.as_newick_string() + ';\n'
-        guidetree_tmpfile.write(newick_string)
-        guidetree_tmpfile.flush()
-        guidetree_tmpfile.close()
+        if make_guide_tree:
+            guidetree = self.get_bionj_tree(ncat=1, tmpdir=tmpdir)
+            dpy_guidetree = dpy.Tree()
+            dpy_guidetree.read_from_string(guidetree.newick, 'newick')
+            dpy_guidetree.resolve_polytomies()
+            newick_string = dpy_guidetree.as_newick_string() + ';\n'
+            guidetree_tmpfile.write(newick_string)
+            guidetree_tmpfile.flush()
+            guidetree_tmpfile.close()
 
         # Check it all worked
 
         assert os.path.isfile('{0}/{1}_dv.txt'.format(tmpdir,
-                              self.name))
+                              filename))
         assert os.path.isfile('{0}/{1}_labels.txt'.format(tmpdir,
-                              self.name))
+                              filename))
         assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir,
-                              self.name))
-        assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir,
-                              self.name))
+                              filename))
+        if make_guide_tree:
+            assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir,
+                              filename))
+        return filename 
 
     def get_phyml_tree(
         self,
@@ -851,3 +863,6 @@ class TCSeqRec(SequenceRecord):
         os.remove(fastafile)
         os.remove('{0}/temp_distvar.txt'.format(tmpdir))
         return (dv_string, labels)
+
+
+

@@ -108,7 +108,9 @@ class Clustering(object):
         # CLUSTER_ROTATE STUFF HERE
 
         (nclusters, clustering, quality_scores, rotated_vectors) = \
-            self.cluster_rotate(eigvecs, max_groups=int(np.sqrt(matrix.shape[0])))
+            self.cluster_rotate(eigvecs,
+                                max_groups=int(np.sqrt(matrix.shape[0])
+                                + np.power(matrix.shape[0], 1.0 / 3)))
 
         # ######################
 
@@ -662,7 +664,8 @@ class Clustering(object):
         max_score = max(quality_scores)
         index = quality_scores.index(max_score)
         start = index + 1
-        for i, score in enumerate(quality_scores[index+1:], start=start):
+        for (i, score) in enumerate(quality_scores[index + 1:],
+                                    start=start):
             if abs(score - max_score) < 0.005:
                 index = i
 
