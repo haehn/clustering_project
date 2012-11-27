@@ -111,7 +111,7 @@ class Tree(object):
             return
         return self
 
-    def write_to_file(self, outfile, metadata=False):
+    def write_to_file(self, outfile, metadata=False, suppress_NHX=False):
         """
         Writes a string representation of the object's contents
         to file. This can be read using read_from_file to
@@ -125,6 +125,9 @@ class Tree(object):
         else:
 
             writeable = self.newick
+            if suppress_NHX:
+                if writeable.startswith('[&R] '):
+                    writeable = writeable[5:]
             if not writeable.endswith('\n'):
                 writeable += '\n'
             writer.write(writeable)

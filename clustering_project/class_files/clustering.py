@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import numpy as np
+np.set_printoptions(threshold='nan', precision=3)
+import sys
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from Bio.Cluster import kmedoids
 import matplotlib.pyplot as plt
@@ -37,6 +39,9 @@ class Clustering(object):
         #     s += ' '.join(str(x) for x in p) + '\n'
         # return s
 
+    def clear_cache(self):
+        self.cache = {}
+
     def run_kmedoids(self, dm, nclusters):
 
         if dm.metric == 'rf':
@@ -60,10 +65,11 @@ class Clustering(object):
         ):
 
         if dm.metric == 'rf':
-            print 'metric = rf, adding noise...'
+            # print 'metric = rf, adding noise...'
             matrix = dm.add_noise(dm.matrix)
         else:
             matrix = dm.matrix
+
         if recalculate or not 'spectral_decomp' in self.cache:
             laplacian = self.spectral(matrix, prune=prune)
 
@@ -570,13 +576,13 @@ class Clustering(object):
 
         def laplace(affinity_matrix):
 
-            D = np.diag(affinity_matrix.sum(axis=1))
-            invRootD = np.sqrt(np.linalg.inv(D))
+            diagonal = affinity_matrix.sum(axis=1)
+            invRootD = np.diag(np.sqrt(1/diagonal))
             return np.dot(np.dot(invRootD, affinity_matrix), invRootD)
 
         # prune graph edges, but require graph be fully connected
 
-        if prune:  # 'guess a number' strategy
+        if prune:  # binary search
             mink = 1
             maxk = size
             guessk = int(np.log(size).round())

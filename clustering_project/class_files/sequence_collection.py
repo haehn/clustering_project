@@ -5,6 +5,7 @@ import os
 import multiprocessing
 import copy
 import re
+import sys
 from sequence_record import TCSeqRec
 from distance_matrix import DistanceMatrix
 from clustering import Clustering
@@ -135,12 +136,16 @@ class SequenceCollection(object):
             # file checks
 
             if files == 0:
+                print '!!!'
                 print 'There was a problem reading files from {0}'.format(input_dir)
-                return
+                print '!!!'
+                sys.exit(1)
 
             if get_distances and not os.path.isfile(helper):
+                print '!!!'
                 print 'There was a problem finding the darwin helper at {0}'.format(helper)
-                return
+                print '!!!'
+                sys.exit(1)
 
             # done
 
@@ -625,7 +630,10 @@ class SequenceCollection(object):
         # names = [rec.name for rec in self.get_records()]
 
         for metric in metrics:
+            print 'Clustering {0} data'.format(metric)
+            self.Clustering.clear_cache()
             for cluster_method in cluster_methods:
+                print ' ',cluster_method
                 for n in nclusters:
                     key = (metric, cluster_method, n)
                     if key in self.clusters_to_partitions:

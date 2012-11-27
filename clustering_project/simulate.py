@@ -4,6 +4,7 @@
 from seqsim import SeqSim
 import numpy as np
 import argparse
+import os
 
 
 def fpath(s):
@@ -184,7 +185,10 @@ permutation_strength = args['permutations']
 permutation_type = args['class_permuter']
 master_tree_generator = args['master']
 filepath = args['directory']
-tmpdir = args['temp_directory']
+if 'TEMPORARY_DIRECTORY' in os.environ:
+    tmpdir = os.environ['TEMPORARY_DIRECTORY']
+else:
+    tmpdir = args['temp_directory']
 indels = args['indels']
 ratevar = args['ratevar']
 quiet = args['quiet']
@@ -208,6 +212,7 @@ if ratevar:
     sim.rate_variation()
 
 print 'Regime = {0}'.format(regime)
+print 'Temp directory used was {0}'.format(tmpdir)
 sim.simulate_set(
     K=K,
     M=M,

@@ -3,7 +3,7 @@
 
 from tree import Tree
 from sequence_record import TCSeqRec
-import GeoMeTreeHack
+# import GeoMeTreeHack
 import dendropy as dpy
 import glob
 import numpy as np
@@ -606,7 +606,7 @@ scaleTree := {5};
                     while not self.check_diff_top(new_tree, checklist):
                         new_tree = Tree(master_tree.newick)
                         for i in range(permutation_extent):
-                            new_tree = new_tree.spr()
+                            new_tree = new_tree.spr(disallow_sibling_SPRS=True)
                 else:
                     for i in range(num_permutations):
                         new_tree = new_tree.spr()
@@ -685,7 +685,7 @@ scaleTree := {5};
         parameter_files = []
         
         print 'Master tree = ', master_tree
-        master_tree.write_to_file('{0}/true_trees/master.tree'.format(filepath))
+        master_tree.write_to_file('{0}/true_trees/master.tree'.format(filepath), suppress_NHX=True)
 
         # make K class trees
         for k in range(K): 
@@ -704,7 +704,7 @@ scaleTree := {5};
 
             print 'class tree = ', class_tree
             class_tree.write_to_file('{0}/true_trees/class{1}.tree'.format(filepath,
-                                    k + 1))
+                                    k + 1), suppress_NHX=True)
             
             # ALF only behaves itself if trees are in PAM units,
             # so we scale our newly-generated class trees to have branch lengths
@@ -713,7 +713,7 @@ scaleTree := {5};
             if unit_is_pam: # Default = True
                 class_tree_PAM = class_tree.pam2sps('sps2pam') # conversion from SPS to PAM
                 class_tree_PAM.write_to_file('{0}/alf_trees_dir/class{1}_1.nwk'.format(tmpdir,
-                        k + 1))
+                        k + 1),  suppress_NHX=True)
 
             # Write parameter files
 
@@ -756,7 +756,7 @@ scaleTree := {5};
                         class_tree = class_tree.pam2sps('sps2pam')
 
                 class_tree.write_to_file('{0}/alf_trees_dir/class{1}_{2}.nwk'.format(tmpdir,
-                        k + 1, genes + 1))
+                        k + 1, genes + 1),  suppress_NHX=True)
 
                 sim.root_genome(number_of_genes=1,
                                 min_length=gene_length_min,
@@ -872,11 +872,11 @@ wRF\t{4}
             if regime in [1,2]:
                 for g in range(mk[int(class_number)-1]):
                     Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/individual/class{1}_{2}.nwk'.format(filepath,
-                                    class_number, g + 1))
+                                    class_number, g + 1),  suppress_NHX=True)
 
             else:
                 Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/individual/{1}.nwk'.format(filepath,
-                                    name))
+                                    name),  suppress_NHX=True)
 
         # Intra- and inter-class stats
 

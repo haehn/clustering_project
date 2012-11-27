@@ -431,16 +431,16 @@ class SequenceRecord(object):
             for i in range(num_lines):
                 for seq_header in self.headers:
                     if i == 0:
-                        s.append('{0:<{1}}{2}'.format(seq_header,
+                        s.append('{0:<{1}} {2}'.format(seq_header,
                                 label_length,
                                 (self.mapping[seq_header])[i
                                 * seq_length:(i + 1) * seq_length]))
                     else:
-                        s.append('{0}{1}'.format(' ' * label_length, (self.mapping[seq_header])[i
+                        s.append('{0} {1}'.format(' ' * label_length, (self.mapping[seq_header])[i
                                 * seq_length:(i + 1) * seq_length]))
                 s.append('')
         else:
-            lines = ['{0:<{1}}{2:-<{3}}'.format(x, label_length, y, maxlen) for (x,
+            lines = ['{0:<{1}} {2:-<{3}}'.format(x, label_length, y, maxlen) for (x,
                      y) in zip(self.headers, self.sequences)]
             s.extend(lines)
             s.append('')

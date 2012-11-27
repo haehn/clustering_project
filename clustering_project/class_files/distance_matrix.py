@@ -106,10 +106,13 @@ class DistanceMatrix(object):
         elif metric == 'rf':
 
             dpy_trees = self.convert_to_dendropy_trees(trees)
+            ntax = len(dpy_trees[0].leaf_nodes())
+            max_rf = 2.0*(ntax-3)
             for i in range(num_trees):
                 for j in range(i + 1, num_trees):
                     distance = self.get_rf_distance(dpy_trees[i],
                             dpy_trees[j])
+                    distance /= max_rf
                     matrix[i, j] = matrix[j, i] = distance
         elif metric == 'wrf':
 
