@@ -178,7 +178,7 @@ class DistanceMatrix(object):
             extent=[0.0, length, 0.0, length],
             vmin=0,
             vmax=datamax,
-            cmap=CM.bone,
+            cmap=CM.Blues,
             )
         cbar = fig.colorbar(cax, ticks=ticks_at, format='%1.2g')
         cbar.set_label('Distance')

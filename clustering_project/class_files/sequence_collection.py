@@ -85,8 +85,8 @@ class SequenceCollection(object):
         helper='./class_files/DV_wrapper.drw',
         gtp_path='./class_files',
         tmpdir='/tmp',
-        get_distances=True,
-        parallel_load=True,
+        get_distances=False,
+        parallel_load=False,
         overwrite=True,
         ):
 
