@@ -1,11 +1,18 @@
 #!/usr/bin/env python
-
+import_debugging = True
+if import_debugging: print 'sequence_record imports:'
 import re
+if import_debugging: print '  re (sr)'
 import os
+if import_debugging: print '  os (sr)'
 import dendropy as dpy
+if import_debugging: print '  dendropy (sr)'
 from subprocess import Popen, PIPE
+if import_debugging: print '  subprocess::Popen, PIPE (sr)'
 from tree import Tree
+if import_debugging: print '  tree::Tree (sr)'
 import hashlib
+if import_debugging: print '  hashlib (sr)'
 
 
 class SequenceRecord(object):
@@ -421,27 +428,29 @@ class SequenceRecord(object):
         file_header = ' {0} {1}'.format(self.length, maxlen)
         s = [file_header]
         maxheader = len(max(self.headers, key=len))
-        label_length = max(maxheader+1, 10) 
+        label_length = max(maxheader + 1, 10)
         if interleaved:
             seq_length = linebreaks - label_length
             num_lines = maxlen / seq_length
             if maxlen % seq_length:
                 num_lines += 1
-            
+
             for i in range(num_lines):
                 for seq_header in self.headers:
                     if i == 0:
                         s.append('{0:<{1}} {2}'.format(seq_header,
-                                label_length,
-                                (self.mapping[seq_header])[i
-                                * seq_length:(i + 1) * seq_length]))
+                                 label_length,
+                                 (self.mapping[seq_header])[i
+                                 * seq_length:(i + 1) * seq_length]))
                     else:
-                        s.append('{0} {1}'.format(' ' * label_length, (self.mapping[seq_header])[i
-                                * seq_length:(i + 1) * seq_length]))
+                        s.append('{0} {1}'.format(' ' * label_length,
+                                 (self.mapping[seq_header])[i
+                                 * seq_length:(i + 1) * seq_length]))
                 s.append('')
         else:
-            lines = ['{0:<{1}} {2:-<{3}}'.format(x, label_length, y, maxlen) for (x,
-                     y) in zip(self.headers, self.sequences)]
+            lines = ['{0:<{1}} {2:-<{3}}'.format(x, label_length, y,
+                     maxlen) for (x, y) in zip(self.headers,
+                     self.sequences)]
             s.extend(lines)
             s.append('')
         s = '\n'.join(s)
@@ -588,23 +597,29 @@ class TCSeqRec(SequenceRecord):
         self.sequences = [seq.upper() for seq in self.sequences]
         self._update()
 
-    def _write_temp_phylip(self, tmpdir='/tmp', hashname=False):
-        if not hashname:
-            filename = self.name
+    def hashname(self):
+        H = hashlib.sha1()
+        H.update(self.name)
+        return H.hexdigest()
+
+    def _write_temp_phylip(self, tmpdir='/tmp', use_hashname=False):
+        if use_hashname:
+            filename = self.hashname()
         else:
-            H = hashlib.sha1()
-            H.update(self.name)
-            filename = H.hexdigest()
+            filename = self.name
         self.write_phylip('{0}/{1}.phy'.format(tmpdir, filename))
         return filename
 
-    def _write_temp_tc(self, tmpdir='/tmp', make_guide_tree=True, hashname=False):
-        if not hashname:
-            filename = self.name
+    def _write_temp_tc(
+        self,
+        tmpdir='/tmp',
+        make_guide_tree=True,
+        use_hashname=False,
+        ):
+        if use_hashname:
+            filename = self.hashname()
         else:
-            H = hashlib.sha1()
-            H.update(self.name)
-            filename = H.hexdigest()
+            filename = self.name
         num_matrices = len(self.dv)
         if num_matrices == 0:
             print 'No distance-variance matrix available'
@@ -614,15 +629,15 @@ class TCSeqRec(SequenceRecord):
 
         # Temporary files
 
-        dv_tmpfile = open('{0}/{1}_dv.txt'.format(tmpdir, filename),
-                          'w')
+        dv_tmpfile = open('{0}/{1}_dv.txt'.format(tmpdir, filename), 'w'
+                          )
         labels_tmpfile = open('{0}/{1}_labels.txt'.format(tmpdir,
                               filename), 'w')
         map_tmpfile = open('{0}/{1}_map.txt'.format(tmpdir, filename),
                            'w')
         if make_guide_tree:
             guidetree_tmpfile = open('{0}/{1}_tree.nwk'.format(tmpdir,
-                                 filename), 'w')
+                    filename), 'w')
 
         # Write headers to temp files
 
@@ -662,6 +677,7 @@ class TCSeqRec(SequenceRecord):
         labels_tmpfile.close()
 
         # Write the guidetree
+
         if make_guide_tree:
             guidetree = self.get_bionj_tree(ncat=1, tmpdir=tmpdir)
             dpy_guidetree = dpy.Tree()
@@ -674,16 +690,15 @@ class TCSeqRec(SequenceRecord):
 
         # Check it all worked
 
-        assert os.path.isfile('{0}/{1}_dv.txt'.format(tmpdir,
-                              filename))
+        assert os.path.isfile('{0}/{1}_dv.txt'.format(tmpdir, filename))
         assert os.path.isfile('{0}/{1}_labels.txt'.format(tmpdir,
                               filename))
         assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir,
                               filename))
         if make_guide_tree:
             assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir,
-                              filename))
-        return filename 
+                                  filename))
+        return filename
 
     def get_phyml_tree(
         self,
@@ -692,13 +707,14 @@ class TCSeqRec(SequenceRecord):
         ncat=4,
         tmpdir='/tmp',
         overwrite=True,
+        verbose=False,
         ):
 
         if not overwrite and self.tree.newick:
             print '{0}: Tree exists and overwrite set to false'.format(self.name)
             return self.tree
         self.tree = Tree()
-        filename = self._write_temp_phylip(tmpdir=tmpdir, hashname=True)
+        filename = self._write_temp_phylip(tmpdir=tmpdir, use_hashname=True)
         print 'Running phyml on ' + str(self.name) + '...'
         input_file = '{0}/{1}.phy'.format(tmpdir, filename)
         if not model and not datatype:  # quick-fix to allow specification of other
@@ -718,6 +734,7 @@ class TCSeqRec(SequenceRecord):
             self.name,
             ncat=ncat,
             overwrite=overwrite,
+            verbose=verbose,
             )
         os.remove('{0}/{1}.phy'.format(tmpdir, filename))
         return self.tree
@@ -729,13 +746,14 @@ class TCSeqRec(SequenceRecord):
         ncat=1,
         tmpdir='/tmp',
         overwrite=True,
+        verbose=False,
         ):
 
         if not overwrite and self.tree.newick:
             print '{0}: Tree exists and overwrite set to false'.format(self.name)
             return self.tree
         self.Tree = Tree()
-        filename = self._write_temp_phylip(tmpdir=tmpdir, hashname=True)
+        filename = self._write_temp_phylip(tmpdir=tmpdir, use_hashname=True)
         print 'Running bionj on ' + str(self.name) + '...'
         input_file = '{0}/{1}.phy'.format(tmpdir, filename)
         if not model and not datatype:  # quick-fix to allow specification of other
@@ -755,6 +773,7 @@ class TCSeqRec(SequenceRecord):
             ncat,
             self.name,
             overwrite=overwrite,
+            verbose=verbose,
             )
         os.remove('{0}/{1}.phy'.format(tmpdir, filename))
         return self.tree
@@ -863,6 +882,3 @@ class TCSeqRec(SequenceRecord):
         os.remove(fastafile)
         os.remove('{0}/temp_distvar.txt'.format(tmpdir))
         return (dv_string, labels)
-
-
-

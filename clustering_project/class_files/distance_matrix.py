@@ -1,10 +1,16 @@
 #!/usr/bin/env python
-
+import_debugging = True
+if import_debugging: print 'distance_matrix.py imports:'
 import numpy as np
+if import_debugging: print '  numpy (dm)'
 import os
+if import_debugging: print '  os (dm)'
 import dendropy as dpy
+if import_debugging: print '  dendropy (dm)'
 from matplotlib import pyplot as plt
+if import_debugging: print '  matplotlib::pyplot (dm)'
 from matplotlib import cm as CM
+if import_debugging: print '  matplotlib::cm (dm)'
 
 
 class DistanceMatrix(object):
@@ -52,6 +58,14 @@ class DistanceMatrix(object):
     def get_euc_distance(self, tree1, tree2):
         return tree1.euclidean_distance(tree2)
 
+    @staticmethod 
+    def _sum_of_branch_lengths(dpy_tree):
+        tot = 0
+        for n in dpy_tree.preorder_node_iter():
+            if n.edge_length:
+                tot += n.edge_length
+        return tot
+
     def get_distance_matrix(
         self,
         metric,
@@ -80,6 +94,8 @@ class DistanceMatrix(object):
         assert os.path.isfile('{0}/gtp.jar'.format(gtp_path))
         num_trees = matrix.shape[0]
         self.metric = metric
+        dpy_trees = self.convert_to_dendropy_trees(trees)
+        branch_lengths = [self._sum_of_branch_lengths(x) for x in dpy_trees]
 
         if metric == 'geo':
             rooted = all([tree.rooted for tree in trees])
@@ -100,43 +116,48 @@ class DistanceMatrix(object):
                         i = int(i)
                         j = int(j)
                         value = float(value)
+                        if normalise:
+                            value /= ((branch_lengths[i] + branch_lengths[j]) / 2)
                         matrix[i, j] = matrix[j, i] = value
             os.remove('{0}/output.txt'.format(tmpdir))
             os.remove('{0}/geotrees.nwk'.format(tmpdir))
+        
         elif metric == 'rf':
 
-            dpy_trees = self.convert_to_dendropy_trees(trees)
             ntax = len(dpy_trees[0].leaf_nodes())
-            max_rf = 2.0*(ntax-3)
+            max_rf = 2.0 * (ntax - 3)
             for i in range(num_trees):
                 for j in range(i + 1, num_trees):
                     distance = self.get_rf_distance(dpy_trees[i],
                             dpy_trees[j])
-                    distance /= max_rf
+                    if normalise: 
+                        distance /= max_rf
                     matrix[i, j] = matrix[j, i] = distance
+        
         elif metric == 'wrf':
 
-            dpy_trees = self.convert_to_dendropy_trees(trees)
             for i in range(num_trees):
                 for j in range(i + 1, num_trees):
                     distance = self.get_wrf_distance(dpy_trees[i],
                             dpy_trees[j])
+                    if normalise:
+                            distance /= ((branch_lengths[i] + branch_lengths[j]) / 2)
                     matrix[i, j] = matrix[j, i] = distance
+        
         elif metric == 'euc':
 
-            dpy_trees = self.convert_to_dendropy_trees(trees)
             for i in range(num_trees):
                 for j in range(i + 1, num_trees):
                     distance = self.get_euc_distance(dpy_trees[i],
                             dpy_trees[j])
+                    if normalise:
+                            distance /= ((branch_lengths[i] + branch_lengths[j]) / 2)
                     matrix[i, j] = matrix[j, i] = distance
+        
         else:
 
             print 'Unrecognised distance metric'
             return
-
-        if normalise:
-            matrix = matrix / np.max(matrix)
 
         return matrix
 
@@ -147,7 +168,7 @@ class DistanceMatrix(object):
         new = np.zeros((size, size))
         r = range(size)
         for i in r:
-            for j in r[i+1:]:
+            for j in r[i + 1:]:
                 eps = np.random.normal(0, 0.001)
                 if dm[i, j] + eps > 0:
                     new[i, j] = new[j, i] = dm[i, j] + eps
@@ -206,15 +227,17 @@ class DistanceMatrix(object):
         """
 
         D = self.matrix
-        I = np.identity( D.shape )
-        ones = np.ones( D.shape )
+        I = np.identity(D.shape)
+        ones = np.ones(D.shape)
 
-        bracket = I - ones/D.shape[0]
+        bracket = I - ones / D.shape[0]
         F = -0.5 * bracket.dot(D.dot(bracket))
 
         # Can calculate Cholesky decomp iff F is PSD
+
         try:
             np.linalg.cholesky(F)
-        except: return False
-        
+        except:
+            return False
+
         return True

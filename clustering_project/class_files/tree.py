@@ -1,13 +1,33 @@
 #!/usr/bin/env python
 
+import_debugging = True
+if import_debugging:
+    print 'tree.py imports:'
 import re
+if import_debugging:
+    print '  re (tr)'
 import os
+if import_debugging:
+    print '  os (tr)'
 import dendropy as dpy
+if import_debugging:
+    print '  dendropy (tr)'
 from dendropy import treesim
+if import_debugging:
+    print '  dendropy::treesim (tr)'
 import numpy as np
+if import_debugging:
+    print '  numpy (tr)'
 import ete2
+if import_debugging:
+    print '  ete2 (tr)'
 import random
+if import_debugging:
+    print '  random (tr)'
 from subprocess import Popen, PIPE, call
+if import_debugging:
+    print '  subprocess::Popen, PIPE, call (tr)'
+from errors import FileError
 
 
 class Tree(object):
@@ -15,6 +35,10 @@ class Tree(object):
     """
     Class for storing the results of phylogenetic inference
     """
+
+    score_regex = re.compile('(?<=Log-likelihood: ).+')
+    name_regex = \
+        re.compile('([A-Za-z0-9\-_]+).([A-Za-z0-9\-_]+)(?=_phyml_)')
 
     def __init__(
         self,
@@ -48,6 +72,22 @@ class Tree(object):
             + 'Rooted:\t{0}\n'.format(self.rooted) \
             + 'Tree:\t]{0}\n'.format(self.newick)
         return s
+
+    def __eq__(self, other):
+        equal = True
+        if not self.name == other.name:
+            return False
+        if not self.newick == other.newick:
+            return False
+        if not self.program == other.program:
+            return False
+        if not self.score == other.score:
+            return False
+        if not self.rooted == other.rooted:
+            return False
+        if not self.output == other.output:
+            return False
+        return equal
 
     def pam2sps(self, multiplier=0.01):
         """
@@ -111,7 +151,12 @@ class Tree(object):
             return
         return self
 
-    def write_to_file(self, outfile, metadata=False, suppress_NHX=False):
+    def write_to_file(
+        self,
+        outfile,
+        metadata=False,
+        suppress_NHX=False,
+        ):
         """
         Writes a string representation of the object's contents
         to file. This can be read using read_from_file to
@@ -152,12 +197,68 @@ class Tree(object):
         t.deroot()
         return t.as_newick_string() + ';'
 
+    def load_phyml_results(
+        self,
+        tree_file,
+        stats_file,
+        name=None,
+        program='phyml',
+        ):
+        """
+        Loads phyml results into existing tree object
+           - returns None
+        """
+
+        exit = False
+        for f in (tree_file, stats_file):
+            try:
+                if not os.path.isfile(f):
+                    raise FileError(f)
+            except FileError, e:
+                print e
+                exit = True
+
+        if exit:
+            print 'Results were not loaded'
+            raise FileError()
+
+        if not name:
+            name = self.name_regex.search(tree_file).group(1)
+        newick = open(tree_file).read()
+        stats = open(stats_file).read()
+        score = float(self.score_regex.search(stats).group())
+
+        self.program = program
+        self.newick = newick
+        self.output = stats
+        self.score = score
+        self.name = name
+        self.rooted = self.check_rooted(newick)
+
+    @classmethod
+    def new_tree_from_phyml_results(
+        cls,
+        tree_file,
+        stats_file,
+        program='phyml',
+        ):
+        """
+        classmethod version of load_phyml_results
+           - returns a new Tree object
+        """
+
+        new_tree = cls()
+        new_tree.load_phyml_results(tree_file, stats_file,
+                                    program=program)
+        return new_tree
+
     def run_phyml(
         self,
         model,
         alignment_file,
         datatype,
-        name,
+        name=None,
+        interleaved=False,
         ncat=4,
         verbose=True,
         overwrite=True,
@@ -166,20 +267,19 @@ class Tree(object):
         if not overwrite and self.newick:
             return self
         command = \
-            'phyml -m {0} -i {1} -d {2} -c {3} -a e -b 0 --sequential --no_memory_check #> /dev/null'.format(model,
+            'phyml -m {0} -i {1} -d {2} -c {3} -a e -b 0 --sequential --no_memory_check'.format(model,
                 alignment_file, datatype, ncat)
+        if interleaved:
+            command = command.replace('--sequential ', '')
         if verbose:
-            command = command.replace('> /dev/null', '')
+            print command
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
                         stderr=PIPE)
         process.wait()
-        tree = open('{0}_phyml_tree.txt'.format(alignment_file)).read()
-        score = float(re.compile('(?<=Log-likelihood: ).+'
-                      ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
-        output = \
-            open('{0}_phyml_stats.txt'.format(alignment_file)).read()
-        rooted = self.check_rooted(tree)
-        os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
+        tree_file = '{0}_phyml_tree.txt'.format(alignment_file)
+        stats_file = '{0}_phyml_stats.txt'.format(alignment_file)
+        new_tree = self.new_tree_from_phyml_results(tree_file,
+                stats_file)
 
         (
             self.newick,
@@ -189,47 +289,46 @@ class Tree(object):
             self.output,
             self.rooted,
             ) = (
-            tree,
-            score,
-            'phyml',
-            name,
-            output,
-            rooted,
+            new_tree.newick,
+            new_tree.score,
+            new_tree.program,
+            new_tree.name,
+            new_tree.output,
+            new_tree.rooted,
             )
-        return Tree(
-            tree,
-            score,
-            'phyml',
-            name,
-            output,
-            rooted,
-            )
+
+        os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
+
+        return new_tree
 
     def run_bionj(
         self,
         model,
         alignment_file,
         datatype,
-        ncat,
-        name,
+        name=None,
+        interleaved=False,
+        ncat=4,
+        verbose=True,
         overwrite=True,
         ):
 
         if not overwrite and self.newick:
             return self
         command = \
-            'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o n --sequential --no_memory_check #> /dev/null'.format(model,
+            'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o n --sequential --no_memory_check'.format(model,
                 alignment_file, datatype, ncat)
+        if interleaved:
+            command = command.replace('--sequential ', '')
+        if verbose:
+            print command
         process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
                         stderr=PIPE)
         process.wait()
-        tree = open('{0}_phyml_tree.txt'.format(alignment_file)).read()
-        score = float(re.compile('(?<=Log-likelihood: ).+'
-                      ).search(open('{0}_phyml_stats.txt'.format(alignment_file)).read()).group())
-        output = \
-            open('{0}_phyml_stats.txt'.format(alignment_file)).read()
-        rooted = self.check_rooted(tree)
-        os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
+        tree_file = '{0}_phyml_tree.txt'.format(alignment_file)
+        stats_file = '{0}_phyml_stats.txt'.format(alignment_file)
+        new_tree = self.new_tree_from_phyml_results(tree_file,
+                stats_file, program='bionj')
 
         (
             self.newick,
@@ -239,21 +338,17 @@ class Tree(object):
             self.output,
             self.rooted,
             ) = (
-            tree,
-            score,
-            'bionj',
-            name,
-            output,
-            rooted,
+            new_tree.newick,
+            new_tree.score,
+            new_tree.program,
+            new_tree.name,
+            new_tree.output,
+            new_tree.rooted,
             )
-        return Tree(
-            tree,
-            score,
-            'bionj',
-            name,
-            output,
-            rooted,
-            )
+
+        os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
+
+        return new_tree
 
     def run_raxml(
         self,
@@ -665,7 +760,7 @@ class Tree(object):
                     self.output)
 
     def spr(self, time=None, disallow_sibling_SPRs=False):
-        
+
         def _get_blocks(tree, include_leaf_nodes=True):
             dists = []
             blocks = {}
@@ -697,7 +792,6 @@ class Tree(object):
             dists.sort(key=lambda x: x[2])
             return (blocks, dists)
 
-
         def _weight_by_branches(blocks):
             intervals = sorted(blocks.keys())
             weighted_intervals = [0] + [None] * (len(intervals) - 1)
@@ -705,10 +799,9 @@ class Tree(object):
                 time_range = intervals[i] - intervals[i - 1]
                 num_branches = len(blocks[intervals[i]])
                 weighted_range = time_range * num_branches
-                weighted_intervals[i] = weighted_range + weighted_intervals[i
-                        - 1]
+                weighted_intervals[i] = weighted_range \
+                    + weighted_intervals[i - 1]
             return weighted_intervals
-
 
         def _get_time(blocks, weights=None):
             d = sorted(blocks.keys())
@@ -728,11 +821,9 @@ class Tree(object):
 
             return time
 
-
         def _choose_prune_and_regraft_nodes(time, blocks,
                 disallow_sibling_SPRs):
-            matching_branches = [x for x in dists if x[1] < time
-                                 < x[2]]
+            matching_branches = [x for x in dists if x[1] < time < x[2]]
 
             prune = random.sample(matching_branches, 1)[0]
 
@@ -743,33 +834,31 @@ class Tree(object):
                         matching_branches.remove(br)
 
             matching_branches.remove(prune)
-            
+
             if matching_branches == []:
                 print 'No non-sibling branches available'
-                return None, None
+                return (None, None)
 
             regraft = random.sample(matching_branches, 1)[0]
 
             prune_taxa = [n.taxon.label for n in prune[0].leaf_iter()]
-            regraft_taxa = [n.taxon.label for n in regraft[0].leaf_iter()]
+            regraft_taxa = [n.taxon.label for n in
+                            regraft[0].leaf_iter()]
             print 'Donor group = {0}'.format(regraft_taxa)
             print 'Receiver group = {0}'.format(prune_taxa)
             return (prune, regraft)
 
-
         def _add_node(tree, time, regraft_node):
             parent_node = regraft_node[0].parent_node
-            new_node = parent_node.add_child(dpy.Node(), edge_length=time
-                    - regraft_node[1])
+            new_node = parent_node.add_child(dpy.Node(),
+                    edge_length=time - regraft_node[1])
             tree.reindex_subcomponent_taxa()
             tree.update_splits()
             return new_node
 
-
         def _prunef(tree, node):
             tree.prune_subtree(node, update_splits=False,
                                delete_outdegree_one=True)
-
 
         def _regraftf(
             tree,
@@ -778,10 +867,9 @@ class Tree(object):
             child_node,
             ):
 
-            target_node.add_child(child_node[0], edge_length=child_node[2]
-                                  - time)
+            target_node.add_child(child_node[0],
+                                  edge_length=child_node[2] - time)
             return tree
-
 
         tree = dpy.Tree()
         tree.read_from_string(self.newick, 'newick')
@@ -797,7 +885,8 @@ class Tree(object):
                 disallow_sibling_SPRs=disallow_sibling_SPRs)
 
         if (p, r) == (None, None):
-            return spr(self, disallow_sibling_SPRs=disallow_sibling_SPRs)
+            return spr(self,
+                       disallow_sibling_SPRs=disallow_sibling_SPRs)
 
         new_node = _add_node(tree, time, r)
         _prunef(tree, p[0])

@@ -1,7 +1,10 @@
 #!/usr/bin/env python
-
+import_debugging = True
+if import_debugging: print 'partition.py imports:'
 from math import log
+if import_debugging: print '  math::log (pa)'
 from copy import deepcopy
+if import_debugging: print '  copy::deepcopy (pa)'
 
 
 class Partition(object):
@@ -19,10 +22,11 @@ class Partition(object):
         self.partitions uses a compound key to retrieve partitions
         key = tuple of (distance_metric, linkage_method, num_classes)
         """
+
         self.partition_vector = partition_vector
 
     def __str__(self):
-        return str(self.partition_vector)   
+        return str(self.partition_vector)
 
     def concatenate_records(self, keys_to_records_map):
         """
@@ -35,7 +39,7 @@ class Partition(object):
 
         memberships = self.get_memberships(self.partition_vector)
         concats = []
-        
+
         index = 1  # index for naming clusters
         for cluster in memberships:
             cluster = sorted(cluster)
@@ -43,34 +47,35 @@ class Partition(object):
             seed = deepcopy(member_records.pop(0))  # use of deepcopy here is important
             for rec in member_records:
                 seed += rec
-            seed.name = '-'.join((str(x) for x in cluster))
+            seed.name = '-'.join(str(x) for x in cluster)
             concats.append(seed)
         self.concats = concats
         return concats
 
     def update_score(self, concats_dict):
-        self.score = sum([concats_dict[rec.name].tree.score for rec in self.concats])
+        self.score = sum([concats_dict[rec.name].tree.score for rec in
+                         self.concats])
 
     def get_memberships(self, partition_vector=None, flatten=False):
-            if not partition_vector:
-                partition_vector = self.partition_vector
+        if not partition_vector:
+            partition_vector = self.partition_vector
 
-            clusters = list(set(partition_vector))
-            result = []
-            for c in clusters:
-                members = []
-                for i in range(len(partition_vector)):
-                    if c == partition_vector[i]:
-                        members.append(i)
-                result.append(set(members))
-            result = sorted(result, key=len, reverse=True)
-            if flatten:
-                flatlist = []
-                ext = flatlist.extend
-                for cluster in result:
-                    ext(list(cluster))
-                return flatlist
-            return result
+        clusters = list(set(partition_vector))
+        result = []
+        for c in clusters:
+            members = []
+            for i in range(len(partition_vector)):
+                if c == partition_vector[i]:
+                    members.append(i)
+            result.append(set(members))
+        result = sorted(result, key=len, reverse=True)
+        if flatten:
+            flatlist = []
+            ext = flatlist.extend
+            for cluster in result:
+                ext(list(cluster))
+            return flatlist
+        return result
 
     def variation_of_information(self, partition_1, partition_2):
         """ 
@@ -139,3 +144,4 @@ class Partition(object):
                             * intersect / (len(m1[i]) * len(m2[j])), 2)
 
         return entropy_1 + entropy_2 - 2 * mut_inf
+

@@ -965,7 +965,7 @@ if __name__ == "__main__":
         Gfreq=0.21,
         Tfreq=0.3,
         )
-    # sim.indels()
+    sim.indels()
     sim.rate_variation()
     # sim.simulate_set(K=4,M=20,n=12,tune=1,regime=2,branch_length_func=np.random.gamma,inner_edge_params=(3.2,0.029),leaf_params=(2.2,0.097),scale_func=np.random.gamma,
     #     master_tree_generator_method='random_yule',class_tree_permuter='spr',guarantee_unique=True,num_permutations=3,scale_params=(1,1),gene_length_kappa=5.53,gene_length_theta=72.35,gene_length_min=10,

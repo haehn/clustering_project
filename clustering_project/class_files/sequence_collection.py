@@ -1,22 +1,64 @@
 #!/usr/bin/env python
 
+import_debugging = True
+if import_debugging:
+    print 'sequence_collection.py imports:'
+import cPickle
+if import_debugging:
+    print '  cPickle (sc)'
 import glob
+if import_debugging:
+    print '  glob (sc)'
 import os
+if import_debugging:
+    print '  os (sc)'
 import multiprocessing
+if import_debugging:
+    print '  multiprocessing (sc)'
 import copy
+if import_debugging:
+    print '  copy (sc)'
 import re
+if import_debugging:
+    print '  re (sc)'
 import sys
+if import_debugging:
+    print '  sys (sc)'
+import numpy as np
+if import_debugging:
+    print '  numpy (sc)'
+import matplotlib.pyplot as plt
+if import_debugging:
+    print '  matplotlib::pyplot (sc)'
+from mpl_toolkits.mplot3d import Axes3D
+if import_debugging:
+    print '  mpl_toolkits.mplot3d::Axes3D (pa)'
 from sequence_record import TCSeqRec
 from distance_matrix import DistanceMatrix
+if import_debugging:
+    print '  distance_matrix::DistanceMatrix (sc)'
 from clustering import Clustering
+if import_debugging:
+    print '  clustering::Clustering (sc)'
 from partition import Partition
+if import_debugging:
+    print '  partition::Partition (sc)'
+from errors import filecheck_and_raise, directorycheck_and_raise
 
 # from simulation import Simulation
 
 import copy_reg
+if import_debugging:
+    print '  copy_reg (sc)'
 import types
+if import_debugging:
+    print '  types (sc)'
 from random import shuffle
+if import_debugging:
+    print '  random::shuffle (sc)'
 import shutil
+if import_debugging:
+    print '  shutil'
 
 
 def _pickle_method(method):
@@ -111,7 +153,6 @@ class SequenceCollection(object):
         self.records = []
         self.length = 0
         self.helper = helper
-        self.gtp_path = gtp_path
 
         # Set Variables
 
@@ -184,6 +225,9 @@ class SequenceCollection(object):
         s += 'Contains {0} alignments\n'.format(self.length)
         return s
 
+    def __len__(self):
+        return self.length
+
     def get_files(self, input_dir, file_format='fasta'):
         """
         Get list of alignment files from an input directory
@@ -204,6 +248,33 @@ class SequenceCollection(object):
             print 'No sequence files found in {0}'.format(input_dir)
             return 0
         return sorted(files)
+
+    def dump_records(
+        self,
+        output_dir,
+        file_format='phylip',
+        use_hashname=True,
+        ):
+        """
+        Dumps all sequence alignment records to an output directory
+        """
+
+        try:
+            directorycheck_and_raise_and_raise(output_dir)
+        except DirectoryError:
+            os.mkdir(output_dir)
+
+        hash_translation = {}
+
+        for rec in self.get_records():
+            filename = rec._write_temp_phylip(output_dir,
+                    use_hashname=use_hashname)
+            try: hash_translation[str(rec.name)]=filename
+            except TypeError:
+                print type(rec.name), rec.name, type(filename), filename
+        cPickle.dump(hash_translation,
+                     open('{0}/hash_translation.pkl'.format(output_dir),
+                     'w'))
 
     def put_records(
         self,
@@ -228,8 +299,6 @@ class SequenceCollection(object):
             print 'Can\'t load records - no records or alignment files given'
             return
 
-        # enumeration = enumerate(record_list, start=1)
-
         records_to_keys = dict([(record.name, number) for (number,
                                record) in enumerate(record_list)])
         keys_to_records = dict(enumerate(record_list))
@@ -238,12 +307,43 @@ class SequenceCollection(object):
         self.records_to_keys = records_to_keys
         self.keys_to_records = keys_to_records
 
+    def load_phyml_results(self, input_dir, use_hashname=False):
+        records = self.get_records()
+        failures = []
+        for rec in records:
+            if use_hashname:
+                name = rec.name()
+            else:
+                name = rec.name
+            tree_file = '{0}/{1}.phy_phyml_tree.txt'.format(input_dir,
+                    name)
+            stats_file = \
+                '{0}/{1}.phy_phyml_stats.txt'.format(input_dir, name)
+
+            try:
+                rec.tree.load_phyml_results(tree_file, stats_file,
+                        name=rec.name)
+            except FileError:
+                failures.append(rec.name)
+
+        if failures:
+            print 'Couldn\'t load results for the following records:'
+            for f in failures:
+                print '   ', f
+
     def get_records(self):
         """
         Returns list of stored sequence records
         """
 
         return [self.keys_to_records[i] for i in range(self.length)]
+
+    def get_names(self):
+        """
+        Returns a list of the names of the stored records
+        """
+
+        return [rec.name for rec in self.get_records()]
 
     def sanitise_records(self):
         """
@@ -265,6 +365,541 @@ class SequenceCollection(object):
         for rec in self.get_records():
             rec.dv = [rec.get_dv_matrix(tmpdir=tmpdir, helper=helper,
                       overwrite=overwrite)]
+
+    def get_dv_matrices(self):
+        dvs = {}
+        for rec in self.get_records():
+            dvs[rec.name] = rec.dv
+        return dvs
+
+    def put_trees(
+        self,
+        rec_list=None,
+        program='treecollection',
+        model=None,
+        datatype=None,
+        ncat=4,
+        tmpdir=None,
+        overwrite=True,
+        verbose=False,
+        ):
+
+        if tmpdir is None:
+            tmpdir = self.tmpdir
+        if not program in ['treecollection', 'raxml', 'phyml', 'bionj']:
+            print 'unrecognised program {0}'.format(program)
+            return
+        if not rec_list:
+            rec_list = self.records
+        for rec in rec_list:
+            if overwrite is False:
+                if rec.name in self.inferred_trees:
+                    continue
+            if program == 'treecollection':
+                tree = rec.get_TC_tree(tmpdir=tmpdir,
+                        overwrite=overwrite)
+            elif program == 'raxml':
+                tree = rec.get_raxml_tree(tmpdir=tmpdir,
+                        overwrite=overwrite)
+            elif program == 'phyml':
+                tree = rec.get_phyml_tree(model=model,
+                        datatype=datatype, tmpdir=tmpdir, ncat=ncat,
+                        overwrite=overwrite, verbose=verbose)
+            elif program == 'bionj':
+                tree = rec.get_bionj_tree(model=model,
+                        datatype=datatype, tmpdir=tmpdir, ncat=ncat,
+                        overwrite=overwrite, verbose=verbose)
+            self.inferred_trees[rec.name] = tree
+
+    def get_trees(self):
+        return [rec.tree for rec in self.get_records()]
+
+    def put_distance_matrices(
+        self,
+        metrics,
+        tmpdir='/tmp',
+        gtp_path=None,
+        normalise=False,
+        ):
+        """
+        Pass this function a list of metrics
+        valid kwargs - invert (bool), normalise (bool)
+        """
+
+        if not gtp_path:
+            gtp_path = self.gtp_path
+        if not isinstance(metrics, list):
+            metrics = [metrics]
+        trees = [rec.tree for rec in self.get_records()]
+        for metric in metrics:
+            dm = DistanceMatrix(trees, tmpdir=tmpdir, gtp_path=gtp_path)
+            dm.get_distance_matrix(metric, normalise=normalise)
+            self.distance_matrices[metric] = dm
+
+    def get_distance_matrices(self):
+        return self.distance_matrices
+
+    def put_partition(
+        self,
+        metric,
+        cluster_method,
+        nclusters,
+        prune=True,
+        tmpdir=None,
+        gtp_path=None,
+        recalculate=False,
+        ):
+
+        if not tmpdir:
+            tmpdir = self.tmpdir
+        if not gtp_path:
+            gtp_path = self.gtp_path
+        if not metric in self.get_distance_matrices():
+            self.put_distance_matrices(metric, tmpdir=tmpdir,
+                    gtp_path=gtp_path)
+        partition_vector = \
+            self.Clustering.run_clustering(self.distance_matrices[metric],
+                cluster_method, nclusters, prune=prune,
+                recalculate=recalculate)
+
+        self.clusters_to_partitions[(metric, cluster_method,
+                                    nclusters)] = partition_vector
+        self.partitions[partition_vector] = Partition(partition_vector)
+        return partition_vector
+
+    def put_partition_vector(self, partition_vector, name):
+        """
+        Given a partition vector (i.e. a tuple containing the class-
+        membership for each gene alignment), insets the relevant data
+        structures into the SequenceCollection object.
+        NEXT: run concatenate_records(), put_cluster_trees()
+        """
+
+        self.clusters_to_partitions[name] = partition_vector
+        self.partitions[partition_vector] = Partition(partition_vector)
+
+    def put_partitions(
+        self,
+        metrics,
+        cluster_methods,
+        nclusters,
+        prune=True,
+        tmpdir=None,
+        gtp_path=None,
+        recalculate=False,
+        ):
+        """
+        metrics, linkages and nclasses are given as lists, or coerced into
+        lists
+        """
+
+        if not isinstance(metrics, list):
+            metrics = [metrics]
+        if not isinstance(cluster_methods, list):
+            cluster_methods = [cluster_methods]
+        if not isinstance(nclusters, list):
+            nclusters = [nclusters]
+        if tmpdir is None:
+            tmpdir = self.tmpdir
+        if gtp_path is None:
+            gtp_path = self.gtp_path
+        else:
+            nclusters = sorted(nclusters, reverse=True)
+
+        # names = [rec.name for rec in self.get_records()]
+
+        for metric in metrics:
+            print 'Clustering {0} data'.format(metric)
+            self.Clustering.clear_cache()
+            for cluster_method in cluster_methods:
+                print ' ', cluster_method
+                for n in nclusters:
+                    key = (metric, cluster_method, n)
+                    if key in self.clusters_to_partitions:
+                        continue
+                    else:
+                        self.put_partition(
+                            metric,
+                            cluster_method,
+                            n,
+                            prune=prune,
+                            tmpdir=tmpdir,
+                            gtp_path=gtp_path,
+                            recalculate=recalculate,
+                            )
+
+    def concatenate_records(self):
+        for p in self.partitions.values():
+            p.concatenate_records(self.keys_to_records)
+            for concat in p.concats:
+                if not concat.name in self.concats:
+                    self.concats[concat.name] = concat
+
+    def autotune(
+        self,
+        metric,
+        prune=True,
+        KMeans=True,
+        recalculate=True,
+        tmpdir=None,
+        gtp_path=None,
+        max_groups=None,
+        ):
+        """
+        Uses Perona and Zelnick-Manor's spectral rotation method to determine
+        the number of clusters present in the data
+        """
+
+        if not tmpdir:
+            tmpdir = self.tmpdir
+        if not gtp_path:
+            gtp_path = self.gtp_path
+        if not metric in self.get_distance_matrices():
+            self.put_distance_matrices(metric, tmpdir=tmpdir,
+                    gtp_path=gtp_path)
+        dm = self.get_distance_matrices()[metric]
+        (partition_vector, nclusters, quality_scores) = \
+            self.Clustering.run_spectral_rotate(dm, prune=prune,
+                KMeans=KMeans, recalculate=recalculate, max_groups=max_groups)
+
+        self.clusters_to_partitions[(metric, 'rotate', nclusters)] = \
+            partition_vector
+        self.partitions[partition_vector] = Partition(partition_vector)
+        return (partition_vector, quality_scores)
+
+    def get_cluster_records(self):
+        """
+        Returns all concatenated records from cluster analysis
+        """
+
+        sort_key = lambda item: tuple((int(num) if num else alpha)
+                for (num, alpha) in re.findall(r'(\d+)|(\D+)',
+                item.name))
+        return sorted(self.concats.values(), key=sort_key)
+
+    def put_cluster_trees(
+        self,
+        program='treecollection',
+        model=None,
+        datatype=None,
+        ncat=4,
+        tmpdir='/tmp',
+        overwrite=True,
+        ):
+
+        if program not in ['treecollection', 'raxml', 'phyml', 'bionj']:
+            print 'unrecognised program {0}'.format(program)
+            return
+        rec_list = self.get_cluster_records()
+        print 'Inferring {0} cluster trees'.format(len(rec_list))
+        self.put_trees(
+            rec_list=rec_list,
+            program=program,
+            model=model,
+            ncat=ncat,
+            datatype=datatype,
+            tmpdir=tmpdir,
+            overwrite=overwrite,
+            )
+        self.update_results()
+
+    def update_results(self):
+        for partition in self.partitions.values():
+            partition.update_score(self.concats)
+
+    def get_cluster_trees(self):
+        rec_list = sorted(self.get_cluster_records(), key=lambda rec: \
+                          rec.name)
+        trees = [rec.tree for rec in rec_list]
+        return trees
+
+    def get_scores(self):
+        return [(k, self.partitions[v].score) for (k, v) in
+                self.clusters_to_partitions.items()]
+
+    def get_randomised_alignments(self):
+
+        def pivot(lst):
+            new_lst = zip(*lst)
+            return [''.join(x) for x in new_lst]
+
+        lengths = [rec.seqlength for rec in self.get_records()]
+        datatype = self.records[0].datatype
+        concat = copy.deepcopy(self.records[0])
+        for rec in self.get_records()[1:]:
+            concat += rec
+        columns = pivot(concat.sequences)
+        shuffle(columns)
+        newcols = []
+        for l in lengths:
+            newcols.append(columns[:l])
+            columns = columns[l:]
+        newrecs = []
+        for col in newcols:
+            newseqs = pivot(col)
+            newrec = TCSeqRec(headers=concat.headers,
+                              sequences=newseqs, datatype=datatype)
+            newrecs.append(newrec)
+        for i in range(self.length):
+            newrecs[i].name = self.records[i].name
+        return newrecs
+
+    def make_randomised_copy(
+        self,
+        tmpdir=None,
+        get_distances=False,
+        parallel_load=False,
+        overwrite=True,
+        ):
+
+        shuffled_records = self.get_randomised_alignments()
+        if not tmpdir:
+            tmpdir = self.tmpdir
+        randomised_copy = SequenceCollection(
+            input_dir=None,
+            records=shuffled_records,
+            file_format=self.file_format,
+            datatype=self.datatype,
+            helper=self.helper,
+            gtp_path=self.gtp_path,
+            tmpdir=tmpdir,
+            get_distances=get_distances,
+            parallel_load=parallel_load,
+            overwrite=overwrite,
+            )
+        return randomised_copy
+
+    def show_memberships(self):
+
+        partitions = self.get_partitions()
+        for compound_key in partitions:
+            print ' '.join(str(x) for x in compound_key)
+            partition = partitions[compound_key]
+            print partition
+            print self.clustering.get_memberships(partition)
+
+    def simulate_from_result(
+        self,
+        compound_key,
+        helper='./class_files/DV_wrapper.drw',
+        tmpdir='/tmp',
+        ):
+
+        shorten = lambda x: '_'.join([str(b)[:5] for b in x])
+        result_object = self.get_clusters()[compound_key]
+        lengths = [[rec.seqlength for rec in m] for m in
+                   result_object.members]
+        total_lengths = [sum(x) for x in lengths]
+        msa_dir = '{0}/msa'.format(tmpdir)
+        if not os.path.isdir(msa_dir):
+            os.mkdir(msa_dir)
+        k = 1
+        for i in range(result_object.length):
+            tree = result_object.concats[i].tree
+            tree = tree.pam2sps('sps2pam')
+            treefile = \
+                tree.write_to_file('{0}/{1}_tmptree{2}.nwk'.format(tmpdir,
+                                   shorten(compound_key), i))
+            outfile = '{0}/{1}_class{2}_params.drw'.format(tmpdir,
+                    shorten(compound_key), i)
+            length_list = lengths[i]
+            total_length = (total_lengths[i] + total_lengths[i] % 3) / 3
+            result_object.write_ALF_parameters(
+                'alfsim_{0}'.format(i),
+                tmpdir,
+                'alftmp_{0}'.format(i),
+                1,
+                total_length,
+                treefile,
+                outfile,
+                )
+            os.system('alfsim {0}'.format(outfile))
+            record = \
+                TCSeqRec(glob.glob('{0}/alftmp_{1}/alfsim_{1}/MSA/*dna.fa'.format(tmpdir,
+                         i))[0])
+
+            alf_newick = \
+                open('{0}/alftmp_{1}/alfsim_{1}/RealTree.nwk'.format(tmpdir,
+                     i)).read()
+            replacement_dict = dict(zip(re.findall(r'(\w+)(?=:)',
+                                    alf_newick),
+                                    re.findall(r'(\w+)(?=:)',
+                                    tree.newick)))
+            print alf_newick
+            print tree.newick
+            print replacement_dict
+            record.sort_by_name()
+            headers = [replacement_dict[x[:x.rindex('/')]] for x in
+                       record.headers]
+            print headers
+            sequences = record.sequences
+            print record
+            for j in range(len(length_list)):
+                start = sum(length_list[:j])
+                end = sum(length_list[:j + 1])
+                new_sequences = [seq[start:end] for seq in sequences]
+                newmsa = TCSeqRec(headers=headers,
+                                  sequences=new_sequences,
+                                  name='gene{0:0>3}'.format(k))
+                k += 1
+                newmsa.write_fasta(outfile='{0}/{1}.fas'.format(msa_dir,
+                                   newmsa.name))
+            shutil.rmtree('{0}/alftmp_{1}'.format(tmpdir, i))
+            os.remove(treefile)
+            os.remove(outfile)
+
+        new_seqcol_object = SequenceCollection(msa_dir, datatype='dna',
+                helper=helper, tmpdir=tmpdir)
+        shutil.rmtree('{0}/msa'.format(tmpdir))
+        return new_seqcol_object
+
+#########################
+# Plotting
+#########################
+
+    def plot_dendrogram(
+        self,
+        metric,
+        link,
+        nclasses,
+        show=True,
+        ):
+
+        plot_object = self.clustering.plot_dendrogram((metric, link,
+                nclasses))
+        if show:
+            plot_object.show()
+        return plot_object
+
+    def plot_heatmap(
+        self,
+        distance_matrix,
+        partition,
+        outfile=None,
+        ):
+
+        sort_partition = partition.get_memberships(flatten=True)
+        fig = \
+            distance_matrix.plot_heatmap(sort_partition=sort_partition)
+        if outfile:
+            fig.savefig('{0}.pdf'.format(outfile))
+        return fig
+
+    def plot_embedding(
+        self,
+        partition_vector,
+        distance_matrix,
+        embedding='MDS',
+        prune=True,
+        dimensions=3,
+        centre_of_mass=False,
+        outfile=None,
+        standardize=False,
+        normalise=False,
+        annotate=False,
+        ):
+        """
+        Plots an embedding of the trees in a Principal Coordinate space,
+        and saves as pdf.
+        """
+
+        dm = distance_matrix.matrix
+        partition_vector = np.array(partition_vector)
+        labels = self.get_names()
+        if embedding == 'MDS':
+            dbc = self.Clustering.get_double_centre(dm)
+            (vals, vecs, var_exp) = self.Clustering.get_eigen(dbc,
+                    standardize=standardize)
+            (coords, _) = self.Clustering.get_coords_by_dimension(vals,
+                    vecs, var_exp, 3, normalise=normalise)
+        elif embedding == 'spectral':
+            laplacian = self.Clustering.spectral(dm, prune=prune)
+
+            (vals, vecs, var_exp) = \
+                self.Clustering.get_eigen(laplacian,
+                    standardize=standardize)
+            (coords, _) = self.Clustering.get_coords_by_dimension(vals,
+                    vecs, var_exp, 3, normalise=normalise)
+        else:
+            print 'embedding should be one of \'MDS\' or \'spectral\''
+            print 'value given was:', embedding
+            return
+        min_Z = min([z for (x, y, z) in coords])
+        P = []  # get the indices of the partition vector for each group
+
+               # and store in this list
+
+        max_groups = max(partition_vector)
+        for i in range(1, max_groups + 1):
+            partition = np.where(partition_vector == i)
+            P.append(partition)
+
+        colors = 'bgrcmyk'
+        coldict = {
+            'b': 'blue',
+            'g': 'green',
+            'r': 'red',
+            'c': 'cyan',
+            'm': 'magenta',
+            'y': 'yellow',
+            'k': 'black',
+            }
+        fig2d = plt.figure()
+        fig3d = plt.figure()
+        ax2d = fig2d.add_subplot(111)
+        ax3d = fig3d.add_subplot(111, projection='3d')
+
+        for (pos, partition) in enumerate(P):
+            for i in partition[0]:
+                ax2d.scatter(color=colors[pos % len(colors)],
+                             *(coords[i])[:2])
+                ax3d.scatter(color=colors[pos % len(colors)],
+                             *coords[i])
+                ax3d.plot([coords[i][0], coords[i][0]], [coords[i][1],
+                          coords[i][1]], [min_Z, coords[i][2]],
+                          color='grey', linewidth=0.2)
+
+                if annotate:
+                    ax2d.annotate(
+                        labels[i],
+                        xy=(coords[i][0], coords[i][1]),
+                        xytext=(-20, 20),
+                        textcoords='offset points',
+                        fontsize='x-small',
+                        ha='right',
+                        va='bottom',
+                        bbox=dict(boxstyle='round,pad=0.5', fc='yellow'
+                                  , alpha=0.5),
+                        arrowprops=dict(arrowstyle='->',
+                                connectionstyle='arc3,rad=0'),
+                        )
+
+            if centre_of_mass:
+                com = np.mean(coords[partition], axis=0)
+                ax2d.scatter(color='k', marker='x', s=2, *com[:2])
+                ax3d.scatter(color='k', marker='x', s=2, *com)
+        if embedding == 'spectral' and normalise:
+            (u, v) = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            x = np.cos(u) * np.sin(v)
+            y = np.sin(u) * np.sin(v)
+            z = np.cos(v)
+            ax3d.plot_wireframe(x, y, z, color='grey', linewidth=0.2)
+
+        ax2d.set_xlabel('PCo1')
+        ax2d.set_ylabel('PCo2')
+        ax2d.set_title('Trees embedded in dimension-reduced space')
+        ax3d.set_xlabel('PCo1')
+        ax3d.set_ylabel('PCo2')
+        ax3d.set_zlabel('PCo3')
+        ax3d.set_title('Trees embedded in dimension-reduced space')
+        if outfile:
+            fig2d.savefig('{0}-2d.pdf'.format(outfile))
+            fig3d.savefig('{0}-3d.pdf'.format(outfile))
+        return (fig2d, fig3d)
+
+#########################
+# Parallel calls
+#########################
 
     def _unpack_dv(self, packed_args):
         return packed_args[0].get_dv_matrix(*packed_args[1:])
@@ -314,12 +949,6 @@ class SequenceCollection(object):
                 overwrite=overwrite)
         for rec in self.get_records():
             rec.dv = [dv_matrices_dict[rec.name]]
-
-    def get_dv_matrices(self):
-        dvs = {}
-        for rec in self.get_records():
-            dvs[rec.name] = rec.dv
-        return dvs
 
     def _unpack_bionj(self, packed_args):
         return packed_args[0].get_bionj_tree(*packed_args[1:])
@@ -461,44 +1090,6 @@ class SequenceCollection(object):
         pool.join()
         return dict(zip(names, results[0]))
 
-    def put_trees(
-        self,
-        rec_list=None,
-        program='treecollection',
-        model=None,
-        datatype=None,
-        ncat=4,
-        tmpdir=None,
-        overwrite=True,
-        ):
-
-        if tmpdir is None:
-            tmpdir = self.tmpdir
-        if not program in ['treecollection', 'raxml', 'phyml', 'bionj']:
-            print 'unrecognised program {0}'.format(program)
-            return
-        if not rec_list:
-            rec_list = self.records
-        for rec in rec_list:
-            if overwrite is False:
-                if rec.name in self.inferred_trees:
-                    continue
-            if program == 'treecollection':
-                tree = rec.get_TC_tree(tmpdir=tmpdir,
-                        overwrite=overwrite)
-            elif program == 'raxml':
-                tree = rec.get_raxml_tree(tmpdir=tmpdir,
-                        overwrite=overwrite)
-            elif program == 'phyml':
-                tree = rec.get_phyml_tree(model=model,
-                        datatype=datatype, tmpdir=tmpdir, ncat=ncat,
-                        overwrite=overwrite)
-            elif program == 'bionj':
-                tree = rec.get_bionj_tree(model=model,
-                        datatype=datatype, tmpdir=tmpdir, ncat=ncat,
-                        overwrite=overwrite)
-            self.inferred_trees[rec.name] = tree
-
     def put_trees_parallel(
         self,
         rec_list=None,
@@ -542,168 +1133,6 @@ class SequenceCollection(object):
         for rec in self.get_records():
             rec.tree = trees_dict[rec.name]
             self.inferred_trees[rec.name] = trees_dict[rec.name]
-
-    def get_trees(self):
-        return [rec.tree for rec in self.get_records()]
-
-    def put_distance_matrices(
-        self,
-        metrics,
-        tmpdir='/tmp',
-        gtp_path=None,
-        normalise=False,
-        ):
-        """
-        Pass this function a list of metrics
-        valid kwargs - invert (bool), normalise (bool)
-        """
-
-        if not gtp_path:
-            gtp_path = self.gtp_path
-        if not isinstance(metrics, list):
-            metrics = [metrics]
-        trees = [rec.tree for rec in self.get_records()]
-        for metric in metrics:
-            dm = DistanceMatrix(trees, tmpdir=tmpdir, gtp_path=gtp_path)
-            dm.get_distance_matrix(metric, normalise=normalise)
-            self.distance_matrices[metric] = dm
-
-    def get_distance_matrices(self):
-        return self.distance_matrices
-
-    def put_partition(
-        self,
-        metric,
-        cluster_method,
-        nclusters,
-        prune=True,
-        tmpdir=None,
-        gtp_path=None,
-        recalculate=False,
-        ):
-
-        if not tmpdir:
-            tmpdir = self.tmpdir
-        if not gtp_path:
-            gtp_path = self.gtp_path
-        if not metric in self.get_distance_matrices():
-            self.put_distance_matrices(metric, tmpdir=tmpdir,
-                    gtp_path=gtp_path)
-        partition_vector = \
-            self.Clustering.run_clustering(self.distance_matrices[metric],
-                cluster_method, nclusters, prune=prune,
-                recalculate=recalculate)
-
-        self.clusters_to_partitions[(metric, cluster_method,
-                                    nclusters)] = partition_vector
-        self.partitions[partition_vector] = Partition(partition_vector)
-        return partition_vector
-
-    def put_partitions(
-        self,
-        metrics,
-        cluster_methods,
-        nclusters,
-        prune=True,
-        tmpdir=None,
-        gtp_path=None,
-        recalculate=False,
-        ):
-        """
-        metrics, linkages and nclasses are given as lists, or coerced into
-        lists
-        """
-
-        if not isinstance(metrics, list):
-            metrics = [metrics]
-        if not isinstance(cluster_methods, list):
-            cluster_methods = [cluster_methods]
-        if not isinstance(nclusters, list):
-            nclusters = [nclusters]
-        if tmpdir is None:
-            tmpdir = self.tmpdir
-        if gtp_path is None:
-            gtp_path = self.gtp_path
-        else:
-            nclusters = sorted(nclusters, reverse=True)
-
-        # names = [rec.name for rec in self.get_records()]
-
-        for metric in metrics:
-            print 'Clustering {0} data'.format(metric)
-            self.Clustering.clear_cache()
-            for cluster_method in cluster_methods:
-                print ' ',cluster_method
-                for n in nclusters:
-                    key = (metric, cluster_method, n)
-                    if key in self.clusters_to_partitions:
-                        continue
-                    else:
-                        self.put_partition(
-                            metric,
-                            cluster_method,
-                            n,
-                            prune=prune,
-                            tmpdir=tmpdir,
-                            gtp_path=gtp_path,
-                            recalculate=recalculate,
-                            )
-
-    def concatenate_records(self):
-        for p in self.partitions.values():
-            p.concatenate_records(self.keys_to_records)
-            for concat in p.concats:
-                if not concat.name in self.concats:
-                    self.concats[concat.name] = concat
-
-    def get_partitions(self):
-        pass
-
-    def put_clusters(self):
-        pass
-
-    def get_clusters(self):
-        pass
-
-    def get_cluster_records(self):
-        """
-        Returns all concatenated records from cluster analysis
-        """
-
-        sort_key = lambda item: tuple((int(num) if num else alpha)
-                for (num, alpha) in re.findall(r'(\d+)|(\D+)',
-                item.name))
-        return sorted(self.concats.values(), key=sort_key)
-
-    def put_cluster_trees(
-        self,
-        program='treecollection',
-        model=None,
-        datatype=None,
-        ncat=4,
-        tmpdir='/tmp',
-        overwrite=True,
-        ):
-
-        if program not in ['treecollection', 'raxml', 'phyml', 'bionj']:
-            print 'unrecognised program {0}'.format(program)
-            return
-        rec_list = self.get_cluster_records()
-        print 'Inferring {0} cluster trees'.format(len(rec_list))
-        self.put_trees(
-            rec_list=rec_list,
-            program=program,
-            model=model,
-            ncat=ncat,
-            datatype=datatype,
-            tmpdir=tmpdir,
-            overwrite=overwrite,
-            )
-        self.update_results()
-
-    def update_results(self):
-        for partition in self.partitions.values():
-            partition.update_score(self.concats)
 
     def put_cluster_trees_parallel(
         self,
@@ -749,157 +1178,3 @@ class SequenceCollection(object):
         for rec in rec_list:
             rec.tree = cluster_trees_dict[rec.name]
         self.update_results()
-
-    def get_cluster_trees(self):
-        rec_list = sorted(self.get_cluster_records(), key=lambda rec: \
-                          rec.name)
-        trees = [rec.tree for rec in rec_list]
-        return trees
-
-    def get_randomised_alignments(self):
-
-        def pivot(lst):
-            new_lst = zip(*lst)
-            return [''.join(x) for x in new_lst]
-
-        lengths = [rec.seqlength for rec in self.get_records()]
-        datatype = self.records[0].datatype
-        concat = copy.deepcopy(self.records[0])
-        for rec in self.get_records()[1:]:
-            concat += rec
-        columns = pivot(concat.sequences)
-        shuffle(columns)
-        newcols = []
-        for l in lengths:
-            newcols.append(columns[:l])
-            columns = columns[l:]
-        newrecs = []
-        for col in newcols:
-            newseqs = pivot(col)
-            newrec = TCSeqRec(headers=concat.headers,
-                              sequences=newseqs, datatype=datatype)
-            newrecs.append(newrec)
-        for i in range(self.length):
-            newrecs[i].name = self.records[i].name
-        return newrecs
-
-    def make_randomised_copy(
-        self,
-        tmpdir='/tmp',
-        get_distances=True,
-        parallel_load=True,
-        overwrite=True,
-        ):
-
-        shuffled_records = self.get_randomised_alignments()
-        randomised_copy = SequenceCollection(
-            input_dir=None,
-            records=shuffled_records,
-            file_format=self.file_format,
-            datatype=self.datatype,
-            helper=self.helper,
-            gtp_path=self.gtp_path,
-            tmpdir='/tmp',
-            get_distances=get_distances,
-            parallel_load=parallel_load,
-            overwrite=overwrite,
-            )
-        return randomised_copy
-
-    def show_memberships(self):
-
-        partitions = self.get_partitions()
-        for compound_key in partitions:
-            print ' '.join(str(x) for x in compound_key)
-            partition = partitions[compound_key]
-            print partition
-            print self.clustering.get_memberships(partition)
-
-    def plot_dendrogram(
-        self,
-        metric,
-        link,
-        nclasses,
-        show=True,
-        ):
-
-        plot_object = self.clustering.plot_dendrogram((metric, link,
-                nclasses))
-        if show:
-            plot_object.show()
-        return plot_object
-
-    def simulate_from_result(
-        self,
-        compound_key,
-        helper='./class_files/DV_wrapper.drw',
-        tmpdir='/tmp',
-        ):
-
-        shorten = lambda x: '_'.join([str(b)[:5] for b in x])
-        result_object = self.get_clusters()[compound_key]
-        lengths = [[rec.seqlength for rec in m] for m in
-                   result_object.members]
-        total_lengths = [sum(x) for x in lengths]
-        msa_dir = '{0}/msa'.format(tmpdir)
-        if not os.path.isdir(msa_dir):
-            os.mkdir(msa_dir)
-        k = 1
-        for i in range(result_object.length):
-            tree = result_object.concats[i].tree
-            tree = tree.pam2sps('sps2pam')
-            treefile = \
-                tree.write_to_file('{0}/{1}_tmptree{2}.nwk'.format(tmpdir,
-                                   shorten(compound_key), i))
-            outfile = '{0}/{1}_class{2}_params.drw'.format(tmpdir,
-                    shorten(compound_key), i)
-            length_list = lengths[i]
-            total_length = (total_lengths[i] + total_lengths[i] % 3) / 3
-            result_object.write_ALF_parameters(
-                'alfsim_{0}'.format(i),
-                tmpdir,
-                'alftmp_{0}'.format(i),
-                1,
-                total_length,
-                treefile,
-                outfile,
-                )
-            os.system('alfsim {0}'.format(outfile))
-            record = \
-                TCSeqRec(glob.glob('{0}/alftmp_{1}/alfsim_{1}/MSA/*dna.fa'.format(tmpdir,
-                         i))[0])
-
-            alf_newick = \
-                open('{0}/alftmp_{1}/alfsim_{1}/RealTree.nwk'.format(tmpdir,
-                     i)).read()
-            replacement_dict = dict(zip(re.findall(r'(\w+)(?=:)',
-                                    alf_newick),
-                                    re.findall(r'(\w+)(?=:)',
-                                    tree.newick)))
-            print alf_newick
-            print tree.newick
-            print replacement_dict
-            record.sort_by_name()
-            headers = [replacement_dict[x[:x.rindex('/')]] for x in
-                       record.headers]
-            print headers
-            sequences = record.sequences
-            print record
-            for j in range(len(length_list)):
-                start = sum(length_list[:j])
-                end = sum(length_list[:j + 1])
-                new_sequences = [seq[start:end] for seq in sequences]
-                newmsa = TCSeqRec(headers=headers,
-                                  sequences=new_sequences,
-                                  name='gene{0:0>3}'.format(k))
-                k += 1
-                newmsa.write_fasta(outfile='{0}/{1}.fas'.format(msa_dir,
-                                   newmsa.name))
-            shutil.rmtree('{0}/alftmp_{1}'.format(tmpdir, i))
-            os.remove(treefile)
-            os.remove(outfile)
-
-        new_seqcol_object = SequenceCollection(msa_dir, datatype='dna',
-                helper=helper, tmpdir=tmpdir)
-        shutil.rmtree('{0}/msa'.format(tmpdir))
-        return new_seqcol_object

@@ -1,14 +1,33 @@
 #!/usr/bin/env python
 
+import_debugging = True
+if import_debugging:
+    print 'clustering.py imports:'
 import numpy as np
+if import_debugging:
+    print '  numpy (cl)'
 np.set_printoptions(threshold='nan', precision=3)
 import sys
+if import_debugging:
+    print '  sys (cl)'
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
+if import_debugging:
+    print '  scipy.cluster.hierarchy::linkage, fcluster, dendrogram (cl)'
 from Bio.Cluster import kmedoids
+if import_debugging:
+    print '  Bio.Cluster::kmedoids (cl)'
 import matplotlib.pyplot as plt
+if import_debugging:
+    print '  matplotlib.pyplot (cl)'
 from sklearn.cluster import KMeans
+if import_debugging:
+    print '  sklearn.cluster::KMeans (cl)'
 from collections import defaultdict
+if import_debugging:
+    print '  collections::defaultdict (cl)'
 import evrot
+if import_debugging:
+    print '  evrot (cl)'
 
 
 class Clustering(object):
@@ -65,7 +84,9 @@ class Clustering(object):
         ):
 
         if dm.metric == 'rf':
+
             # print 'metric = rf, adding noise...'
+
             matrix = dm.add_noise(dm.matrix)
         else:
             matrix = dm.matrix
@@ -92,6 +113,7 @@ class Clustering(object):
         prune=True,
         KMeans=True,
         recalculate=False,
+        max_groups=None,
         ):
 
         if dm.metric == 'rf':
@@ -113,17 +135,26 @@ class Clustering(object):
         # ######################
         # CLUSTER_ROTATE STUFF HERE
 
+        if not max_groups:
+            max_groups = int(np.sqrt(matrix.shape[0])
+                             + np.power(matrix.shape[0], 1.0 / 3))
+            
         (nclusters, clustering, quality_scores, rotated_vectors) = \
-            self.cluster_rotate(eigvecs,
-                                max_groups=int(np.sqrt(matrix.shape[0])
-                                + np.power(matrix.shape[0], 1.0 / 3)))
+            self.cluster_rotate(eigvecs, max_groups=max_groups)
+
+        translate_clustering = [None] * len(dm.matrix)
+        for (group_number, group_membership) in enumerate(clustering):
+            for index in group_membership:
+                translate_clustering[index - 1] = group_number
+        clustering = self.order(translate_clustering)
 
         # ######################
 
         print 'Discovered {0} clusters'.format(nclusters)
         print 'Quality scores: {0}'.format(quality_scores)
+        print 'Pre-KMeans clustering: {0}'.format(clustering)
         T = self.run_Kmeans(rotated_vectors, nclusters=nclusters)
-        return T
+        return (T, nclusters, quality_scores)
 
         # ######################
 
@@ -577,7 +608,7 @@ class Clustering(object):
         def laplace(affinity_matrix):
 
             diagonal = affinity_matrix.sum(axis=1)
-            invRootD = np.diag(np.sqrt(1/diagonal))
+            invRootD = np.diag(np.sqrt(1 / diagonal))
             return np.dot(np.dot(invRootD, affinity_matrix), invRootD)
 
         # prune graph edges, but require graph be fully connected
