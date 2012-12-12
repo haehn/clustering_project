@@ -21,9 +21,7 @@ def fpath(s):
     Trims all '/' characters from the end of the path string.
     """
 
-    while s.endswith('/'):
-        s = s[:-1]
-    return s
+    return s.rstrip('/')
 
 
 sort_key = lambda item: tuple((int(num) if num else alpha) for (num,

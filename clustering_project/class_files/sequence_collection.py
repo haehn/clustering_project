@@ -6,6 +6,9 @@ if import_debugging:
 import cPickle
 if import_debugging:
     print '  cPickle (sc)'
+import gzip as gz
+if import_debugging:
+    print '  gz (sc)'
 import glob
 if import_debugging:
     print '  glob (sc)'
@@ -43,9 +46,13 @@ if import_debugging:
 from partition import Partition
 if import_debugging:
     print '  partition::Partition (sc)'
-from errors import filecheck_and_raise, directorycheck_and_raise
+import hashlib
+if import_debugging:
+    print '  hashlib (sc)'
+from errors import FileError, filecheck_and_raise, \
+    directorycheck_and_make
 
-# from simulation import Simulation
+from seqsim import SeqSim
 
 import copy_reg
 if import_debugging:
@@ -252,29 +259,49 @@ class SequenceCollection(object):
     def dump_records(
         self,
         output_dir,
+        records=None,
         file_format='phylip',
         use_hashname=True,
         ):
         """
         Dumps all sequence alignment records to an output directory
+        Files are dumped in sequential phylip format; by default the
+        names are hashed
         """
 
-        try:
-            directorycheck_and_raise_and_raise(output_dir)
-        except DirectoryError:
-            os.mkdir(output_dir)
+        directorycheck_and_make(output_dir)
 
         hash_translation = {}
+
+        if not records:
+            records = self.get_records()
 
         for rec in self.get_records():
             filename = rec._write_temp_phylip(output_dir,
                     use_hashname=use_hashname)
-            try: hash_translation[str(rec.name)]=filename
+            try:
+                hash_translation[str(rec.name)] = filename
             except TypeError:
                 print type(rec.name), rec.name, type(filename), filename
         cPickle.dump(hash_translation,
                      open('{0}/hash_translation.pkl'.format(output_dir),
                      'w'))
+
+    def hash(self, string):
+        H = hashlib.sha1(string)
+        return H.hexdigest()
+
+    def gzip(self, filename):
+
+        if not filename.endswith('.gz'):
+            filename += '.gz'
+
+        cPickle.dump(self, file=gz.open(filename, 'wb'), protocol=-1)
+
+    @classmethod
+    def gunzip(cls, filename):
+
+        return cPickle.load(gz.open(filename, 'rb'))
 
     def put_records(
         self,
@@ -307,12 +334,20 @@ class SequenceCollection(object):
         self.records_to_keys = records_to_keys
         self.keys_to_records = keys_to_records
 
-    def load_phyml_results(self, input_dir, use_hashname=False):
-        records = self.get_records()
+    def load_phyml_results(
+        self,
+        input_dir,
+        records=None,
+        use_hashname=False,
+        program='phyml',
+        ):
+
+        if not records:
+            records = self.get_records()
         failures = []
         for rec in records:
             if use_hashname:
-                name = rec.name()
+                name = rec.hashname()
             else:
                 name = rec.name
             tree_file = '{0}/{1}.phy_phyml_tree.txt'.format(input_dir,
@@ -322,7 +357,7 @@ class SequenceCollection(object):
 
             try:
                 rec.tree.load_phyml_results(tree_file, stats_file,
-                        name=rec.name)
+                        name=rec.name, program=program)
             except FileError:
                 failures.append(rec.name)
 
@@ -402,13 +437,23 @@ class SequenceCollection(object):
                 tree = rec.get_raxml_tree(tmpdir=tmpdir,
                         overwrite=overwrite)
             elif program == 'phyml':
-                tree = rec.get_phyml_tree(model=model,
-                        datatype=datatype, tmpdir=tmpdir, ncat=ncat,
-                        overwrite=overwrite, verbose=verbose)
+                tree = rec.get_phyml_tree(
+                    model=model,
+                    datatype=datatype,
+                    tmpdir=tmpdir,
+                    ncat=ncat,
+                    overwrite=overwrite,
+                    verbose=verbose,
+                    )
             elif program == 'bionj':
-                tree = rec.get_bionj_tree(model=model,
-                        datatype=datatype, tmpdir=tmpdir, ncat=ncat,
-                        overwrite=overwrite, verbose=verbose)
+                tree = rec.get_bionj_tree(
+                    model=model,
+                    datatype=datatype,
+                    tmpdir=tmpdir,
+                    ncat=ncat,
+                    overwrite=overwrite,
+                    verbose=verbose,
+                    )
             self.inferred_trees[rec.name] = tree
 
     def get_trees(self):
@@ -544,6 +589,7 @@ class SequenceCollection(object):
         tmpdir=None,
         gtp_path=None,
         max_groups=None,
+        min_groups=2,
         ):
         """
         Uses Perona and Zelnick-Manor's spectral rotation method to determine
@@ -559,8 +605,14 @@ class SequenceCollection(object):
                     gtp_path=gtp_path)
         dm = self.get_distance_matrices()[metric]
         (partition_vector, nclusters, quality_scores) = \
-            self.Clustering.run_spectral_rotate(dm, prune=prune,
-                KMeans=KMeans, recalculate=recalculate, max_groups=max_groups)
+            self.Clustering.run_spectral_rotate(
+            dm,
+            prune=prune,
+            KMeans=KMeans,
+            recalculate=recalculate,
+            max_groups=max_groups,
+            min_groups=min_groups,
+            )
 
         self.clusters_to_partitions[(metric, 'rotate', nclusters)] = \
             partition_vector
@@ -617,18 +669,32 @@ class SequenceCollection(object):
         return [(k, self.partitions[v].score) for (k, v) in
                 self.clusters_to_partitions.items()]
 
+    def _pivot(lst):
+        new_lst = zip(*lst)
+        return [''.join(x) for x in new_lst]
+
+    def split_by_lengths(self, long_record, lengths):
+        columns = self._pivot(long_record.sequences)
+        newcols = []
+        for l in lengths:
+            newcols.append(columns[:l])
+            columns = columns[:l]
+        newrecs = []
+        for col in newcols:
+            newseqs = self._pivot(col)
+            newrec = TCSeqRec(headers=concat.headers,
+                              sequences=newseqs,
+                              datatype=long_record.datatype)
+            newrecs.append(newrec)
+        return newrecs
+
     def get_randomised_alignments(self):
-
-        def pivot(lst):
-            new_lst = zip(*lst)
-            return [''.join(x) for x in new_lst]
-
         lengths = [rec.seqlength for rec in self.get_records()]
         datatype = self.records[0].datatype
         concat = copy.deepcopy(self.records[0])
         for rec in self.get_records()[1:]:
             concat += rec
-        columns = pivot(concat.sequences)
+        columns = self._pivot(concat.sequences)
         shuffle(columns)
         newcols = []
         for l in lengths:
@@ -636,7 +702,7 @@ class SequenceCollection(object):
             columns = columns[l:]
         newrecs = []
         for col in newcols:
-            newseqs = pivot(col)
+            newseqs = self._pivot(col)
             newrec = TCSeqRec(headers=concat.headers,
                               sequences=newseqs, datatype=datatype)
             newrecs.append(newrec)

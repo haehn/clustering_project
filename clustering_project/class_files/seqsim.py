@@ -1,9 +1,10 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 
 from tree import Tree
 from sequence_record import TCSeqRec
+
 # import GeoMeTreeHack
+
 import dendropy as dpy
 import glob
 import numpy as np
@@ -13,8 +14,10 @@ import re
 import shutil
 import sys
 import copy
+from textwrap import dedent
 
-np.set_printoptions(precision=3,linewidth=200)
+np.set_printoptions(precision=3, linewidth=200)
+
 
 class SeqSim(object):
 
@@ -36,30 +39,33 @@ class SeqSim(object):
             unit_is_pam = 'false'
 
         file_string = \
-            '''## Filepath parameters
-##############################
-# directories for file storage
-wdir := '{0}';
-dbdir := 'DB/';
-dbAncdir := 'DBancestral/';
+            dedent('''\
+            # Filepath parameters
+            ##############################
+            # directories for file storage
+            wdir := '{0}';
+            dbdir := 'DB/';
+            dbAncdir := 'DBancestral/';
 
-'''.format(working_directory)
+            '''.format(working_directory))
 
         pam_string = \
-            '''# Time units
-##########################
-# timescale for simulation
-unitIsPam := {0}:
+            dedent('''\
+            # Time units
+            ##########################
+            # timescale for simulation
+            unitIsPam := {0}:
 
-'''.format(unit_is_pam)
+            '''.format(unit_is_pam))
 
         name_string = \
-            '''# Simulation Name
-####################
-# name of simulation
-mname := {0};
+            dedent('''\
+            # Simulation Name
+            ####################
+            # name of simulation
+            mname := {0};
 
-'''.format(simulation_name)
+            '''.format(simulation_name))
 
         self.outfile_path = outfile_path
         self.name = simulation_name
@@ -95,18 +101,19 @@ mname := {0};
     def filepaths(self, simulation_name='sim', working_directory='./'):
 
         file_string = \
-            '''# Filepath parameters
-##############################
-# directories for file storage
-wdir := '{0}';
-dbdir := 'DB/';
-dbAncdir := 'DBancestral/';
+            dedent('''\
+            # Filepath parameters
+            ##############################
+            # directories for file storage
+            wdir := '{0}';
+            dbdir := 'DB/';
+            dbAncdir := 'DBancestral/';
 
-# name of simulation
-mname := {1};
+            # name of simulation
+            mname := {1};
 
-'''.format(working_directory,
-                simulation_name)
+            '''.format(working_directory,
+                   simulation_name))
 
         self.parameters['files'] = file_string
         return file_string
@@ -120,16 +127,17 @@ mname := {1};
         ):
 
         genome_string = \
-            '''# Root genome parameters
-#############################
-realseed := false;
-protStart := {0};
-minGeneLength := {1};
-gammaLengthDist := [{2},{3}];
-blocksize := 1:
+            dedent('''\
+            # Root genome parameters
+            #############################
+            realseed := false;
+            protStart := {0};
+            minGeneLength := {1};
+            gammaLengthDist := [{2},{3}];
+            blocksize := 1:
 
-'''.format(number_of_genes,
-                min_length, kappa, theta)
+            '''.format(number_of_genes,
+                   min_length, kappa, theta))
 
         self.parameters['genome'] = genome_string
         return genome_string
@@ -142,12 +150,13 @@ blocksize := 1:
             unit_is_pam = 'false'
 
         pam_string = \
-            '''# Time units
-##########################
-# timescale for simulation
-unitIsPam := {0}:
+            dedent('''\
+            # Time units
+            ##########################
+            # timescale for simulation
+            unitIsPam := {0}:
 
-'''.format(unit_is_pam)
+            '''.format(unit_is_pam))
 
         self.parameters['pam'] = pam_string
         return pam_string
@@ -155,12 +164,13 @@ unitIsPam := {0}:
     def rename(self, name):
 
         name_string = \
-            '''# Simulation Name
-####################
-# name of simulation
-mname := {0};
+            dedent('''\
+            # Simulation Name
+            ####################
+            # name of simulation
+            mname := {0};
 
-'''.format(name)
+            '''.format(name))
 
         self.parameters['name'] = name_string
         self.name = name
@@ -187,11 +197,12 @@ mname := {0};
             allow_nonsense = 'false'
 
         subst_string = \
-            '''# Substitution Model Parameters
-######################################################################################################
-substModels := [SubstitutionModel('GTR', [{0}, {1}, {2}, {3}, {4}, {5}], [{6}, {7}, {8}, {9}], {10})];
+            dedent('''\
+            # Substitution Model Parameters
+            ######################################################################################################
+            substModels := [SubstitutionModel('GTR', [{0}, {1}, {2}, {3}, {4}, {5}], [{6}, {7}, {8}, {9}], {10})];
 
-'''.format(
+            '''.format(
             CtoT,
             AtoT,
             GtoT,
@@ -203,7 +214,7 @@ substModels := [SubstitutionModel('GTR', [{0}, {1}, {2}, {3}, {4}, {5}], [{6}, {
             Gfreq,
             Tfreq,
             allow_nonsense,
-            )
+            ))
 
         self.parameters['subst'] = subst_string
         return subst_string
@@ -225,11 +236,12 @@ substModels := [SubstitutionModel('GTR', [{0}, {1}, {2}, {3}, {4}, {5}], [{6}, {
             allow_nonsense = 'false'
 
         subst_string = \
-            '''# Substitution Model Parameters
-#################################################################################
-substModels := [SubstitutionModel('HKY', [{0}, {1}], [{2}, {3}, {4}, {5}], {6})];
+            dedent('''\
+            # Substitution Model Parameters
+            #################################################################################
+            substModels := [SubstitutionModel('HKY', [{0}, {1}], [{2}, {3}, {4}, {5}], {6})];
 
-'''.format(
+            '''.format(
             alpha,
             beta,
             Afreq,
@@ -237,7 +249,7 @@ substModels := [SubstitutionModel('HKY', [{0}, {1}], [{2}, {3}, {4}, {5}], {6})]
             Gfreq,
             Tfreq,
             allow_nonsense,
-            )
+            ))
 
         self.parameters['subst'] = subst_string
         return subst_string
@@ -259,11 +271,12 @@ substModels := [SubstitutionModel('HKY', [{0}, {1}], [{2}, {3}, {4}, {5}], {6})]
             allow_nonsense = 'false'
 
         subst_string = \
-            '''# Substitution Model Parameters
-#################################################################################
-substModels := [SubstitutionModel('F84', [{0}, {1}], [{2}, {3}, {4}, {5}], {6})];
+            dedent('''\
+            # Substitution Model Parameters
+            #################################################################################
+            substModels := [SubstitutionModel('F84', [{0}, {1}], [{2}, {3}, {4}, {5}], {6})];
 
-'''.format(
+            '''.format(
             kappa,
             beta,
             Afreq,
@@ -271,7 +284,7 @@ substModels := [SubstitutionModel('F84', [{0}, {1}], [{2}, {3}, {4}, {5}], {6})]
             Gfreq,
             Tfreq,
             allow_nonsense,
-            )
+            ))
         return subst_string
 
     def jc_model(self, allow_nonsense=False):
@@ -282,11 +295,12 @@ substModels := [SubstitutionModel('F84', [{0}, {1}], [{2}, {3}, {4}, {5}], {6})]
             allow_nonsense = 'false'
 
         subst_string = \
-            '''# Substitution Model Parameters
-######################################################################
-substModels := [SubstitutionModel('F84', [1, 1], [seq(0.25,4)], {0})];
+            dedent('''\
+            # Substitution Model Parameters
+            ######################################################################
+            substModels := [SubstitutionModel('F84', [1, 1], [seq(0.25,4)], {0})];
 
-'''.format(allow_nonsense)
+            '''.format(allow_nonsense))
 
         self.parameters['subst'] = subst_string
         return subst_string
@@ -299,11 +313,12 @@ substModels := [SubstitutionModel('F84', [1, 1], [seq(0.25,4)], {0})];
         """
 
         subst_string = \
-            '''# Substitution Model Parameters
-##########################################
-substModels := [SubstitutionModel('{0}')];
+            dedent('''\
+            # Substitution Model Parameters
+            ##########################################
+            substModels := [SubstitutionModel('{0}')];
 
-'''.format(model)
+            '''.format(model))
 
         self.parameters['subst'] = subst_string
         return subst_string
@@ -321,11 +336,12 @@ substModels := [SubstitutionModel('{0}')];
         ):
 
         indel_string = \
-            '''# Indel Parameters
-####################################################################
-indelModels := [IndelModel({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7})];
+            dedent('''\
+            # Indel Parameters
+            ####################################################################
+            indelModels := [IndelModel({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7})];
 
-'''.format(
+            '''.format(
             gain_rate,
             gain_model,
             gain_params,
@@ -334,7 +350,7 @@ indelModels := [IndelModel({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7})];
             loss_model,
             loss_params,
             max_loss_length,
-            )
+            ))
 
         self.parameters['indels'] = indel_string
         return indel_string
@@ -351,12 +367,13 @@ indelModels := [IndelModel({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7})];
         """
 
         rate_var_string = \
-            '''# Rate Variation Parameters
-########################################################
-rateVarModels := [RateVarModel(Gamma, {0}, {1}, {2})];
+            dedent('''\
+            # Rate Variation Parameters
+            ########################################################
+            rateVarModels := [RateVarModel(Gamma, {0}, {1}, {2})];
 
-'''.format(ncat,
-                pinvar, shape)
+            '''.format(ncat,
+                   pinvar, shape))
 
         self.parameters['ratevar'] = rate_var_string
         return rate_var_string
@@ -364,12 +381,13 @@ rateVarModels := [RateVarModel(Gamma, {0}, {1}, {2})];
     def custom_tree(self, treefile):
 
         custom_tree_string = \
-            '''# Tree Parameters
-#####################
-treeType := 'Custom';
-treeFile := '{0}';
+            dedent('''\
+            # Tree Parameters
+            #####################
+            treeType := 'Custom';
+            treeFile := '{0}';
 
-'''.format(treefile)
+            '''.format(treefile))
 
         self.parameters['tree'] = custom_tree_string
         return custom_tree_string
@@ -395,24 +413,25 @@ treeFile := '{0}';
             scale_tree = 'false'
 
         bdtree_string = \
-            '''# Tree Parameters
-#####################
-treeType := 'BDTree';
-birthRate := {0};
-deathRate := {1};
-NSpecies := {2};
-ultrametric := {3};
-mutRate := {4};
-scaleTree := {5};
+            dedent('''\
+            # Tree Parameters
+            #####################
+            treeType := 'BDTree';
+            birthRate := {0};
+            deathRate := {1};
+            NSpecies := {2};
+            ultrametric := {3};
+            mutRate := {4};
+            scaleTree := {5};
 
-'''.format(
+            '''.format(
             birthrate,
             deathrate,
             nspecies,
             ultrametric,
             mutation_rate,
             scale_tree,
-            )
+            ))
 
         self.parameters['tree'] = bdtree_string
         return bdtree_string
@@ -463,10 +482,45 @@ scaleTree := {5};
                 checklist.append(False)
 
         if all(checklist):
-            return True # evaluates to True if list is empty
+            return True  # evaluates to True if list is empty
         else:
 
             return False
+
+    @classmethod
+    def simulate_from_tree_GTR(
+        cls,
+        tree,
+        parameters,
+        allow_nonsense=False,
+        simulation_name='sim',
+        working_directory='./alftmp/',
+        outfile_path='./',
+        unit_is_pam=True,
+        ):
+        """
+        parameters = dictionary with keys:
+                     Afreq, Cfreq, Gfreq, Tfreq, 
+                     AtoC, AtoG, AtoT, CtoG, CtoT, GtoT,
+                     gamma.
+        """
+
+        sim = cls(simulation_name, working_directory, outfile_path,
+                  unit_is_pam)
+
+    @classmethod
+    def simulate_from_tree_WAG(
+        cls,
+        self,
+        tree,
+        simulation_name='sim',
+        working_directory='./alftmp/',
+        outfile_path='./',
+        unit_is_pam=True,
+        ):
+
+        sim = cls(simulation_name, working_directory, outfile_path,
+                  unit_is_pam)
 
     def simulate_set(
         self,
@@ -524,7 +578,9 @@ scaleTree := {5};
         to each class. A zero value makes all groups the same size.
 
         """
+
         print '{0} = {1}'.format(class_tree_permuter, num_permutations)
+
         def class_stats(M, mk_list):
             d = {}
             nclasses = len(mk_list)
@@ -532,10 +588,13 @@ scaleTree := {5};
             ind = np.triu_indices(Msize, 1)
             intra_class = []
             inter_class = []
-            cs = np.concatenate((np.array([0]),np.cumsum(mk_list)))
+            cs = np.concatenate((np.array([0]), np.cumsum(mk_list)))
             for i in range(nclasses):
-                intra_class += list(M[cs[i]:cs[i+1],cs[i]:cs[i+1]][np.triu_indices(mk_list[i],1)].flatten())
-                inter_class += list(M[cs[i]:cs[i+1],cs[i+1]:].flatten())
+                intra_class += list(M[cs[i]:cs[i + 1], cs[i]:cs[i
+                                    + 1]][np.triu_indices(mk_list[i],
+                                    1)].flatten())
+                inter_class += list(M[cs[i]:cs[i + 1], cs[i + 1]:
+                                    ].flatten())
             d['overall_mean'] = np.mean(M[ind])
             d['intra_mean'] = np.mean(intra_class)
             d['inter_mean'] = np.mean(inter_class)
@@ -546,11 +605,11 @@ scaleTree := {5};
             return d
 
         def make_master_tree(
-            n, 
-            names, 
-            method, 
-            inner_edge_params=(1,1), 
-            leaf_params=(1,1),
+            n,
+            names,
+            method,
+            inner_edge_params=(1, 1),
+            leaf_params=(1, 1),
             distribution_func=np.random.gamma,
             ):
             """
@@ -559,11 +618,14 @@ scaleTree := {5};
             according to `method`, which is one of 'random_topology',
             'random_yule' and 'random_coal'
             """
+
             if method == 'random_topology':
-                master_topology = Tree().random_topology(n, names=names, rooted=True)
-                master_tree = master_topology.randomise_branch_lengths(inner_edges=inner_edge_params,
-                            leaves=leaf_params,
-                            distribution_func=branch_length_func)
+                master_topology = Tree().random_topology(n,
+                        names=names, rooted=True)
+                master_tree = \
+                    master_topology.randomise_branch_lengths(inner_edges=inner_edge_params,
+                        leaves=leaf_params,
+                        distribution_func=branch_length_func)
                 master_tree.newick = '[&R] ' + master_tree.newick
             elif method == 'random_yule':
                 master_tree = Tree().random_yule(n, names=names)
@@ -572,11 +634,11 @@ scaleTree := {5};
             return master_tree
 
         def make_class_tree(
-            master_tree, 
-            permutation_extent, 
-            method, 
-            with_check=True, 
-            checklist = [],
+            master_tree,
+            permutation_extent,
+            method,
+            with_check=True,
+            checklist=[],
             ):
             """
             Function returns a tree object derived from a master tree,
@@ -587,8 +649,9 @@ scaleTree := {5};
             are applied until the new tree has a unique topology. This is 
             only implemented for nni and spr.
             """
+
             if num_permutations == 0:
-                return master_tree            
+                return master_tree
 
             new_tree = Tree(master_tree.newick)
 
@@ -606,15 +669,15 @@ scaleTree := {5};
                     while not self.check_diff_top(new_tree, checklist):
                         new_tree = Tree(master_tree.newick)
                         for i in range(permutation_extent):
-                            new_tree = new_tree.spr(disallow_sibling_SPRS=True)
+                            new_tree = \
+                                new_tree.spr(disallow_sibling_SPRS=True)
                 else:
                     for i in range(num_permutations):
                         new_tree = new_tree.spr()
             elif method == 'coal':
-                new_tree = master_tree.get_constrained_gene_tree(
-                            scale_to=permutation_extent)
+                new_tree = \
+                    master_tree.get_constrained_gene_tree(scale_to=permutation_extent)
             return new_tree
-
 
         # Create directories for simulation trees and parameter files
 
@@ -641,8 +704,8 @@ scaleTree := {5};
 
         if tune == 0:
             proportions = [float(K) / M for x in range(K)]
-        
         else:
+
             proportions = np.random.gamma(shape=float(M) / (tune * K),
                     scale=tune * float(K) / M, size=K)
 
@@ -674,56 +737,71 @@ scaleTree := {5};
         print 'Tuning =', tune
         print 'mk =', mk
         print 'true clustering = ', true_clustering
-        
+
         # Create simulation trees
 
         # Make a master tree
-        master_tree = make_master_tree(n, names, method=master_tree_generator_method,
-            inner_edge_params=inner_edge_params, leaf_params=leaf_params, 
-            distribution_func=branch_length_func)
+
+        master_tree = make_master_tree(
+            n,
+            names,
+            method=master_tree_generator_method,
+            inner_edge_params=inner_edge_params,
+            leaf_params=leaf_params,
+            distribution_func=branch_length_func,
+            )
         class_trees = []
         parameter_files = []
-        
+
         print 'Master tree = ', master_tree
-        master_tree.write_to_file('{0}/true_trees/master.tree'.format(filepath), suppress_NHX=True)
+        master_tree.write_to_file('{0}/true_trees/master.tree'.format(filepath),
+                                  suppress_NHX=True)
 
         # make K class trees
-        for k in range(K): 
-            print 'Making class {0}/{1}'.format(k+1, K)
+
+        for k in range(K):
+            print 'Making class {0}/{1}'.format(k + 1, K)
 
             if num_permutations > 0:
-                class_tree = make_class_tree(master_tree, num_permutations, class_tree_permuter,
-                    with_check=guarantee_unique, checklist=class_trees)
+                class_tree = make_class_tree(master_tree,
+                        num_permutations, class_tree_permuter,
+                        with_check=guarantee_unique,
+                        checklist=class_trees)
                 class_trees.append(class_tree)
-
             else:
-                class_tree = make_master_tree(n, names, method=master_tree_generator_method,
-                    inner_edge_params=inner_edge_params, leaf_params=leaf_params, 
-                    distribution_func=branch_length_func)
+
+                class_tree = make_master_tree(
+                    n,
+                    names,
+                    method=master_tree_generator_method,
+                    inner_edge_params=inner_edge_params,
+                    leaf_params=leaf_params,
+                    distribution_func=branch_length_func,
+                    )
                 class_trees.append(class_tree)
 
             print 'class tree = ', class_tree
             class_tree.write_to_file('{0}/true_trees/class{1}.tree'.format(filepath,
-                                    k + 1), suppress_NHX=True)
-            
+                    k + 1), suppress_NHX=True)
+
             # ALF only behaves itself if trees are in PAM units,
             # so we scale our newly-generated class trees to have branch lengths
             # in PAM units.
             # Our class_trees list contains unconverted trees
-            if unit_is_pam: # Default = True
-                class_tree_PAM = class_tree.pam2sps('sps2pam') # conversion from SPS to PAM
+
+            if unit_is_pam:  # Default = True
+                class_tree_PAM = class_tree.pam2sps('sps2pam')  # conversion from SPS to PAM
                 class_tree_PAM.write_to_file('{0}/alf_trees_dir/class{1}_1.nwk'.format(tmpdir,
-                        k + 1),  suppress_NHX=True)
+                        k + 1), suppress_NHX=True)
 
             # Write parameter files
 
             ngenes = mk[k]
 
-            sim = SeqSim(simulation_name='class{0}_1'.format(k
-                             + 1),
-                             working_directory='{0}/alf_working_dir'.format(tmpdir),
-                             outfile_path='{0}/alf_parameter_dir'.format(tmpdir),
-                             unit_is_pam=unit_is_pam)  # make new simulation object
+            sim = SeqSim(simulation_name='class{0}_1'.format(k + 1),
+                         working_directory='{0}/alf_working_dir'.format(tmpdir),
+                         outfile_path='{0}/alf_parameter_dir'.format(tmpdir),
+                         unit_is_pam=unit_is_pam)  # make new simulation object
             sim.parameters['subst'] = self.parameters['subst']  # copy over global parameters
             sim.parameters['indels'] = self.parameters['indels']
             sim.parameters['ratevar'] = self.parameters['ratevar']
@@ -743,6 +821,7 @@ scaleTree := {5};
             #   Under regime 3 each gene within a class has its branch lengths scaled
             #   by a scaling parameter, and under regime 4 each gene has random branch lengths
             #   drawn from some distribution (although individual branch rescaling might be better)
+
             for genes in range(ngenes):
                 if regime == 3:
                     scale_factor = scale_func(*scale_params)
@@ -752,11 +831,11 @@ scaleTree := {5};
                         class_trees[k].randomise_branch_lengths(inner_edges=inner_edge_params,
                             leaves=leaf_params,
                             distribution_func=branch_length_func)
-                    if unit_is_pam: # same conversion as before
+                    if unit_is_pam:  # same conversion as before
                         class_tree = class_tree.pam2sps('sps2pam')
 
                 class_tree.write_to_file('{0}/alf_trees_dir/class{1}_{2}.nwk'.format(tmpdir,
-                        k + 1, genes + 1),  suppress_NHX=True)
+                        k + 1, genes + 1), suppress_NHX=True)
 
                 sim.root_genome(number_of_genes=1,
                                 min_length=gene_length_min,
@@ -776,20 +855,23 @@ scaleTree := {5};
         eucdists = []
         symdists = []
         wrfdists = []
-        with open('{0}/basetrees.nwk'.format(tmpdir),'w') as file:
-            file.write('\n'.join([x.newick.rstrip() for x in class_trees]))
-        os.system('java -jar {0}/gtp.jar -o {1}/baseout.txt {1}/basetrees.nwk'.format(gtp_path, tmpdir))
+        with open('{0}/basetrees.nwk'.format(tmpdir), 'w') as file:
+            file.write('\n'.join([x.newick.rstrip() for x in
+                       class_trees]))
+        os.system('java -jar {0}/gtp.jar -o {1}/baseout.txt {1}/basetrees.nwk'.format(gtp_path,
+                  tmpdir))
         with open('{0}/baseout.txt'.format(tmpdir)) as file:
             for line in file:
-                line=line.rstrip()
+                line = line.rstrip()
                 if line:
-                    i,j,value=line.split()
+                    (i, j, value) = line.split()
                     geodists.append(float(value))
         for a in range(K):
             tree_a = dpy.Tree.get_from_string(class_trees[a].newick,
                     'newick')
             for b in range(a + 1, K):
-                tree_b = dpy.Tree.get_from_string(class_trees[b].newick,
+                tree_b = \
+                    dpy.Tree.get_from_string(class_trees[b].newick,
                         'newick')
                 eucdists.append(tree_a.euclidean_distance(tree_b))
                 symdists.append(tree_a.symmetric_difference(tree_b))
@@ -803,12 +885,10 @@ euclidean\t{2}
 RF\t{3}
 wRF\t{4}
 
-'''.format(true_clustering, 
-				np.mean(geodists),
-                np.mean(eucdists), np.mean(symdists),
-                np.mean(wrfdists)))
+'''.format(true_clustering,
+                     np.mean(geodists), np.mean(eucdists),
+                     np.mean(symdists), np.mean(wrfdists)))
         writer.flush()
-
 
         # Run simulations, and correct ALF renaming bug
 
@@ -848,8 +928,8 @@ wRF\t{4}
                                    class_number, int(base_gene_number)
                                    + int(gene_number) - 1))
                 record.write_phylip('{0}/dna_alignments/class{1}_{2}.phy'.format(filepath,
-                                   class_number, int(base_gene_number)
-                                   + int(gene_number) - 1))
+                                    class_number, int(base_gene_number)
+                                    + int(gene_number) - 1))
 
             for aa_alignment in \
                 sorted(glob.glob('{0}/alf_working_dir/{1}/MSA/*aa.fa'.format(tmpdir,
@@ -864,56 +944,64 @@ wRF\t{4}
                                    class_number, int(base_gene_number)
                                    + int(gene_number) - 1))
                 record.write_phylip('{0}/aa_alignments/class{1}_{2}.phy'.format(filepath,
-                                   class_number, int(base_gene_number)
-                                   + int(gene_number) - 1))
+                                    class_number, int(base_gene_number)
+                                    + int(gene_number) - 1))
 
             # Write true trees
 
-            if regime in [1,2]:
-                for g in range(mk[int(class_number)-1]):
+            if regime in [1, 2]:
+                for g in range(mk[int(class_number) - 1]):
                     Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/individual/class{1}_{2}.nwk'.format(filepath,
-                                    class_number, g + 1),  suppress_NHX=True)
-
+                            class_number, g + 1), suppress_NHX=True)
             else:
+
                 Tree(tree_newick).pam2sps().write_to_file('{0}/true_trees/individual/{1}.nwk'.format(filepath,
-                                    name),  suppress_NHX=True)
+                        name), suppress_NHX=True)
 
         # Intra- and inter-class stats
 
-        alltrees = glob.glob('{0}/true_trees/individual/*.nwk'.format(filepath))
+        alltrees = \
+            glob.glob('{0}/true_trees/individual/*.nwk'.format(filepath))
 
         alltrees.sort(key=sort_key)
 
         alltrees = [open(x).read().rstrip() for x in alltrees]
 
-        dpytrees = [dpy.Tree.get_from_string(x, 'newick') for x in alltrees]
+        dpytrees = [dpy.Tree.get_from_string(x, 'newick') for x in
+                    alltrees]
 
         # for x in range(len(alltrees)):
         #     print x,'\n',alltrees[x], '\n',dpy.Tree.get_from_string(alltrees[x],'newick').as_newick_string()
-        geodists = np.zeros( [M,M] )
-        eucdists = np.zeros( [M,M] )
-        symdists = np.zeros( [M,M] )
-        wrfdists = np.zeros( [M,M] )
+
+        geodists = np.zeros([M, M])
+        eucdists = np.zeros([M, M])
+        symdists = np.zeros([M, M])
+        wrfdists = np.zeros([M, M])
+
         # using gtp.jar for geodesic distances
 
-        with open('{0}/geotrees.nwk'.format(tmpdir),'w') as file:
+        with open('{0}/geotrees.nwk'.format(tmpdir), 'w') as file:
             file.write('\n'.join(alltrees))
-        os.system('java -jar {0}/gtp.jar -o {1}/output.txt {1}/geotrees.nwk'.format(gtp_path, tmpdir))
+        os.system('java -jar {0}/gtp.jar -o {1}/output.txt {1}/geotrees.nwk'.format(gtp_path,
+                  tmpdir))
         with open('{0}/output.txt'.format(tmpdir)) as file:
             for line in file:
-                line=line.rstrip()
+                line = line.rstrip()
                 if line:
-                    i,j,value = line.split()
+                    (i, j, value) = line.split()
                     i = int(i)
                     j = int(j)
-                    value=float(value)
-                    geodists[i,j] = geodists[j,i] = value 
+                    value = float(value)
+                    geodists[i, j] = geodists[j, i] = value
 
         for a in range(M):
             for b in range(a + 1, M):
-                eucdists[a,b] = eucdists[b,a] = (dpytrees[a].euclidean_distance(dpytrees[b]))               
-                symdists[a,b] = symdists[b,a] = (dpytrees[a].symmetric_difference(dpytrees[b]))          
-                wrfdists[a,b] = wrfdists[b,a] = (dpytrees[a].robinson_foulds_distance(dpytrees[b]))
+                eucdists[a, b] = eucdists[b, a] = \
+                    dpytrees[a].euclidean_distance(dpytrees[b])
+                symdists[a, b] = symdists[b, a] = \
+                    dpytrees[a].symmetric_difference(dpytrees[b])
+                wrfdists[a, b] = wrfdists[b, a] = \
+                    dpytrees[a].robinson_foulds_distance(dpytrees[b])
 
         geodic = class_stats(geodists, mk)
         eucdic = class_stats(eucdists, mk)
@@ -945,7 +1033,7 @@ wRF\t{4}
         writer.flush()
 
         writer.close()
-     
+
         shutil.rmtree('{0}/alf_parameter_dir'.format(tmpdir))
         shutil.rmtree('{0}/alf_trees_dir'.format(tmpdir))
         shutil.rmtree('{0}/alf_working_dir'.format(tmpdir))
@@ -954,8 +1042,11 @@ wRF\t{4}
         os.remove('{0}/basetrees.nwk'.format(tmpdir))
         os.remove('{0}/baseout.txt'.format(tmpdir))
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
+
     # Small test suite
+
     sim = SeqSim()
     sim.hky_model(
         alpha=3.551,
@@ -967,6 +1058,7 @@ if __name__ == "__main__":
         )
     sim.indels()
     sim.rate_variation()
+
     # sim.simulate_set(K=4,M=20,n=12,tune=1,regime=2,branch_length_func=np.random.gamma,inner_edge_params=(3.2,0.029),leaf_params=(2.2,0.097),scale_func=np.random.gamma,
     #     master_tree_generator_method='random_yule',class_tree_permuter='spr',guarantee_unique=True,num_permutations=3,scale_params=(1,1),gene_length_kappa=5.53,gene_length_theta=72.35,gene_length_min=10,
     #     filepath='/Users/kgori/scratch/testspr',tmpdir='/tmp',gtp_path='/Users/kgori/git/kevin/clustering_project/class_files/',unit_is_pam=True,quiet=True)

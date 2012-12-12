@@ -13,9 +13,7 @@ def fpath(s):
     Trims all '/' characters from the end of the path string.
     """
 
-    while s.endswith('/'):
-        s = s[:-1]
-    return s
+    return s.rstrip('/')
 
 
 desc = 'Calculates likelihood of clusters of alignments'
@@ -35,7 +33,7 @@ args = vars(parser.parse_args())
 indir = args['indir']
 seqdir = '{0}/dna_alignments'.format(indir)
 format = args['format']
-outf = '/'.join((indir,args['outfile']))
+outf = '/'.join((indir, args['outfile']))
 nclasses = args['nclasses']
 datatype = args['sequencedatatype']
 try:
@@ -104,7 +102,8 @@ with open(outf, 'w') as writer:
         if calc_varinf:
             varinf = partition_object.variation_of_information(d[k],
                     true_clustering)
-        else: varinf = ''
+        else:
+            varinf = ''
 
         head = ' '.join(k[:2])
-        writer.write(','.join([head, str(score), str(varinf)])+'\n')
+        writer.write(','.join([head, str(score), str(varinf)]) + '\n')

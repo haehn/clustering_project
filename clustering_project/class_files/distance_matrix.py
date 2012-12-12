@@ -92,6 +92,8 @@ class DistanceMatrix(object):
         if not gtp_path:
             gtp_path = self.gtp_path
         assert os.path.isfile('{0}/gtp.jar'.format(gtp_path))
+        # print 'gtp_path=',gtp_path
+        # print 'tmpdir=',tmpdir
         num_trees = matrix.shape[0]
         self.metric = metric
         dpy_trees = self.convert_to_dendropy_trees(trees)
@@ -108,19 +110,24 @@ class DistanceMatrix(object):
             else:
                 os.system('java -jar {1}/gtp.jar -u -o {0}/output.txt {0}/geotrees.nwk'.format(tmpdir,
                           gtp_path))
-            with open('{0}/output.txt'.format(tmpdir)) as file:
-                for line in file:
-                    line = line.rstrip()
-                    if line:
-                        (i, j, value) = line.split()
-                        i = int(i)
-                        j = int(j)
-                        value = float(value)
-                        if normalise:
-                            value /= ((branch_lengths[i] + branch_lengths[j]) / 2)
-                        matrix[i, j] = matrix[j, i] = value
-            os.remove('{0}/output.txt'.format(tmpdir))
-            os.remove('{0}/geotrees.nwk'.format(tmpdir))
+            try:
+                with open('{0}/output.txt'.format(tmpdir)) as file:
+                    for line in file:
+                        line = line.rstrip()
+                        if line:
+                            (i, j, value) = line.split()
+                            i = int(i)
+                            j = int(j)
+                            value = float(value)
+                            if normalise:
+                                value /= ((branch_lengths[i] + branch_lengths[j]) / 2)
+                            matrix[i, j] = matrix[j, i] = value
+                os.remove('{0}/output.txt'.format(tmpdir))
+                os.remove('{0}/geotrees.nwk'.format(tmpdir))
+            except IOError, e:
+                print 'There was an IOError: {0}'.format(e)
+                print 'Geodesic distances couldn\'t be calculated'
+                return
         
         elif metric == 'rf':
 

@@ -11,9 +11,7 @@ def fpath(s):
     Trims all '/' characters from the end of the path string.
     """
 
-    while s.endswith('/'):
-        s = s[:-1]
-    return s
+    return s.rstrip('/')
 
 
 desc = 'Splits TreeCollection DistVar.txt file into individual files'
@@ -23,9 +21,8 @@ parser = argparse.ArgumentParser(prog='distvar_splitter.py',
 parser.add_argument('-d', '--distvar',
                     help='Location of input distance-variance file',
                     type=fpath)
-parser.add_argument('-g', '--genemap', 
-                    help='Location of input genemap file',
-                    type=fpath)
+parser.add_argument('-g', '--genemap',
+                    help='Location of input genemap file', type=fpath)
 parser.add_argument('-p', '--prefix',
                     help='Optional prefix for output files', type=str,
                     default='gene_')
@@ -50,10 +47,13 @@ def get_dv_reader(f):
     num_records = int(reader.readline())
     return (reader, num_records)
 
+
 def get_gm_reader(f):
     reader = open(f)
-    num_records, num_taxa = (int(x) for x in reader.readline().rstrip().split())
+    (num_records, num_taxa) = (int(x) for x in
+        reader.readline().rstrip().split())
     return (reader, num_records, num_taxa)
+
 
 def read_a_gm_record(reader, num_records, num_taxa):
     header = '1 {0}\n'.format(num_taxa)
@@ -64,7 +64,8 @@ def read_a_gm_record(reader, num_records, num_taxa):
         print 'Expected {0} taxa'.format(num_taxa)
         print 'Actual number of taxa: {0}'.format(len(gm.split()))
         sys.exit()
-    return (header + gm)   
+    return header + gm
+
 
 def read_a_dv_record(reader, num_records):
     (i, j, k) = (int(x) for x in reader.readline().split())
@@ -96,10 +97,9 @@ if __name__ == '__main__':
         sys.exit()
     while not r.closed:
         (matrix, number) = read_a_dv_record(r, n)
-        name = '{0}{1:0>3}'.format(prefix,number)
+        name = '{0}{1:0>3}'.format(prefix, number)
         gm = read_a_gm_record(gr, gn, t)
-        with open('{0}.dv'.format(name),'w') as dvwriter:
+        with open('{0}.dv'.format(name), 'w') as dvwriter:
             dvwriter.write(matrix)
-        with open('{0}.gm'.format(name),'w') as gmwriter:
+        with open('{0}.gm'.format(name), 'w') as gmwriter:
             gmwriter.write(gm)
-

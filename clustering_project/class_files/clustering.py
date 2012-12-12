@@ -114,6 +114,7 @@ class Clustering(object):
         KMeans=True,
         recalculate=False,
         max_groups=None,
+        min_groups=2,
         ):
 
         if dm.metric == 'rf':
@@ -138,9 +139,9 @@ class Clustering(object):
         if not max_groups:
             max_groups = int(np.sqrt(matrix.shape[0])
                              + np.power(matrix.shape[0], 1.0 / 3))
-            
         (nclusters, clustering, quality_scores, rotated_vectors) = \
-            self.cluster_rotate(eigvecs, max_groups=max_groups)
+            self.cluster_rotate(eigvecs, max_groups=max_groups,
+                                min_groups=min_groups)
 
         translate_clustering = [None] * len(dm.matrix)
         for (group_number, group_membership) in enumerate(clustering):
@@ -527,6 +528,8 @@ class Clustering(object):
         """
 
         size = len(distance_matrix)  # assume square and symmetrical input
+        if size <= 10:  # no point pruning a small matrix
+            prune = False
 
         def isconnected(matrix):
             """
@@ -625,13 +628,13 @@ class Clustering(object):
                     # try a lower number
 
                     maxk = guessk
-                    guessk = mink + (guessk - mink) / 2
+                    guessk = (mink + guessk) / 2
                 else:
 
                     # too low
 
                     mink = guessk
-                    guessk = guessk + (maxk - guessk) / 2
+                    guessk = (guessk + maxk) / 2
             (kneighbour_matrix, max_dists) = knn(distance_matrix,
                     guessk + 1)
         else:
@@ -640,22 +643,8 @@ class Clustering(object):
 
         affinity_matrix = get_affinity_matrix(distance_matrix,
                 kneighbour_matrix, max_dists)
-        md7 = knn(distance_matrix, 7)[1]
-        if nodivzero(md7):
-            am7 = get_affinity_matrix(distance_matrix,
-                    kneighbour_matrix, md7)
-        else:
-            print 'Setting sigma(i) > d(S(i),S(7)) to avoid dividing by zero.'
-            if prune:
-                print 'Sigma = d(S(i),S({0})'.format(guessk + 1)
-            else:
-                print 'Sigma = d(S(i),S({0})'.format(size)
-            sigma7 = False
 
-        if sigma7:
-            return laplace(am7)
-        else:
-            return laplace(affinity_matrix)
+        return laplace(affinity_matrix)
 
     def NJW(self, distance_matrix, sigma):
         size = distance_matrix.shape[0]
@@ -675,15 +664,22 @@ class Clustering(object):
         L = np.dot(invD, A)
         return L
 
-    def cluster_rotate(self, eigen_vectors, max_groups):
-        groups = range(2, max_groups + 1)
+    # REVERT: Only test 2 or more clusters
+
+    def cluster_rotate(
+        self,
+        eigen_vectors,
+        max_groups,
+        min_groups=2,
+        ):
+        groups = range(min_groups, max_groups + 1)
         vector_length = eigen_vectors.shape[0]
         current_vector = eigen_vectors[:, :groups[0]]
         quality_scores = []
         clusters = []
         rotated_vectors = []
 
-        for g in range(max_groups - 1):
+        for g in range(max_groups - min_groups + 1):
             if g > 0:
                 current_vector = np.concatenate((rotated_vector,
                         eigen_vectors[:, g + 1:g + 2]), axis=1)
