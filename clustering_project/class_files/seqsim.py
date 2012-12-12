@@ -2,6 +2,7 @@
 
 from tree import Tree
 from sequence_record import TCSeqRec
+from errors import directorycheck_and_make, directorycheck_and_quit
 
 # import GeoMeTreeHack
 
@@ -444,7 +445,7 @@ class SeqSim(object):
         writer.flush()
         writer.close()
 
-        return
+        return outfile_name
 
     def runALF(self, parameter_file, quiet=True):
         """
@@ -491,36 +492,88 @@ class SeqSim(object):
     def simulate_from_tree_GTR(
         cls,
         tree,
-        parameters,
+        name,
+        tmpdir='/tmp',
         allow_nonsense=False,
-        simulation_name='sim',
-        working_directory='./alftmp/',
-        outfile_path='./',
-        unit_is_pam=True,
         ):
         """
         parameters = dictionary with keys:
                      Afreq, Cfreq, Gfreq, Tfreq, 
                      AtoC, AtoG, AtoT, CtoG, CtoT, GtoT,
                      gamma.
+        tree       = Tree object
         """
 
-        sim = cls(simulation_name, working_directory, outfile_path,
-                  unit_is_pam)
+        directorycheck_and_quit(tmpdir)
+        GTR_parameters = tree.extract_GTR_parameters()
+        gamma = tree.extract_gamma_parameter()
+        param_dir = '{0}/alf_parameter_dir'.format(tmpdir)
+        working_dir = '{0}/alf_working_dir'.format(tmpdir)
+        treefile = '{0}/treefile.nwk'.format(tmpdir)
+
+        tree.pam2sps('sps2pam').write_to_file(treefile)
+
+        directorycheck_and_make(param_dir)
+        directorycheck_and_make(working_dir)
+
+        sim = cls(simulation_name=name, working_directory=working_dir,
+                  outfile_path=param_dir, unit_is_pam=True)
+
+        sim.indels()
+        sim.rate_variation(gamma)
+        sim.root_genome(number_of_genes=1, min_length=length)
+        sim.gtr_model(
+            CtoT=GTR_parameters['CtoT'],
+            AtoT=GTR_parameters['AtoT'],
+            GtoT=GTR_parameters['GtoT'],
+            AtoC=GTR_parameters['AtoC'],
+            CtoG=GTR_parameters['CtoG'],
+            AtoG=GTR_parameters['AtoG'],
+            Afreq=GTR_parameters['Afreq'],
+            Cfreq=GTR_parameters['Cfreq'],
+            Gfreq=GTR_parameters['Gfreq'],
+            Tfreq=GTR_parameters['Tfreq'],
+            )
+        sim.custom_tree(treefile)
+        params = sim.write_parameters()
+        sim.runALF(params, quiet=True)
+        tree_newick = tree.newick
+        alf_newick = \
+            open('{0}/alf_working_dir/{1}/RealTree.nwk'.format(tmpdir,
+                 name)).read()
+        replacement_dict = dict(zip(re.findall(r'(\w+)(?=:)',
+                                alf_newick), re.findall(r'(\w+)(?=:)',
+                                tree_newick)))  # bug correction
 
     @classmethod
     def simulate_from_tree_WAG(
         cls,
         self,
         tree,
+        gamma,
         simulation_name='sim',
         working_directory='./alftmp/',
         outfile_path='./',
         unit_is_pam=True,
+        tmpdir='/tmp',
         ):
 
         sim = cls(simulation_name, working_directory, outfile_path,
                   unit_is_pam)
+        sim.indels()
+        sim.rate_variation(gamma)
+        sim.root_genome(number_of_genes=1, min_length=length)
+        sim.one_word_model('WAG')
+        sim.custom_tree(treefile)
+        sim.write_parameters()
+        sim.runALF()
+        tree_newick = open(treefile).read()
+        alf_newick = \
+            open('{0}/alf_working_dir/{1}/RealTree.nwk'.format(tmpdir,
+                 name)).read()
+        replacement_dict = dict(zip(re.findall(r'(\w+)(?=:)',
+                                alf_newick), re.findall(r'(\w+)(?=:)',
+                                tree_newick)))  # bug correction
 
     def simulate_set(
         self,
