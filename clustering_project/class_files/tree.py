@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import_debugging = True
+import_debugging = False
 if import_debugging:
     print 'tree.py imports:'
 import re

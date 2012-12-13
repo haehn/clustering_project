@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import_debugging = True
+import_debugging = False
 if import_debugging: print 'partition.py imports:'
 from math import log
 if import_debugging: print '  math::log (pa)'

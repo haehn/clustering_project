@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import_debugging = True
+import_debugging = False
 if import_debugging:
     print 'clustering.py imports:'
 import numpy as np
@@ -115,6 +115,7 @@ class Clustering(object):
         recalculate=False,
         max_groups=None,
         min_groups=2,
+        verbose=True,
         ):
 
         if dm.metric == 'rf':
@@ -144,16 +145,25 @@ class Clustering(object):
                                 min_groups=min_groups)
 
         translate_clustering = [None] * len(dm.matrix)
+        no_of_empty_clusters = 0
         for (group_number, group_membership) in enumerate(clustering):
+            if len(group_membership) == 0:
+                no_of_empty_clusters += 1
             for index in group_membership:
                 translate_clustering[index - 1] = group_number
         clustering = self.order(translate_clustering)
+        if no_of_empty_clusters > 0:
+            print 'Subtracting {0} empty {1}'.format(no_of_empty_clusters,
+                    ('cluster' if no_of_empty_clusters
+                    == 1 else 'clusters'))
+            nclusters -= no_of_empty_clusters
 
         # ######################
 
-        print 'Discovered {0} clusters'.format(nclusters)
-        print 'Quality scores: {0}'.format(quality_scores)
-        print 'Pre-KMeans clustering: {0}'.format(clustering)
+        if verbose:
+            print 'Discovered {0} clusters'.format(nclusters)
+            print 'Quality scores: {0}'.format(quality_scores)
+            print 'Pre-KMeans clustering: {0}'.format(clustering)
         T = self.run_Kmeans(rotated_vectors, nclusters=nclusters)
         return (T, nclusters, quality_scores)
 
@@ -614,7 +624,7 @@ class Clustering(object):
             invRootD = np.diag(np.sqrt(1 / diagonal))
             return np.dot(np.dot(invRootD, affinity_matrix), invRootD)
 
-        # prune graph edges, but require graph be fully connected
+        # prune the adjacency matrix
 
         if prune:  # binary search
             mink = 1
@@ -628,15 +638,16 @@ class Clustering(object):
                     # try a lower number
 
                     maxk = guessk
-                    guessk = (mink + guessk) / 2
+                    guessk = mink + (guessk - mink) / 2
                 else:
 
                     # too low
 
                     mink = guessk
-                    guessk = (guessk + maxk) / 2
+                    guessk = guessk + (maxk - guessk) / 2
             (kneighbour_matrix, max_dists) = knn(distance_matrix,
                     guessk + 1)
+            print 'Pruning adjacencies to {0}-NN'.format(guessk + 1)
         else:
 
             (kneighbour_matrix, max_dists) = knn(distance_matrix, size)
@@ -644,7 +655,28 @@ class Clustering(object):
         affinity_matrix = get_affinity_matrix(distance_matrix,
                 kneighbour_matrix, max_dists)
 
-        return laplace(affinity_matrix)
+        # Tune the sigma parameter
+
+        md7 = knn(distance_matrix, 7)[1]
+        if nodivzero(md7):
+            affinity_matrix = get_affinity_matrix(distance_matrix,
+                    kneighbour_matrix, md7)
+            print 'Setting sigma to 7-NN'
+        else:
+
+            if prune and nodivzero(max_dists):
+                print 'Setting sigma to {0}-NN'.format(guessk + 1)
+            else:
+                print 'Setting sigma to {0}-NN'.format(size)
+                mdmax = knn(distance_matrix, size)[1]
+                affinity_matrix = get_affinity_matrix(distance_matrix,
+                        kneighbour_matrix, mdmax)
+
+        # normalise affinities to [0,1]
+
+        affinity_matrix *= 1.0 / np.max(affinity_matrix)
+        L = laplace(affinity_matrix)
+        return L
 
     def NJW(self, distance_matrix, sigma):
         size = distance_matrix.shape[0]
@@ -664,14 +696,13 @@ class Clustering(object):
         L = np.dot(invD, A)
         return L
 
-    # REVERT: Only test 2 or more clusters
-
     def cluster_rotate(
         self,
         eigen_vectors,
         max_groups,
         min_groups=2,
         ):
+
         groups = range(min_groups, max_groups + 1)
         vector_length = eigen_vectors.shape[0]
         current_vector = eigen_vectors[:, :groups[0]]
@@ -699,7 +730,7 @@ class Clustering(object):
         start = index + 1
         for (i, score) in enumerate(quality_scores[index + 1:],
                                     start=start):
-            if abs(score - max_score) < 0.005:
+            if abs(score - max_score) < 0.0025:
                 index = i
 
         return (groups[index], clusters[index], quality_scores,

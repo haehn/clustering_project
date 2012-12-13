@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import_debugging = True
+import_debugging = False
 if import_debugging:
     print 'sequence_collection.py imports:'
 import cPickle
@@ -278,7 +278,7 @@ class SequenceCollection(object):
         if not records:
             records = self.get_records()
 
-        for rec in self.get_records():
+        for rec in records:
             filename = rec._write_temp_phylip(output_dir,
                     use_hashname=use_hashname)
             try:
@@ -601,6 +601,7 @@ class SequenceCollection(object):
         gtp_path=None,
         max_groups=None,
         min_groups=2,
+        check_single=True,
         ):
         """
         Uses Perona and Zelnick-Manor's spectral rotation method to determine
@@ -615,6 +616,31 @@ class SequenceCollection(object):
             self.put_distance_matrices(metric, tmpdir=tmpdir,
                     gtp_path=gtp_path)
         dm = self.get_distance_matrices()[metric]
+
+        if check_single:
+            print 'Checking for single cluster...'
+            (partition_vector, nclusters, quality_scores) = \
+                self.Clustering.run_spectral_rotate(
+                dm,
+                prune=prune,
+                KMeans=KMeans,
+                recalculate=recalculate,
+                max_groups=6,
+                min_groups=1,
+                verbose=False,
+                )
+            if nclusters == 1:
+                print 'Single cluster found.'
+                print 'Quality Scores: {0}'.format(quality_scores)
+                self.clusters_to_partitions[(metric, 'rotate', nclusters)] = \
+                    partition_vector
+                self.partitions[partition_vector] = Partition(partition_vector)
+                return (partition_vector, quality_scores)
+            else:
+                print '>1 clusters found.'
+                print 'Quality Scores: {0}'.format(quality_scores)
+                recalculate = False
+
         (partition_vector, nclusters, quality_scores) = \
             self.Clustering.run_spectral_rotate(
             dm,
@@ -666,7 +692,7 @@ class SequenceCollection(object):
             )
         self.update_results()
 
-    def update_results(self):
+    def update_scores(self):
         for partition in self.partitions.values():
             partition.update_score(self.concats)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import_debugging = True
+import_debugging = False
 if import_debugging: print 'distance_matrix.py imports:'
 import numpy as np
 if import_debugging: print '  numpy (dm)'

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import_debugging = True
+import_debugging = False
 if import_debugging: print 'sequence_record imports:'
 import re
 if import_debugging: print '  re (sr)'

@@ -2,7 +2,7 @@
 
 from tree import Tree
 from sequence_record import TCSeqRec
-from errors import directorycheck_and_make_recursive, directorycheck_and_quit
+from errors import directorycheck_and_make, directorycheck_and_quit
 
 # import GeoMeTreeHack
 
@@ -514,14 +514,14 @@ class SeqSim(object):
         gamma = tree.extract_gamma_parameter()
         param_dir = '{0}/alf_parameter_dir'.format(tmpdir)
         working_dir = '{0}/alf_working_dir'.format(tmpdir)
-        directorycheck_and_make_recursive(param_dir)
-        directorycheck_and_make_recursive(working_dir)
+        directorycheck_and_make(param_dir)
+        directorycheck_and_make(working_dir)
         treefile = '{0}/treefile.nwk'.format(tmpdir)
 
         tree.pam2sps('sps2pam').write_to_file(treefile)
 
-        directorycheck_and_make_recursive(param_dir)
-        directorycheck_and_make_recursive(working_dir)
+        directorycheck_and_make(param_dir)
+        directorycheck_and_make(working_dir)
 
         sim = cls(simulation_name=name, working_directory=working_dir,
                   outfile_path=param_dir, unit_is_pam=True)
@@ -557,22 +557,25 @@ class SeqSim(object):
                       name))[0]
 
         new_record = TCSeqRec(alignment)
-        new_record.sequences = [seq[:length] for seq in new_record.sequences]
+        new_record.sequences = [seq[:length] for seq in
+                                new_record.sequences]
         new_record._update()
 
         print new_record.seqlength
-        new_record.headers = [replacement_dict[x[:x.rindex('/')]] for x in
-                          new_record.headers] # bug should be fixed
+        new_record.headers = [replacement_dict[x[:x.rindex('/')]]
+                              for x in new_record.headers]  # bug should be fixed
         new_record._update()
         new_record.sort_by_name()
         if split_lengths and gene_names:
-            for rec in new_record.split_by_lengths(split_lengths, gene_names):
-                rec.write_phylip('{0}/{1}.phy'.format(output_dir, rec.name))
-        else: 
-            new_record.write_phylip('{0}/{1}.phy'.format(output_dir, name))
+            for rec in new_record.split_by_lengths(split_lengths,
+                    gene_names):
+                rec.write_phylip('{0}/{1}.phy'.format(output_dir,
+                                 rec.name))
+        else:
+            new_record.write_phylip('{0}/{1}.phy'.format(output_dir,
+                                    name))
         shutil.rmtree(param_dir)
         shutil.rmtree(working_dir)
-
 
     @classmethod
     def simulate_from_tree_WAG(
@@ -592,14 +595,14 @@ class SeqSim(object):
         gamma = tree.extract_gamma_parameter()
         param_dir = '{0}/alf_parameter_dir'.format(tmpdir)
         working_dir = '{0}/alf_working_dir'.format(tmpdir)
-        directorycheck_and_make_recursive(param_dir)
-        directorycheck_and_make_recursive(working_dir)
+        directorycheck_and_make(param_dir)
+        directorycheck_and_make(working_dir)
         treefile = '{0}/treefile.nwk'.format(tmpdir)
 
         tree.pam2sps('sps2pam').write_to_file(treefile)
 
-        directorycheck_and_make_recursive(param_dir)
-        directorycheck_and_make_recursive(working_dir)
+        directorycheck_and_make(param_dir)
+        directorycheck_and_make(working_dir)
 
         sim = cls(simulation_name=name, working_directory=working_dir,
                   outfile_path=param_dir, unit_is_pam=True)
@@ -624,19 +627,23 @@ class SeqSim(object):
                       name))[0]
 
         new_record = TCSeqRec(alignment)
-        new_record.sequences = [seq[:length] for seq in new_record.sequences]
+        new_record.sequences = [seq[:length] for seq in
+                                new_record.sequences]
         new_record._update()
 
         print new_record.seqlength
-        new_record.headers = [replacement_dict[x[:x.rindex('/')]] for x in
-                          new_record.headers] # bug should be fixed
+        new_record.headers = [replacement_dict[x[:x.rindex('/')]]
+                              for x in new_record.headers]  # bug should be fixed
         new_record._update()
         new_record.sort_by_name()
         if split_lengths and gene_names:
-            for rec in new_record.split_by_lengths(split_lengths, gene_names):
-                rec.write_phylip('{0}/{1}.phy'.format(output_dir, rec.name))
-        else: 
-            new_record.write_phylip('{0}/{1}.phy'.format(output_dir, name))
+            for rec in new_record.split_by_lengths(split_lengths,
+                    gene_names):
+                rec.write_phylip('{0}/{1}.phy'.format(output_dir,
+                                 rec.name))
+        else:
+            new_record.write_phylip('{0}/{1}.phy'.format(output_dir,
+                                    name))
         shutil.rmtree(param_dir)
         shutil.rmtree(working_dir)
 

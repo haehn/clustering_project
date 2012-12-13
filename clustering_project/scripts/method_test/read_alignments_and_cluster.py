@@ -20,11 +20,11 @@
 ################################################################################
 
 import argparse
+import glob
 import os
 import re
 import sys
-from errors import directorycheck_and_quit, \
-    directorycheck_and_make_recursive
+from errors import directorycheck_and_quit, directorycheck_and_make
 
 progname = re.compile('[A-Za-z0-9.-_]+').search(sys.argv[0]).group()
 desc = '\n'.join([progname.upper(),
@@ -81,7 +81,8 @@ parser.add_argument(
     nargs='+',
     default='spectral',
     )
-parser.add_argument('-del', dest='delete', action='store_true', help=delete_help)
+parser.add_argument('-del', dest='delete', action='store_true',
+                    help=delete_help)
 parser.add_argument('-data', dest='datatype', choices=valid_datatypes,
                     type=str, help=datatype_help)
 
@@ -97,7 +98,7 @@ delete = args['delete']
 datatype = args['datatype']
 
 directorycheck_and_quit(input_dir)
-directorycheck_and_make_recursive(tmpdir)
+directorycheck_and_make(tmpdir)
 
 gtp_path = os.environ['GTP_PATH']
 helper = os.environ['DARWINHELPER']
@@ -115,11 +116,14 @@ sc = SequenceCollection(
     )
 
 sc.load_phyml_results(input_dir, program=None)
+sc.quality_scores = {}
 for dist in distance:
-    sc.autotune(dist, max_groups=max_clusters, min_groups=min_clusters)
+    (_, qs) = sc.autotune(dist, max_groups=max_clusters,
+                          min_groups=min_clusters)
+    sc.quality_scores[dist] = qs
 cluster_range = range(min_clusters, max_clusters)
 if min_clusters > 1:
-    cluster_range.insert(0,1)
+    cluster_range.insert(0, 1)
 sc.put_partitions(distance, method, cluster_range)
 sc.concatenate_records()
 try:
@@ -129,5 +133,6 @@ except:
     sys.exit()
 
 if delete:
-    os.remove('{0}/*.phy'.format(input_dir))
-    os.remove('{0}/*_phyml_*'.format(input_dir))
+    for f in glob.glob('{0}/*.phy'.format(input_dir)) \
+        + glob.glob('{0}/*_phyml_*'.format(input_dir)):
+        os.remove(f)

@@ -12,7 +12,7 @@
 #      -d   = datatype  either 'protein' for protein data or 'dna' for dna
 #                       data. (Sets phyml model to either WAG or GTR)
 #
-#      -m   = method:   either 'bionj' or 'phyml'
+#      -m   = method:   either 'bionj', 'bionj+' or 'phyml'
 #
 #      -int = interleaved: add this flag if the data are interleaved
 #
@@ -34,10 +34,10 @@ progname = re.compile('[A-Za-z0-9.-_]+').search(sys.argv[0]).group()
 desc = 'Send off LSF jobs to get phyml trees for a set of records'
 input_help = 'Path to input directory'
 datatype_help = 'Datatype = \'protein\' || \'dna\''
-method_help = 'Choose either \'phyml\' || \'bionj\''
+method_help = 'Choose either \'phyml\' || \'bionj\' || \'bionj+\''
 seq_help = 'Sequences are interleaved'
 datatype_choices = ['protein', 'dna']
-method_choices = ['phyml', 'bionj']
+method_choices = ['phyml', 'bionj', 'bionj+']
 formatter = argparse.ArgumentDefaultsHelpFormatter
 parser = argparse.ArgumentParser(prog=progname, description=desc,
                                  formatter_class=formatter)
@@ -87,6 +87,15 @@ for f in files:
         elif datatype == 'dna':
             phyml_command = ' '.join(['phyml -m GTR -i {0}'.format(f),
                     '-d nt -c 4 -b 0 -o n --no_memory_check'])
+
+    elif method == 'bionj+':
+
+        if datatype == 'protein':
+            phyml_command = ' '.join(['phyml -m WAG -i {0}'.format(f),
+                    '-d aa -c 4 -b 0 -o r -c 4 -a e --no_memory_check'])
+        elif datatype == 'dna':
+            phyml_command = ' '.join(['phyml -m GTR -i {0}'.format(f),
+                    '-d nt -c 4 -b 0 -o r -c 4 -a e --no_memory_check'])
 
     if not interleaved:
         phyml_command += ' --sequential'
