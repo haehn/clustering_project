@@ -309,15 +309,22 @@ class Tree(object):
         name=None,
         interleaved=False,
         ncat=4,
+        optimise='n',
         verbose=True,
         overwrite=True,
         ):
 
         if not overwrite and self.newick:
             return self
+
+        if not optimise in ['n', 'r', 'lr', 'rl']:
+            print 'optimise parameter should be one of:'
+            print 'n | r | lr'
+            return
+
         command = \
-            'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o n --sequential --no_memory_check'.format(model,
-                alignment_file, datatype, ncat)
+            'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o {4} -a e --sequential --no_memory_check'.format(model,
+                alignment_file, datatype, ncat, optimise)
         if interleaved:
             command = command.replace('--sequential ', '')
         if verbose:
@@ -516,8 +523,12 @@ class Tree(object):
 
     def extract_gamma_parameter(self):
         gamma_regex = \
-            re.compile(r'(?<=Gamma shape parameter:       )[.\d+]+)')
-        gamma = float(gamma_regex.search(self.output).group())
+            re.compile(r'(?<=Gamma shape parameter: \t\t)[.\d+]+')
+        try:
+            gamma = float(gamma_regex.search(self.output).group())
+        except AttributeError:
+            print 'Couldn\'t extract parameters'
+            return
         return gamma
 
     def extract_GTR_parameters(self):
@@ -532,16 +543,20 @@ class Tree(object):
         CtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
         GtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
 
-        Afreq = float(Afreq_regex.search(self.output).group())
-        Cfreq = float(Cfreq_regex.search(self.output).group())
-        Gfreq = float(Gfreq_regex.search(self.output).group())
-        Tfreq = float(Tfreq_regex.search(self.output).group())
-        AtoC = float(AtoC_regex.search(self.output).group())
-        AtoG = float(AtoG_regex.search(self.output).group())
-        AtoT = float(AtoT_regex.search(self.output).group())
-        CtoG = float(CtoG_regex.search(self.output).group())
-        CtoT = float(CtoT_regex.search(self.output).group())
-        GtoT = float(GtoT_regex.search(self.output).group())
+        try:
+            Afreq = float(Afreq_regex.search(self.output).group())
+            Cfreq = float(Cfreq_regex.search(self.output).group())
+            Gfreq = float(Gfreq_regex.search(self.output).group())
+            Tfreq = float(Tfreq_regex.search(self.output).group())
+            AtoC = float(AtoC_regex.search(self.output).group())
+            AtoG = float(AtoG_regex.search(self.output).group())
+            AtoT = float(AtoT_regex.search(self.output).group())
+            CtoG = float(CtoG_regex.search(self.output).group())
+            CtoT = float(CtoT_regex.search(self.output).group())
+            GtoT = float(GtoT_regex.search(self.output).group())
+        except AttributeError:
+            print 'Couldn\'t extract parameters'
+            return
 
         d = dict(
             Afreq=Afreq,

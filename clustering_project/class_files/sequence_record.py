@@ -13,7 +13,7 @@ from tree import Tree
 if import_debugging: print '  tree::Tree (sr)'
 import hashlib
 if import_debugging: print '  hashlib (sr)'
-
+from random import shuffle as shf
 
 class SequenceRecord(object):
 
@@ -744,6 +744,7 @@ class TCSeqRec(SequenceRecord):
         model=None,
         datatype=None,
         ncat=1,
+        optimise='n',
         tmpdir='/tmp',
         overwrite=True,
         verbose=False,
@@ -770,8 +771,9 @@ class TCSeqRec(SequenceRecord):
             model,
             input_file,
             datatype,
-            ncat,
-            self.name,
+            ncat=ncat,
+            name=self.name,
+            optimise=optimise,
             overwrite=overwrite,
             verbose=verbose,
             )
@@ -882,3 +884,43 @@ class TCSeqRec(SequenceRecord):
         os.remove(fastafile)
         os.remove('{0}/temp_distvar.txt'.format(tmpdir))
         return (dv_string, labels)
+
+    def _pivot(self, lst):
+        new_lst = zip(*lst)
+        return [''.join(x) for x in new_lst]
+
+    def shuffle(self):
+        """
+        Modifies in-place
+        """
+        columns = self._pivot(self.sequences)
+        shf(columns)
+        self.sequences = self._pivot(columns)
+        self._update()
+
+    def split_by_lengths(self, lengths, names=None):
+        assert sum(lengths) == self.seqlength
+        columns = self._pivot(self.sequences)
+        newcols = []
+        for l in lengths:
+            newcols.append(columns[:l])
+            columns = columns[l:]
+        newrecs = []
+        for col in newcols:
+            newseqs = self._pivot(col)
+            newrec = TCSeqRec(headers=self.headers,
+                              sequences=newseqs, datatype=self.datatype)
+            newrecs.append(newrec)
+        if names:
+            for i, newrec in enumerate(newrecs):            
+                newrec.name = names[i]
+        else:
+            for i, newrec in enumerate(newrecs):            
+                newrec.name = 'record_{0}'.format(i+1)
+        return newrecs
+
+
+
+
+
+

@@ -4,25 +4,15 @@ import argparse
 import os
 import sys
 
-
-def fpath(s):
-    """
-    Helper function used when passing filepath arguments with argparse module.
-    Trims all '/' characters from the end of the path string.
-    """
-
-    return s.rstrip('/')
-
-
 desc = 'Splits TreeCollection DistVar.txt file into individual files'
 parser = argparse.ArgumentParser(prog='distvar_splitter.py',
                                  description=desc,
                                  formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-d', '--distvar',
                     help='Location of input distance-variance file',
-                    type=fpath)
+                    type=str)
 parser.add_argument('-g', '--genemap',
-                    help='Location of input genemap file', type=fpath)
+                    help='Location of input genemap file', type=str)
 parser.add_argument('-p', '--prefix',
                     help='Optional prefix for output files', type=str,
                     default='gene_')
@@ -30,8 +20,8 @@ parser.add_argument('-p', '--prefix',
 # parser.add_argument('-o', '--outdir')
 
 args = vars(parser.parse_args())
-dvfile = args['distvar']
-gmfile = args['genemap']
+dvfile = args['distvar'].rstrip('/')
+gmfile = args['genemap'].rstrip('/')
 prefix = args['prefix']
 
 # Check infiles are real

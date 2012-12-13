@@ -2,7 +2,7 @@
 
 from tree import Tree
 from sequence_record import TCSeqRec
-from errors import directorycheck_and_make, directorycheck_and_quit
+from errors import directorycheck_and_make_recursive, directorycheck_and_quit
 
 # import GeoMeTreeHack
 
@@ -491,10 +491,13 @@ class SeqSim(object):
     @classmethod
     def simulate_from_tree_GTR(
         cls,
-        tree,
-        name,
+        record,
+        output_dir,
+        name='tempsim',
         tmpdir='/tmp',
         allow_nonsense=False,
+        split_lengths=None,
+        gene_names=None,
         ):
         """
         parameters = dictionary with keys:
@@ -504,17 +507,21 @@ class SeqSim(object):
         tree       = Tree object
         """
 
+        length = record.seqlength
+        tree = record.tree
         directorycheck_and_quit(tmpdir)
         GTR_parameters = tree.extract_GTR_parameters()
         gamma = tree.extract_gamma_parameter()
         param_dir = '{0}/alf_parameter_dir'.format(tmpdir)
         working_dir = '{0}/alf_working_dir'.format(tmpdir)
+        directorycheck_and_make_recursive(param_dir)
+        directorycheck_and_make_recursive(working_dir)
         treefile = '{0}/treefile.nwk'.format(tmpdir)
 
         tree.pam2sps('sps2pam').write_to_file(treefile)
 
-        directorycheck_and_make(param_dir)
-        directorycheck_and_make(working_dir)
+        directorycheck_and_make_recursive(param_dir)
+        directorycheck_and_make_recursive(working_dir)
 
         sim = cls(simulation_name=name, working_directory=working_dir,
                   outfile_path=param_dir, unit_is_pam=True)
@@ -545,35 +552,93 @@ class SeqSim(object):
                                 alf_newick), re.findall(r'(\w+)(?=:)',
                                 tree_newick)))  # bug correction
 
+        alignment = \
+            glob.glob('{0}/alf_working_dir/{1}/MSA/*dna.fa'.format(tmpdir,
+                      name))[0]
+
+        new_record = TCSeqRec(alignment)
+        new_record.sequences = [seq[:length] for seq in new_record.sequences]
+        new_record._update()
+
+        print new_record.seqlength
+        new_record.headers = [replacement_dict[x[:x.rindex('/')]] for x in
+                          new_record.headers] # bug should be fixed
+        new_record._update()
+        new_record.sort_by_name()
+        if split_lengths and gene_names:
+            for rec in new_record.split_by_lengths(split_lengths, gene_names):
+                rec.write_phylip('{0}/{1}.phy'.format(output_dir, rec.name))
+        else: 
+            new_record.write_phylip('{0}/{1}.phy'.format(output_dir, name))
+        shutil.rmtree(param_dir)
+        shutil.rmtree(working_dir)
+
+
     @classmethod
     def simulate_from_tree_WAG(
         cls,
-        self,
-        tree,
-        gamma,
-        simulation_name='sim',
-        working_directory='./alftmp/',
-        outfile_path='./',
-        unit_is_pam=True,
+        record,
+        output_dir,
+        name='tempsim',
         tmpdir='/tmp',
+        allow_nonsense=False,
+        split_lengths=None,
+        gene_names=None,
         ):
 
-        sim = cls(simulation_name, working_directory, outfile_path,
-                  unit_is_pam)
+        length = record.seqlength
+        tree = record.tree
+        directorycheck_and_quit(tmpdir)
+        gamma = tree.extract_gamma_parameter()
+        param_dir = '{0}/alf_parameter_dir'.format(tmpdir)
+        working_dir = '{0}/alf_working_dir'.format(tmpdir)
+        directorycheck_and_make_recursive(param_dir)
+        directorycheck_and_make_recursive(working_dir)
+        treefile = '{0}/treefile.nwk'.format(tmpdir)
+
+        tree.pam2sps('sps2pam').write_to_file(treefile)
+
+        directorycheck_and_make_recursive(param_dir)
+        directorycheck_and_make_recursive(working_dir)
+
+        sim = cls(simulation_name=name, working_directory=working_dir,
+                  outfile_path=param_dir, unit_is_pam=True)
+
         sim.indels()
         sim.rate_variation(gamma)
         sim.root_genome(number_of_genes=1, min_length=length)
         sim.one_word_model('WAG')
         sim.custom_tree(treefile)
-        sim.write_parameters()
-        sim.runALF()
-        tree_newick = open(treefile).read()
+        params = sim.write_parameters()
+        sim.runALF(params, quiet=True)
+        tree_newick = tree.newick
         alf_newick = \
             open('{0}/alf_working_dir/{1}/RealTree.nwk'.format(tmpdir,
                  name)).read()
         replacement_dict = dict(zip(re.findall(r'(\w+)(?=:)',
                                 alf_newick), re.findall(r'(\w+)(?=:)',
                                 tree_newick)))  # bug correction
+
+        alignment = \
+            glob.glob('{0}/alf_working_dir/{1}/MSA/*aa.fa'.format(tmpdir,
+                      name))[0]
+
+        new_record = TCSeqRec(alignment)
+        new_record.sequences = [seq[:length] for seq in new_record.sequences]
+        new_record._update()
+
+        print new_record.seqlength
+        new_record.headers = [replacement_dict[x[:x.rindex('/')]] for x in
+                          new_record.headers] # bug should be fixed
+        new_record._update()
+        new_record.sort_by_name()
+        if split_lengths and gene_names:
+            for rec in new_record.split_by_lengths(split_lengths, gene_names):
+                rec.write_phylip('{0}/{1}.phy'.format(output_dir, rec.name))
+        else: 
+            new_record.write_phylip('{0}/{1}.phy'.format(output_dir, name))
+        shutil.rmtree(param_dir)
+        shutil.rmtree(working_dir)
 
     def simulate_set(
         self,

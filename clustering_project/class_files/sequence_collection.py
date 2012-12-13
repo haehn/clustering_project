@@ -60,7 +60,9 @@ if import_debugging:
 import types
 if import_debugging:
     print '  types (sc)'
-from random import shuffle
+
+# from random import shuffle
+
 if import_debugging:
     print '  random::shuffle (sc)'
 import shutil
@@ -380,6 +382,13 @@ class SequenceCollection(object):
 
         return [rec.name for rec in self.get_records()]
 
+    def get_seqlengths(self):
+        """
+        Returns a list of the sequence lengths of the stored records
+        """
+
+        return [rec.seqlength for rec in self.get_records()]
+
     def sanitise_records(self):
         """
         Sorts records alphabetically, trims whitespace from beginning
@@ -414,6 +423,7 @@ class SequenceCollection(object):
         model=None,
         datatype=None,
         ncat=4,
+        optimise='n',
         tmpdir=None,
         overwrite=True,
         verbose=False,
@@ -451,6 +461,7 @@ class SequenceCollection(object):
                     datatype=datatype,
                     tmpdir=tmpdir,
                     ncat=ncat,
+                    optimise=optimise,
                     overwrite=overwrite,
                     verbose=verbose,
                     )
@@ -673,41 +684,21 @@ class SequenceCollection(object):
         new_lst = zip(*lst)
         return [''.join(x) for x in new_lst]
 
-    def split_by_lengths(self, long_record, lengths):
-        columns = self._pivot(long_record.sequences)
-        newcols = []
-        for l in lengths:
-            newcols.append(columns[:l])
-            columns = columns[:l]
-        newrecs = []
-        for col in newcols:
-            newseqs = self._pivot(col)
-            newrec = TCSeqRec(headers=concat.headers,
-                              sequences=newseqs,
-                              datatype=long_record.datatype)
-            newrecs.append(newrec)
-        return newrecs
+    def concatenate_list_of_records(self, records=None):
+        if not records:
+            records = self.get_records()
+        concat = copy.deepcopy(records[0])
+        for rec in records[1:]:
+            concat += rec
+        return concat
 
     def get_randomised_alignments(self):
         lengths = [rec.seqlength for rec in self.get_records()]
+        names = self.get_names()
         datatype = self.records[0].datatype
-        concat = copy.deepcopy(self.records[0])
-        for rec in self.get_records()[1:]:
-            concat += rec
-        columns = self._pivot(concat.sequences)
-        shuffle(columns)
-        newcols = []
-        for l in lengths:
-            newcols.append(columns[:l])
-            columns = columns[l:]
-        newrecs = []
-        for col in newcols:
-            newseqs = self._pivot(col)
-            newrec = TCSeqRec(headers=concat.headers,
-                              sequences=newseqs, datatype=datatype)
-            newrecs.append(newrec)
-        for i in range(self.length):
-            newrecs[i].name = self.records[i].name
+        concat = self.concatenate_list_of_records()
+        concat.shuffle()
+        newrecs = concat.split_by_lengths(lengths, names)
         return newrecs
 
     def make_randomised_copy(
@@ -751,73 +742,8 @@ class SequenceCollection(object):
         tmpdir='/tmp',
         ):
 
-        shorten = lambda x: '_'.join([str(b)[:5] for b in x])
-        result_object = self.get_clusters()[compound_key]
-        lengths = [[rec.seqlength for rec in m] for m in
-                   result_object.members]
-        total_lengths = [sum(x) for x in lengths]
-        msa_dir = '{0}/msa'.format(tmpdir)
-        if not os.path.isdir(msa_dir):
-            os.mkdir(msa_dir)
-        k = 1
-        for i in range(result_object.length):
-            tree = result_object.concats[i].tree
-            tree = tree.pam2sps('sps2pam')
-            treefile = \
-                tree.write_to_file('{0}/{1}_tmptree{2}.nwk'.format(tmpdir,
-                                   shorten(compound_key), i))
-            outfile = '{0}/{1}_class{2}_params.drw'.format(tmpdir,
-                    shorten(compound_key), i)
-            length_list = lengths[i]
-            total_length = (total_lengths[i] + total_lengths[i] % 3) / 3
-            result_object.write_ALF_parameters(
-                'alfsim_{0}'.format(i),
-                tmpdir,
-                'alftmp_{0}'.format(i),
-                1,
-                total_length,
-                treefile,
-                outfile,
-                )
-            os.system('alfsim {0}'.format(outfile))
-            record = \
-                TCSeqRec(glob.glob('{0}/alftmp_{1}/alfsim_{1}/MSA/*dna.fa'.format(tmpdir,
-                         i))[0])
-
-            alf_newick = \
-                open('{0}/alftmp_{1}/alfsim_{1}/RealTree.nwk'.format(tmpdir,
-                     i)).read()
-            replacement_dict = dict(zip(re.findall(r'(\w+)(?=:)',
-                                    alf_newick),
-                                    re.findall(r'(\w+)(?=:)',
-                                    tree.newick)))
-            print alf_newick
-            print tree.newick
-            print replacement_dict
-            record.sort_by_name()
-            headers = [replacement_dict[x[:x.rindex('/')]] for x in
-                       record.headers]
-            print headers
-            sequences = record.sequences
-            print record
-            for j in range(len(length_list)):
-                start = sum(length_list[:j])
-                end = sum(length_list[:j + 1])
-                new_sequences = [seq[start:end] for seq in sequences]
-                newmsa = TCSeqRec(headers=headers,
-                                  sequences=new_sequences,
-                                  name='gene{0:0>3}'.format(k))
-                k += 1
-                newmsa.write_fasta(outfile='{0}/{1}.fas'.format(msa_dir,
-                                   newmsa.name))
-            shutil.rmtree('{0}/alftmp_{1}'.format(tmpdir, i))
-            os.remove(treefile)
-            os.remove(outfile)
-
-        new_seqcol_object = SequenceCollection(msa_dir, datatype='dna',
-                helper=helper, tmpdir=tmpdir)
-        shutil.rmtree('{0}/msa'.format(tmpdir))
-        return new_seqcol_object
+        pass
+ 
 
 #########################
 # Plotting
