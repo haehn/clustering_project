@@ -189,13 +189,13 @@ class SequenceCollection(object):
                 print '!!!'
                 print 'There was a problem reading files from {0}'.format(input_dir)
                 print '!!!'
-                sys.exit(1)
+                sys.exit()
 
             if get_distances and not os.path.isfile(helper):
                 print '!!!'
                 print 'There was a problem finding the darwin helper at {0}'.format(helper)
                 print '!!!'
-                sys.exit(1)
+                sys.exit()
 
             # done
 
@@ -368,27 +368,6 @@ class SequenceCollection(object):
             for f in failures:
                 print '   ', f
 
-    def get_records(self):
-        """
-        Returns list of stored sequence records
-        """
-
-        return [self.keys_to_records[i] for i in range(self.length)]
-
-    def get_names(self):
-        """
-        Returns a list of the names of the stored records
-        """
-
-        return [rec.name for rec in self.get_records()]
-
-    def get_seqlengths(self):
-        """
-        Returns a list of the sequence lengths of the stored records
-        """
-
-        return [rec.seqlength for rec in self.get_records()]
-
     def sanitise_records(self):
         """
         Sorts records alphabetically, trims whitespace from beginning
@@ -409,12 +388,6 @@ class SequenceCollection(object):
         for rec in self.get_records():
             rec.dv = [rec.get_dv_matrix(tmpdir=tmpdir, helper=helper,
                       overwrite=overwrite)]
-
-    def get_dv_matrices(self):
-        dvs = {}
-        for rec in self.get_records():
-            dvs[rec.name] = rec.dv
-        return dvs
 
     def put_trees(
         self,
@@ -467,9 +440,6 @@ class SequenceCollection(object):
                     )
             self.inferred_trees[rec.name] = tree
 
-    def get_trees(self):
-        return [rec.tree for rec in self.get_records()]
-
     def put_distance_matrices(
         self,
         metrics,
@@ -491,9 +461,6 @@ class SequenceCollection(object):
             dm = DistanceMatrix(trees, tmpdir=tmpdir, gtp_path=gtp_path)
             dm.get_distance_matrix(metric, normalise=normalise)
             self.distance_matrices[metric] = dm
-
-    def get_distance_matrices(self):
-        return self.distance_matrices
 
     def put_partition(
         self,
@@ -617,7 +584,7 @@ class SequenceCollection(object):
                     gtp_path=gtp_path)
         dm = self.get_distance_matrices()[metric]
 
-        if check_single:
+        if check_single and min_groups > 1:
             print 'Checking for single cluster...'
             (partition_vector, nclusters, quality_scores) = \
                 self.Clustering.run_spectral_rotate(
@@ -632,9 +599,11 @@ class SequenceCollection(object):
             if nclusters == 1:
                 print 'Single cluster found.'
                 print 'Quality Scores: {0}'.format(quality_scores)
-                self.clusters_to_partitions[(metric, 'rotate', nclusters)] = \
-                    partition_vector
-                self.partitions[partition_vector] = Partition(partition_vector)
+
+                self.clusters_to_partitions[(metric, 'rotate',
+                        nclusters)] = partition_vector
+                self.partitions[partition_vector] = \
+                    Partition(partition_vector)
                 return (partition_vector, quality_scores)
             else:
                 print '>1 clusters found.'
@@ -655,16 +624,6 @@ class SequenceCollection(object):
             partition_vector
         self.partitions[partition_vector] = Partition(partition_vector)
         return (partition_vector, quality_scores)
-
-    def get_cluster_records(self):
-        """
-        Returns all concatenated records from cluster analysis
-        """
-
-        sort_key = lambda item: tuple((int(num) if num else alpha)
-                for (num, alpha) in re.findall(r'(\d+)|(\D+)',
-                item.name))
-        return sorted(self.concats.values(), key=sort_key)
 
     def put_cluster_trees(
         self,
@@ -690,21 +649,11 @@ class SequenceCollection(object):
             tmpdir=tmpdir,
             overwrite=overwrite,
             )
-        self.update_results()
+        self.update_scores()
 
     def update_scores(self):
         for partition in self.partitions.values():
             partition.update_score(self.concats)
-
-    def get_cluster_trees(self):
-        rec_list = sorted(self.get_cluster_records(), key=lambda rec: \
-                          rec.name)
-        trees = [rec.tree for rec in rec_list]
-        return trees
-
-    def get_scores(self):
-        return [(k, self.partitions[v].score) for (k, v) in
-                self.clusters_to_partitions.items()]
 
     def _pivot(lst):
         new_lst = zip(*lst)
@@ -717,15 +666,6 @@ class SequenceCollection(object):
         for rec in records[1:]:
             concat += rec
         return concat
-
-    def get_randomised_alignments(self):
-        lengths = [rec.seqlength for rec in self.get_records()]
-        names = self.get_names()
-        datatype = self.records[0].datatype
-        concat = self.concatenate_list_of_records()
-        concat.shuffle()
-        newrecs = concat.split_by_lengths(lengths, names)
-        return newrecs
 
     def make_randomised_copy(
         self,
@@ -761,18 +701,160 @@ class SequenceCollection(object):
             print partition
             print self.clustering.get_memberships(partition)
 
-    def simulate_from_result(
+    def simulate_from_record(
         self,
-        compound_key,
-        helper='./class_files/DV_wrapper.drw',
-        tmpdir='/tmp',
+        record,
+        output_dir,
+        name,
+        tmpdir,
+        datatype=None,
+        allow_nonsense=False,
+        split_lengths=None,
+        gene_names=None,
         ):
 
-        pass
- 
+        if not datatype:
+            datatype = self.datatype
+        if datatype == 'protein':
+            SeqSim.simulate_from_record_WAG(
+                record,
+                output_dir,
+                name,
+                tmpdir,
+                allow_nonsense,
+                split_lengths,
+                gene_names,
+                )
+        elif datatype == 'dna':
+            SeqSim.simulate_from_record_GTR(
+                record,
+                output_dir,
+                name,
+                tmpdir,
+                allow_nonsense,
+                split_lengths,
+                gene_names,
+                )
+        else:
+            print 'datatype {0} is not recognised'.format(datatype)
+
+    def simulate_from_result(
+        self,
+        key,
+        output_dir,
+        name,
+        tmpdir,
+        datatype=None,
+        allow_nonsense=False,
+        ):
+
+        if not datatype:
+            datatype = self.datatype
+        p = self.get_partition(key)
+        for c in p.concats:
+            updated_record = self.concats[c.name] # bug: records in Partition
+                                                  # objects aren't linked
+                                                  # to trees
+            members = c.name.split('-')
+            lengths = [self.keys_to_records[int(x)].seqlength for x in
+                       members]
+            names = ['sim' + self.keys_to_records[int(x)].name for x in
+                     members]
+            self.simulate_from_record(
+                updated_record,
+                output_dir,
+                name=name,
+                tmpdir=tmpdir,
+                allow_nonsense=allow_nonsense,
+                split_lengths=lengths,
+                gene_names=names,
+                )
+
+#######################
+# Getters
+#######################
+
+    def get_trees(self):
+        return [rec.tree for rec in self.get_records()]
+
+    def get_cluster_records(self):
+        """
+        Returns all concatenated records from cluster analysis
+        """
+
+        sort_key = lambda item: tuple((int(num) if num else alpha)
+                for (num, alpha) in re.findall(r'(\d+)|(\D+)',
+                item.name))
+        return sorted(self.concats.values(), key=sort_key)
+
+    def get_cluster_trees(self):
+        records = self.get_cluster_records()
+        trees = [rec.tree for rec in records]
+        return trees
+
+    def get_score(self, key):
+        return self.get_partition(key).score
+
+    def get_partition(self, key):
+        partition_vector = self.clusters_to_partitions[key]
+        return self.partitions[partition_vector]
+
+    def get_membership(self, key, flatten=False):
+        return self.get_partition(key).get_membership(flatten=flatten)
+
+    def get_partitions(self):
+        return [(k, self.partitions[v]) for (k, v) in
+                self.clusters_to_partitions.items()]
+
+    def get_memberships(self, flatten=False):
+        return [(k, self.partitions[v].get_membership(flatten=flatten))
+                for (k, v) in self.clusters_to_partitions.items()]
+
+    def get_scores(self):
+        return [(k, self.partitions[v].score) for (k, v) in
+                self.clusters_to_partitions.items()]
+
+    def get_randomised_alignments(self):
+        lengths = [rec.seqlength for rec in self.get_records()]
+        names = self.get_names()
+        datatype = self.records[0].datatype
+        concat = self.concatenate_list_of_records()
+        concat.shuffle()
+        newrecs = concat.split_by_lengths(lengths, names)
+        return newrecs
+
+    def get_records(self):
+        """
+        Returns list of stored sequence records
+        """
+
+        return [self.keys_to_records[i] for i in range(self.length)]
+
+    def get_names(self):
+        """
+        Returns a list of the names of the stored records
+        """
+
+        return [rec.name for rec in self.get_records()]
+
+    def get_seqlengths(self):
+        """
+        Returns a list of the sequence lengths of the stored records
+        """
+
+        return [rec.seqlength for rec in self.get_records()]
+
+    def get_distance_matrices(self):
+        return self.distance_matrices
+
+    def get_dv_matrices(self):
+        dvs = {}
+        for rec in self.get_records():
+            dvs[rec.name] = rec.dv
+        return dvs
 
 #########################
-# Plotting
+# Plotters
 #########################
 
     def plot_dendrogram(
@@ -796,7 +878,7 @@ class SequenceCollection(object):
         outfile=None,
         ):
 
-        sort_partition = partition.get_memberships(flatten=True)
+        sort_partition = partition.get_membership(flatten=True)
         fig = \
             distance_matrix.plot_heatmap(sort_partition=sort_partition)
         if outfile:
@@ -916,7 +998,7 @@ class SequenceCollection(object):
         return (fig2d, fig3d)
 
 #########################
-# Parallel calls
+# Parallelisers
 #########################
 
     def _unpack_dv(self, packed_args):

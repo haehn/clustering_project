@@ -489,7 +489,7 @@ class SeqSim(object):
             return False
 
     @classmethod
-    def simulate_from_tree_GTR(
+    def simulate_from_record_GTR(
         cls,
         record,
         output_dir,
@@ -578,7 +578,7 @@ class SeqSim(object):
         shutil.rmtree(working_dir)
 
     @classmethod
-    def simulate_from_tree_WAG(
+    def simulate_from_record_WAG(
         cls,
         record,
         output_dir,

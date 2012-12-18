@@ -706,23 +706,23 @@ class Clustering(object):
         groups = range(min_groups, max_groups + 1)
         vector_length = eigen_vectors.shape[0]
         current_vector = eigen_vectors[:, :groups[0]]
-        quality_scores = []
-        clusters = []
-        rotated_vectors = []
+        n = max_groups - min_groups + 1
 
-        for g in range(max_groups - min_groups + 1):
+        quality_scores = [None] * n
+        clusters = [None] * n
+        rotated_vectors = [None] * n
+
+        for g in range(n):
             if g > 0:
-                current_vector = np.concatenate((rotated_vector,
-                        eigen_vectors[:, g + 1:g + 2]), axis=1)
+                current_vector = np.concatenate((rotated_vectors[g - 1],
+                        eigen_vectors[:, groups[g] - 1:groups[g]]),
+                        axis=1)
 
-            (cluster, quality, rotated_vector) = \
+            (clusters[g], quality_scores[g], rotated_vectors[g]) = \
                 evrot.main(current_vector)
-            quality_scores.append(quality)
-            clusters.append(cluster)
-            rotated_vectors.append(rotated_vector)
 
         # Find the highest index of quality scores where the
-        # score is within 0.005 of the maximum:
+        # score is within 0.0025 of the maximum:
         # this is our chosen number of groups
 
         max_score = max(quality_scores)

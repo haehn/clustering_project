@@ -37,30 +37,29 @@ class Partition(object):
         more robust.
         """
 
-        memberships = self.get_memberships(self.partition_vector)
+        memberships = self.get_membership(self.partition_vector)
         concats = []
 
-        index = 1  # index for naming clusters
         for cluster in memberships:
             cluster = sorted(cluster)
             member_records = [keys_to_records_map[n] for n in cluster]
-            seed = deepcopy(member_records.pop(0))  # use of deepcopy here is important
-            for rec in member_records:
+            seed = deepcopy(member_records.pop(0))  # use of deepcopy here 
+            for rec in member_records:              # is important
                 seed += rec
             seed.name = '-'.join(str(x) for x in cluster)
             concats.append(seed)
         self.concats = concats
-        return concats
+        return concats # guaranteed same order as get_membership()
 
     def update_score(self, concats_dict):
         self.score = sum([concats_dict[rec.name].tree.score for rec in
                          self.concats])
 
-    def get_memberships(self, partition_vector=None, flatten=False):
+    def get_membership(self, partition_vector=None, flatten=False):
         if not partition_vector:
             partition_vector = self.partition_vector
 
-        clusters = list(set(partition_vector))
+        clusters = sorted(list(set(partition_vector)))
         result = []
         for c in clusters:
             members = []
@@ -94,7 +93,7 @@ class Partition(object):
                 Labels don't need to match, nor do the number of clusters.
 
         subfunctions:
-        get_memberships - parameter partition (list / array)
+        get_membership - parameter partition (list / array)
             returns a list of length equal to the number of clusters found in
             the partition. Each element is the set of members of the cluster.
             Ordering is arbitrary.
@@ -122,8 +121,8 @@ class Partition(object):
         else:
             total = float(len(partition_1))  # Ensure float division later
 
-        m1 = self.get_memberships(partition_1)
-        m2 = self.get_memberships(partition_2)
+        m1 = self.get_membership(partition_1)
+        m2 = self.get_membership(partition_2)
         l1 = len(m1)
         l2 = len(m2)
         entropy_1 = 0
