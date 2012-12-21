@@ -104,7 +104,7 @@ class Clustering(object):
 
         coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
                 nclusters, normalise=True)[0]
-        T = self.run_Kmeans(coords, nclusters)
+        T = self.run_KMeans(coords, nclusters)
         return T
 
     def run_spectral_rotate(
@@ -163,8 +163,11 @@ class Clustering(object):
         if verbose:
             print 'Discovered {0} clusters'.format(nclusters)
             print 'Quality scores: {0}'.format(quality_scores)
-            print 'Pre-KMeans clustering: {0}'.format(clustering)
-        T = self.run_Kmeans(rotated_vectors, nclusters=nclusters)
+            if KMeans: print 'Pre-KMeans clustering: {0}'.format(clustering)
+        if KMeans:
+            T = self.run_KMeans(rotated_vectors, nclusters=nclusters)
+        else:
+            T = clustering
         return (T, nclusters, quality_scores)
 
         # ######################
@@ -194,7 +197,7 @@ class Clustering(object):
 
         coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
                 nclusters, normalise=True)[0]
-        T = self.run_Kmeans(coords, nclusters)
+        T = self.run_KMeans(coords, nclusters)
         return T
 
     def run_ShiMalik(
@@ -222,7 +225,7 @@ class Clustering(object):
 
         coords = self.get_coords_by_dimension(eigvals, eigvecs, cve,
                 nclusters, normalise=True)[0]
-        T = self.run_Kmeans(coords, nclusters)
+        T = self.run_KMeans(coords, nclusters)
         return T
 
     def run_hierarchical(
@@ -277,10 +280,10 @@ class Clustering(object):
 
         coords = self.get_coords_by_cutoff(eigvals, eigvecs, cve, 95,
                 normalise=False)
-        T = self.run_Kmeans(coords, nclusters)
+        T = self.run_KMeans(coords, nclusters)
         return T
 
-    def run_Kmeans(self, coords, nclusters):
+    def run_KMeans(self, coords, nclusters):
         est = KMeans(n_clusters=nclusters)
         est.fit(coords)
         T = self.order(est.labels_)
@@ -698,14 +701,14 @@ class Clustering(object):
 
     def cluster_rotate(
         self,
-        eigen_vectors,
+        eigenvectors,
         max_groups,
         min_groups=2,
         ):
 
         groups = range(min_groups, max_groups + 1)
-        vector_length = eigen_vectors.shape[0]
-        current_vector = eigen_vectors[:, :groups[0]]
+        vector_length = eigenvectors.shape[0]
+        current_vector = eigenvectors[:, :groups[0]]
         n = max_groups - min_groups + 1
 
         quality_scores = [None] * n
@@ -715,7 +718,7 @@ class Clustering(object):
         for g in range(n):
             if g > 0:
                 current_vector = np.concatenate((rotated_vectors[g - 1],
-                        eigen_vectors[:, groups[g] - 1:groups[g]]),
+                        eigenvectors[:, groups[g] - 1:groups[g]]),
                         axis=1)
 
             (clusters[g], quality_scores[g], rotated_vectors[g]) = \

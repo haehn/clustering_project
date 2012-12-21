@@ -28,6 +28,7 @@ from subprocess import Popen, PIPE, call
 if import_debugging:
     print '  subprocess::Popen, PIPE, call (tr)'
 from errors import FileError
+import taxonnames
 
 
 class Tree(object):
@@ -573,6 +574,17 @@ class Tree(object):
 
         return d
 
+    @classmethod
+    def new_random_topology(
+        cls,
+        nspecies,
+        names=None,
+        rooted=False,
+        ):
+        new_tree = cls()
+        if not names: names = taxonnames.names
+        return new_tree.random_topology(nspecies, names[:nspecies], rooted)
+
     def random_topology(
         self,
         nspecies,
@@ -629,6 +641,11 @@ class Tree(object):
 
         return self.pam2sps(scaling_factor)
 
+    @classmethod
+    def new_random_yule(cls, nspecies=None, names=None):
+        new_tree = cls()
+        return new_tree.random_yule(nspecies, names)
+
     def random_yule(self, nspecies=None, names=None):
         if names and nspecies:
             if not nspecies == len(names):
@@ -649,6 +666,11 @@ class Tree(object):
             newick += ';'
 
         return Tree(newick)
+
+    @classmethod
+    def new_random_coal(cls, nspecies=None, names=None):
+        new_tree = cls()
+        return new_tree.random_coal(nspecies, names)
 
     def random_coal(self, nspecies=None, names=None):
         if names and nspecies:

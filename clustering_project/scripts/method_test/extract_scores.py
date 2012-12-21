@@ -28,7 +28,8 @@ parser.add_argument('-o', dest='output_file', type=str)
 parser.add_argument('-c', dest='category', choices=category_choices,
                     type=str, default='NA')
 parser.add_argument('-n', dest='number', type=str, default='NA')
-parser.add_argument('-header', dest='header', action='store_true')
+parser.add_argument('-header', dest='header', action='store_true',
+                        default=False)
 
 args = parser.parse_args()
 input_file = args.input_file
@@ -70,13 +71,7 @@ with open(output_file, 'w') as outf:
         else:
             df = 'NA'
             prev_lk = lk
-        outf.write('\t'.join([
-            str(clst),
-            dist,
-            meth,
-            str(lk),
-            str(df),
-            category,
-            number,
-            ]))
+        outf.write('\t'.join([str(clst), dist, meth,
+                              str(lk), str(df), category,
+                              number]))
         outf.write('\n')

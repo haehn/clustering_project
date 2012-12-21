@@ -514,8 +514,8 @@ class SeqSim(object):
         gamma = tree.extract_gamma_parameter()
         param_dir = '{0}/alf_parameter_dir'.format(tmpdir)
         working_dir = '{0}/alf_working_dir'.format(tmpdir)
-        directorycheck_and_make(param_dir)
-        directorycheck_and_make(working_dir)
+        directorycheck_and_make(param_dir, verbose=False)
+        directorycheck_and_make(working_dir, verbose=False)
         treefile = '{0}/treefile.nwk'.format(tmpdir)
 
         tree.pam2sps('sps2pam').write_to_file(treefile)
@@ -567,11 +567,15 @@ class SeqSim(object):
         new_record._update()
         new_record.sort_by_name()
         if split_lengths and gene_names:
+            with open('{0}/trees.txt'.format(output_dir), 'a') as trf:
+                trf.write('{0}\t{1}\n'.format('-'.join(gene_names), tree.newick))
             for rec in new_record.split_by_lengths(split_lengths,
                     gene_names):
                 rec.write_phylip('{0}/{1}.phy'.format(output_dir,
                                  rec.name))
         else:
+            with open('{0}/trees.txt'.format(output_dir), 'a') as trf:
+                trf.write('{0}\t{1}\n'.format(new_record.name, tree.newick))
             new_record.write_phylip('{0}/{1}.phy'.format(output_dir,
                                     name))
         shutil.rmtree(param_dir)
@@ -595,8 +599,8 @@ class SeqSim(object):
         gamma = tree.extract_gamma_parameter()
         param_dir = '{0}/alf_parameter_dir'.format(tmpdir)
         working_dir = '{0}/alf_working_dir'.format(tmpdir)
-        directorycheck_and_make(param_dir)
-        directorycheck_and_make(working_dir)
+        directorycheck_and_make(param_dir, verbose=False)
+        directorycheck_and_make(working_dir, verbose=False)
         treefile = '{0}/treefile.nwk'.format(tmpdir)
 
         tree.pam2sps('sps2pam').write_to_file(treefile)
@@ -637,11 +641,15 @@ class SeqSim(object):
         new_record._update()
         new_record.sort_by_name()
         if split_lengths and gene_names:
+            with open('{0}/trees.txt'.format(output_dir), 'a') as trf:
+                trf.write('{0}\t{1}\n'.format('-'.join(gene_names), tree.newick))
             for rec in new_record.split_by_lengths(split_lengths,
                     gene_names):
                 rec.write_phylip('{0}/{1}.phy'.format(output_dir,
                                  rec.name))
         else:
+            with open('{0}/trees.txt'.format(output_dir), 'a') as trf:
+                trf.write('{0}\t{1}\n'.format(new_record.name, tree.newick))
             new_record.write_phylip('{0}/{1}.phy'.format(output_dir,
                                     name))
         shutil.rmtree(param_dir)

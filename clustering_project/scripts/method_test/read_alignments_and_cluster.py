@@ -17,6 +17,7 @@
 #       -t      = temp directory
 #       -del    = delete alignments and trees
 #       -data   = datatype (protein or dna)
+#       -score  = evaluate cluster trees in this script, not later in LSF
 ################################################################################
 
 import argparse
@@ -85,6 +86,7 @@ parser.add_argument('-del', dest='delete', action='store_true',
                     help=delete_help)
 parser.add_argument('-data', dest='datatype', choices=valid_datatypes,
                     type=str, help=datatype_help)
+parser.add_argument('-score', dest='score', action='store_true')
 
 args = vars(parser.parse_args())
 input_dir = args['input'].rstrip('/')
@@ -96,6 +98,7 @@ distance = args['distance']
 method = args['cluster_method']
 delete = args['delete']
 datatype = args['datatype']
+score = args['score']
 
 directorycheck_and_quit(input_dir)
 directorycheck_and_make(tmpdir)
@@ -121,11 +124,14 @@ for dist in distance:
     (_, qs) = sc.autotune(dist, max_groups=max_clusters,
                           min_groups=min_clusters)
     sc.quality_scores[dist] = qs
-cluster_range = range(min_clusters, max_clusters)
+cluster_range = range(min_clusters, max_clusters+1)
 if min_clusters > 1:
     cluster_range.insert(0, 1)
 sc.put_partitions(distance, method, cluster_range)
 sc.concatenate_records()
+if score:
+       sc.put_cluster_trees(program='bionj', optimise='r', ncat=4 )
+
 try:
     sc.gzip(output)
 except:

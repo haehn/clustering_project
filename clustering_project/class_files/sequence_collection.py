@@ -631,6 +631,7 @@ class SequenceCollection(object):
         model=None,
         datatype=None,
         ncat=4,
+        optimise='n',
         tmpdir='/tmp',
         overwrite=True,
         ):
@@ -645,6 +646,7 @@ class SequenceCollection(object):
             program=program,
             model=model,
             ncat=ncat,
+            optimise=optimise,
             datatype=datatype,
             tmpdir=tmpdir,
             overwrite=overwrite,

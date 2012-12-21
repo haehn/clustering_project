@@ -60,10 +60,11 @@ def directorycheck_and_quit(directory):
         sys.exit()
 
 
-def directorycheck_and_make(directory):
+def directorycheck_and_make(directory, verbose=True):
     try:
         directorycheck_and_raise(directory)
     except DirectoryError, e:
-        print e
-        print 'Creating \'{0}\''.format(directory)
+        if verbose:
+            print e
+            print 'Creating \'{0}\''.format(directory)
         os.makedirs(directory)
