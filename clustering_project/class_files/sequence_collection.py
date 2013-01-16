@@ -67,7 +67,7 @@ if import_debugging:
     print '  random::shuffle (sc)'
 import shutil
 if import_debugging:
-    print '  shutil'
+    print '  shutil (sc)'
 
 
 def _pickle_method(method):
@@ -555,8 +555,8 @@ class SequenceCollection(object):
         for p in self.partitions.values():
             p.concatenate_records(self.keys_to_records)
             for concat in p.concats:
-                if not concat.name in self.concats:
-                    self.concats[concat.name] = concat
+                if not concat[0].name in self.concats:
+                    self.concats[concat[0].name] = concat
 
     def autotune(
         self,
@@ -638,6 +638,8 @@ class SequenceCollection(object):
 
         if program not in ['treecollection', 'raxml', 'phyml', 'bionj']:
             print 'unrecognised program {0}'.format(program)
+            return
+        if program == 'treecollection':
             return
         rec_list = self.get_cluster_records()
         print 'Inferring {0} cluster trees'.format(len(rec_list))
@@ -754,7 +756,7 @@ class SequenceCollection(object):
             datatype = self.datatype
         p = self.get_partition(key)
         for c in p.concats:
-            updated_record = self.concats[c.name] # bug: records in Partition
+            updated_record = self.concats[c.name][0] # bug: records in Partition
                                                   # objects aren't linked
                                                   # to trees
             members = c.name.split('-')
@@ -786,7 +788,17 @@ class SequenceCollection(object):
 
         sort_key = lambda item: tuple((int(num) if num else alpha)
                 for (num, alpha) in re.findall(r'(\d+)|(\D+)',
-                item.name))
+                item[0].name))
+        return [rec for rec, _ in sorted(self.concats.values(), key=sort_key)]
+
+    def get_cluster_records_with_memberships(self):
+        """
+        Returns all concatenated records from cluster analysis
+        """
+
+        sort_key = lambda item: tuple((int(num) if num else alpha)
+                for (num, alpha) in re.findall(r'(\d+)|(\D+)',
+                item[0].name))
         return sorted(self.concats.values(), key=sort_key)
 
     def get_cluster_trees(self):

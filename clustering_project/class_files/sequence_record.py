@@ -828,7 +828,7 @@ class TCSeqRec(SequenceRecord):
             return self.tree
         self._write_temp_tc(tmpdir=tmpdir)
         print 'Running TreeCollection on ' + str(self.name) + '...'
-        self.tree = Tree().run_treecollection(
+        self.tree.run_treecollection(
             '{0}/{1}_dv.txt'.format(tmpdir, self.name),
             '{0}/{1}_map.txt'.format(tmpdir, self.name),
             '{0}/{1}_labels.txt'.format(tmpdir, self.name),
@@ -876,6 +876,7 @@ class TCSeqRec(SequenceRecord):
         command = \
             'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\'; fpath := \'{2}/\'; ReadProgram(\'{3}\');" | darwin'.format(fastafile,
                 datatype, tmpdir, helper)
+        # print command
         process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
         (stdout, stderr) = process.communicate()
         dv_string = \

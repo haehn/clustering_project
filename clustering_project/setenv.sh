@@ -9,6 +9,8 @@ cd `dirname ${SCRIPT_PATH}` > /dev/null
 SCRIPT_PATH=`/bin/pwd`;
 popd  > /dev/null
 
-if ! $(echo "$PYTHONPATH" | tr ":" "\n" | grep -qx "$SCRIPT_PATH/class_files") ; then export PYTHONPATH=$SCRIPT_PATH/class_files:$PYTHONPATH ; fi
 export DARWINHELPER=$SCRIPT_PATH/class_files/DV_wrapper.drw
 export GTP_PATH=$SCRIPT_PATH/class_files/
+
+if ! $(echo "$PYTHONPATH" | tr ":" "\n" | grep -qx "$SCRIPT_PATH/class_files") ; then export PYTHONPATH=$SCRIPT_PATH/class_files:$PYTHONPATH ; fi
+

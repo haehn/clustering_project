@@ -43,16 +43,17 @@ class Partition(object):
         for cluster in memberships:
             cluster = sorted(cluster)
             member_records = [keys_to_records_map[n] for n in cluster]
-            seed = deepcopy(member_records.pop(0))  # use of deepcopy here 
+            first_rec = member_records.pop(0)
+            seed = deepcopy(first_rec)  # use of deepcopy here 
             for rec in member_records:              # is important
                 seed += rec
             seed.name = '-'.join(str(x) for x in cluster)
-            concats.append(seed)
+            concats.append((seed, cluster))
         self.concats = concats
         return concats # guaranteed same order as get_membership()
 
     def update_score(self, concats_dict):
-        self.score = sum([concats_dict[rec.name].tree.score for rec in
+        self.score = sum([concats_dict[rec.name].tree.score for rec, _ in
                          self.concats])
 
     def get_membership(self, partition_vector=None, flatten=False):

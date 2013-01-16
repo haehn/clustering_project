@@ -84,15 +84,12 @@ class Clustering(object):
         ):
 
         if dm.metric == 'rf':
-
-            # print 'metric = rf, adding noise...'
-
-            matrix = dm.add_noise(dm.matrix)
+            noise = True
         else:
-            matrix = dm.matrix
+            noise = False
 
         if recalculate or not 'spectral_decomp' in self.cache:
-            laplacian = self.spectral(matrix, prune=prune)
+            laplacian = self.spectral(dm, prune=prune, add_noise=noise)
 
             (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
                     standardize=False)
@@ -119,12 +116,11 @@ class Clustering(object):
         ):
 
         if dm.metric == 'rf':
-            print 'metric = rf, adding noise...'
-            matrix = dm.add_noise(dm.matrix)
+            noise = True
         else:
-            matrix = dm.matrix
+            noise = False
         if recalculate or not 'spectral_decomp' in self.cache:
-            laplacian = self.spectral(matrix, prune=prune)
+            laplacian = self.spectral(dm, prune=prune, add_noise=noise)
 
             (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
                     standardize=False)
@@ -137,14 +133,15 @@ class Clustering(object):
         # ######################
         # CLUSTER_ROTATE STUFF HERE
 
+        M = dm.matrix
         if not max_groups:
-            max_groups = int(np.sqrt(matrix.shape[0])
-                             + np.power(matrix.shape[0], 1.0 / 3))
+            max_groups = int(np.sqrt(M.shape[0]) + np.power(M.shape[0],
+                             1.0 / 3))
         (nclusters, clustering, quality_scores, rotated_vectors) = \
             self.cluster_rotate(eigvecs, max_groups=max_groups,
                                 min_groups=min_groups)
 
-        translate_clustering = [None] * len(dm.matrix)
+        translate_clustering = [None] * len(dm.M)
         no_of_empty_clusters = 0
         for (group_number, group_membership) in enumerate(clustering):
             if len(group_membership) == 0:
@@ -163,7 +160,8 @@ class Clustering(object):
         if verbose:
             print 'Discovered {0} clusters'.format(nclusters)
             print 'Quality scores: {0}'.format(quality_scores)
-            if KMeans: print 'Pre-KMeans clustering: {0}'.format(clustering)
+            if KMeans:
+                print 'Pre-KMeans clustering: {0}'.format(clustering)
         if KMeans:
             T = self.run_KMeans(rotated_vectors, nclusters=nclusters)
         else:
@@ -180,12 +178,12 @@ class Clustering(object):
         ):
 
         if dm.metric == 'rf':
-            print 'metric = rf, adding noise...'
-            matrix = dm.add_noise(dm.matrix)
+            noise = True
         else:
-            matrix = dm.matrix
+            noise = False
         if recalculate or not 'NJW_decomp' in self.cache:
-            laplacian = self.NJW(matrix, sigma=np.median(matrix))
+            laplacian = self.NJW(matrix, sigma=np.median(matrix),
+                                 add_noise=noise)
 
             (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
                     standardize=False)
@@ -208,12 +206,12 @@ class Clustering(object):
         ):
 
         if dm.metric == 'rf':
-            print 'metric = rf, adding noise...'
-            matrix = dm.add_noise(dm.matrix)
+            noise = True
         else:
-            matrix = dm.matrix
+            noise = False
         if recalculate or not 'SM_decomp' in self.cache:
-            laplacian = self.ShiMalik(matrix, sigma=np.median(matrix))
+            laplacian = self.ShiMalik(matrix, sigma=np.median(matrix),
+                    add_noise=noise)
 
             (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
                     standardize=False)
@@ -265,11 +263,11 @@ class Clustering(object):
         if recalculate or not 'MDS_decomp' in self.cache:
 
             if dm.metric == 'rf':
-                matrix = dm.add_noise(dm.matrix)
+                noise = True
             else:
-                matrix = dm.matrix
+                noise = False
 
-            dbc = self.get_double_centre(matrix)
+            dbc = dm.get_double_centre(add_noise=noise)
             (eigvals, eigvecs, cve) = self.get_eigen(dbc,
                     standardize=True)
             self.cache['MDS_decomp'] = (eigvals, eigvecs, cve)
@@ -363,7 +361,7 @@ class Clustering(object):
         partition = self.partitions[(metric, linkage, nclasses)]
 
         if embed == 'MDS':
-            dbc = self.get_double_centre(dm)
+            dbc = dm.get_double_centre()
             (eigvals, eigvecs, cve) = self.get_eigen(dbc,
                     standardize=standardize)
             (coords, varexp) = self.get_coords_by_dimension(eigvals,
@@ -416,31 +414,7 @@ class Clustering(object):
         plt.ylabel('Distance')
         return fig
 
-    # ## Methods for multidimensional scaling
-
-    def get_double_centre(self, m, square_input=False):
-        """ 
-        Double-centres the input matrix:
-          From each element:
-            Subtract the row mean
-            Subtract the column mean
-            Add the grand mean
-            Divide by -2
-        Method from:
-        Torgerson, W S (1952). 
-        Multidimensional scaling: I. Theory and method.
-        """
-
-        M = np.array(m, copy=True)
-        if square_input:
-            M *= M
-        (rows, cols) = M.shape
-        cm = np.mean(M, axis=0)  # column means
-        rm = np.mean(M, axis=1).reshape((rows, 1))  # row means
-        gm = np.mean(cm)  # grand mean
-        M -= rm + cm - gm
-        M /= -2
-        return M
+    # ## Methods for eigen decomposition
 
     def get_eigen(self, matrix, standardize=False):
         """
@@ -508,9 +482,10 @@ class Clustering(object):
 
     def spectral(
         self,
-        distance_matrix,
+        dm,
         prune=True,
         sigma7=False,
+        add_noise=False,
         ):
         """
         1st: Calculates an affinity matrix from a distance matrix, using the
@@ -540,7 +515,7 @@ class Clustering(object):
         Advances in neural information processing systems, 2004 vol. 17 pp. 1601-1608
         """
 
-        size = len(distance_matrix)  # assume square and symmetrical input
+        size = len(dm.matrix)  # assume square and symmetrical input
         if size <= 10:  # no point pruning a small matrix
             prune = False
 
@@ -585,45 +560,29 @@ class Clustering(object):
             else:
                 return True
 
-        def knn(matrix, k):
-            """
-            Acts on distance matrix. For each datapoint, finds
-            the `k` nearest neighbours. Returns an adjacency
-            matrix, and a dictionary of the kth distance for 
-            each node.
-            """
+        # def knn(dm, k, add_noise):
+        #     """
+        #     Acts on distance matrix. For each datapoint, finds
+        #     the `k` nearest neighbours. Returns an adjacency
+        #     matrix, and a dictionary of the kth distance for 
+        #     each node.
+        #     """
 
-            kneighbour_matrix = np.zeros([size, size])
-            max_dists = {}
-            for i in range(size):
-                sorted_dists = matrix[i].argsort()
-                for j in sorted_dists[:k]:
-                    kneighbour_matrix[i, j] = kneighbour_matrix[j, i] = \
-                        1
-                    max_dists[i] = matrix[i, sorted_dists[k - 1]]
-            return (kneighbour_matrix, max_dists)
+        #     return dm.get_knn(k)
 
-        def get_affinity_matrix(distance_matrix, kneighbour_matrix,
-                                max_dists):
-            """
-            Makes weighted adjacency matrix along the lines of
-            Zelnik-Manor and Perona (2004), with local scaling.
-            """
+        # def get_affinity_matrix(dm, kneighbour_matrix, max_dists):
+        #     """
+        #     Makes weighted adjacency matrix along the lines of
+        #     Zelnik-Manor and Perona (2004), with local scaling.
+        #     """
 
-            affinity_matrix = np.zeros([size, size])
-            for i in range(size):
-                for j in range(size):
-                    if i != j and kneighbour_matrix[i, j] == 1:
-                        distance = distance_matrix[i, j]
-                        sigma_i = max_dists[i]
-                        sigma_j = max_dists[j]
-                        affinity_matrix[i, j] = np.exp(-distance ** 2
-                                / (sigma_i * sigma_j))
-            return affinity_matrix
+        #     return dm.get_affinity_matrix(dm, kneighbour_matrix,
+        #             max_dists)
 
         def laplace(affinity_matrix):
 
-            diagonal = affinity_matrix.sum(axis=1)
+            diagonal = affinity_matrix.sum(axis=1) \
+                - affinity_matrix.diagonal()
             invRootD = np.diag(np.sqrt(1 / diagonal))
             return np.dot(np.dot(invRootD, affinity_matrix), invRootD)
 
@@ -634,7 +593,7 @@ class Clustering(object):
             maxk = size
             guessk = int(np.log(size).round())
             while maxk - mink != 1:
-                test = knn(distance_matrix, guessk)
+                test = dm.get_knn(guessk, add_noise=add_noise)
                 if isconnected(test[0]) and nodivzero(test[1]):
 
                     # either correct or too high
@@ -648,22 +607,24 @@ class Clustering(object):
 
                     mink = guessk
                     guessk = guessk + (maxk - guessk) / 2
-            (kneighbour_matrix, max_dists) = knn(distance_matrix,
-                    guessk + 1)
+            (kneighbour_matrix, max_dists) = \
+                dm.get_knn(guessk + 1,
+                           add_noise=add_noise)
             print 'Pruning adjacencies to {0}-NN'.format(guessk + 1)
         else:
 
-            (kneighbour_matrix, max_dists) = knn(distance_matrix, size)
+            (kneighbour_matrix, max_dists) = \
+                dm.get_knn(size, add_noise=add_noise)
 
-        affinity_matrix = get_affinity_matrix(distance_matrix,
-                kneighbour_matrix, max_dists)
+        affinity_matrix = dm.get_affinity_matrix(kneighbour_matrix,
+                max_dists, add_noise=add_noise)
 
         # Tune the sigma parameter
 
-        md7 = knn(distance_matrix, 7)[1]
+        md7 = dm.get_knn(7, add_noise=False)[1]
         if nodivzero(md7):
-            affinity_matrix = get_affinity_matrix(distance_matrix,
-                    kneighbour_matrix, md7)
+            affinity_matrix = dm.get_affinity_matrix(kneighbour_matrix,
+                    md7, add_noise=add_noise)
             print 'Setting sigma to 7-NN'
         else:
 
@@ -671,9 +632,11 @@ class Clustering(object):
                 print 'Setting sigma to {0}-NN'.format(guessk + 1)
             else:
                 print 'Setting sigma to {0}-NN'.format(size)
-                mdmax = knn(distance_matrix, size)[1]
-                affinity_matrix = get_affinity_matrix(distance_matrix,
-                        kneighbour_matrix, mdmax)
+                mdmax = dm.get_knn(size,
+                                   add_noise=add_noise)[1]
+                affinity_matrix = \
+                    dm.get_affinity_matrix(kneighbour_matrix, mdmax,
+                        add_noise=add_noise)
 
         # normalise affinities to [0,1]
 
@@ -717,9 +680,9 @@ class Clustering(object):
 
         for g in range(n):
             if g > 0:
-                current_vector = np.concatenate((rotated_vectors[g - 1],
-                        eigenvectors[:, groups[g] - 1:groups[g]]),
-                        axis=1)
+                current_vector = np.concatenate((rotated_vectors[g
+                        - 1], eigenvectors[:, groups[g] - 1:
+                        groups[g]]), axis=1)
 
             (clusters[g], quality_scores[g], rotated_vectors[g]) = \
                 evrot.main(current_vector)

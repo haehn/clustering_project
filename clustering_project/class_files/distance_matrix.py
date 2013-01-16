@@ -1,16 +1,23 @@
 #!/usr/bin/env python
+
 import_debugging = False
-if import_debugging: print 'distance_matrix.py imports:'
+if import_debugging:
+    print 'distance_matrix.py imports:'
 import numpy as np
-if import_debugging: print '  numpy (dm)'
+if import_debugging:
+    print '  numpy (dm)'
 import os
-if import_debugging: print '  os (dm)'
+if import_debugging:
+    print '  os (dm)'
 import dendropy as dpy
-if import_debugging: print '  dendropy (dm)'
+if import_debugging:
+    print '  dendropy (dm)'
 from matplotlib import pyplot as plt
-if import_debugging: print '  matplotlib::pyplot (dm)'
+if import_debugging:
+    print '  matplotlib::pyplot (dm)'
 from matplotlib import cm as CM
-if import_debugging: print '  matplotlib::cm (dm)'
+if import_debugging:
+    print '  matplotlib::cm (dm)'
 
 
 class DistanceMatrix(object):
@@ -58,7 +65,7 @@ class DistanceMatrix(object):
     def get_euc_distance(self, tree1, tree2):
         return tree1.euclidean_distance(tree2)
 
-    @staticmethod 
+    @staticmethod
     def _sum_of_branch_lengths(dpy_tree):
         tot = 0
         for n in dpy_tree.preorder_node_iter():
@@ -92,12 +99,15 @@ class DistanceMatrix(object):
         if not gtp_path:
             gtp_path = self.gtp_path
         assert os.path.isfile('{0}/gtp.jar'.format(gtp_path))
+
         # print 'gtp_path=',gtp_path
         # print 'tmpdir=',tmpdir
+
         num_trees = matrix.shape[0]
         self.metric = metric
         dpy_trees = self.convert_to_dendropy_trees(trees)
-        branch_lengths = [self._sum_of_branch_lengths(x) for x in dpy_trees]
+        branch_lengths = [self._sum_of_branch_lengths(x) for x in
+                          dpy_trees]
 
         if metric == 'geo':
             rooted = all([tree.rooted for tree in trees])
@@ -120,7 +130,8 @@ class DistanceMatrix(object):
                             j = int(j)
                             value = float(value)
                             if normalise:
-                                value /= ((branch_lengths[i] + branch_lengths[j]) / 2)
+                                value /= (branch_lengths[i]
+                                        + branch_lengths[j]) / 2
                             matrix[i, j] = matrix[j, i] = value
                 os.remove('{0}/output.txt'.format(tmpdir))
                 os.remove('{0}/geotrees.nwk'.format(tmpdir))
@@ -128,7 +139,6 @@ class DistanceMatrix(object):
                 print 'There was an IOError: {0}'.format(e)
                 print 'Geodesic distances couldn\'t be calculated'
                 return
-        
         elif metric == 'rf':
 
             ntax = len(dpy_trees[0].leaf_nodes())
@@ -137,10 +147,9 @@ class DistanceMatrix(object):
                 for j in range(i + 1, num_trees):
                     distance = self.get_rf_distance(dpy_trees[i],
                             dpy_trees[j])
-                    if normalise: 
+                    if normalise:
                         distance /= max_rf
                     matrix[i, j] = matrix[j, i] = distance
-        
         elif metric == 'wrf':
 
             for i in range(num_trees):
@@ -148,9 +157,9 @@ class DistanceMatrix(object):
                     distance = self.get_wrf_distance(dpy_trees[i],
                             dpy_trees[j])
                     if normalise:
-                            distance /= ((branch_lengths[i] + branch_lengths[j]) / 2)
+                        distance /= (branch_lengths[i]
+                                + branch_lengths[j]) / 2
                     matrix[i, j] = matrix[j, i] = distance
-        
         elif metric == 'euc':
 
             for i in range(num_trees):
@@ -158,9 +167,9 @@ class DistanceMatrix(object):
                     distance = self.get_euc_distance(dpy_trees[i],
                             dpy_trees[j])
                     if normalise:
-                            distance /= ((branch_lengths[i] + branch_lengths[j]) / 2)
+                        distance /= (branch_lengths[i]
+                                + branch_lengths[j]) / 2
                     matrix[i, j] = matrix[j, i] = distance
-        
         else:
 
             print 'Unrecognised distance metric'
@@ -248,3 +257,84 @@ class DistanceMatrix(object):
             return False
 
         return True
+
+    def get_knn(self, k, add_noise=False):
+        """
+        Acts on distance matrix. For each datapoint, finds
+        the `k` nearest neighbours. Returns an adjacency
+        matrix, and a dictionary of the kth distance for 
+        each node.
+        """
+        if add_noise:
+            M = self.add_noise()
+        else: 
+            M = self.matrix
+        shape = M.shape
+        kneighbour_matrix = np.zeros(shape)
+        max_dists = {}
+        for i in range(shape[0]):
+            sorted_dists = M[i].argsort()
+            for j in sorted_dists[:k]:
+                kneighbour_matrix[i, j] = kneighbour_matrix[j, i] = 1
+                max_dists[i] = M[i, sorted_dists[k - 1]]
+        return (kneighbour_matrix, max_dists)
+
+    def get_affinity_matrix(
+        self,
+        kneighbour_matrix,
+        max_dists,
+        local_scaling=True,
+        sigma=2,
+        add_noise=False,
+        ):
+        """
+        Makes weighted adjacency matrix along the lines of
+        Zelnik-Manor and Perona (2004), with local scaling.
+        """
+
+        if add_noise:
+            M = self.add_noise()
+        else: 
+            M = self.matrix
+        shape = M.shape
+        affinity_matrix = np.zeros(shape)
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                if kneighbour_matrix[i, j] == 1:
+                    distance = M[i, j]
+                    if local_scaling:
+                        sigma_i = max_dists[i]
+                        sigma_j = max_dists[j]
+                        affinity_matrix[i, j] = np.exp(-distance ** 2
+                                / (sigma_i * sigma_j))
+                    else:
+                        affinity_matrix[i, j] = np.exp(-distance ** 2
+                                / 2 * sigma)
+        return affinity_matrix
+
+    def get_double_centre(self, square_input=False, add_noise=False):
+        """ 
+        Double-centres the input matrix:
+          From each element:
+            Subtract the row mean
+            Subtract the column mean
+            Add the grand mean
+            Divide by -2
+        Method from:
+        Torgerson, W S (1952). 
+        Multidimensional scaling: I. Theory and method.
+        """
+
+        if add_noise:
+            M = self.add_noise()
+        else: 
+            M = np.array(self.matrix, copy=True)
+        if square_input:
+            M *= M
+        (rows, cols) = M.shape
+        cm = np.mean(M, axis=0)  # column means
+        rm = np.mean(M, axis=1).reshape((rows, 1))  # row means
+        gm = np.mean(cm)  # grand mean
+        M -= rm + cm - gm
+        M /= -2
+        return M

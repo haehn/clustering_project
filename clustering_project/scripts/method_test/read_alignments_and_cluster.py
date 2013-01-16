@@ -136,6 +136,7 @@ try:
     sc.gzip(output)
 except:
     print 'Couldn\'t save pickle'
+    raise
     sys.exit()
 
 if delete:
