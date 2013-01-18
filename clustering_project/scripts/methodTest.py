@@ -15,6 +15,8 @@
 #    -t tree-building method to use (['phyml', 'bionj', 'treecollection'])
 #    -d datatype (['protein', 'dna'])
 #    -n nclasses
+#    -l level
+#    -s simulation rep
 ################################################################################
 
 from sequence_collection import SequenceCollection
@@ -49,6 +51,8 @@ parser.add_argument('-t', dest='treeprog', choices=tchoices, type=str)
 parser.add_argument('-d', dest='datatype', choices=dchoices, type=str)
 parser.add_argument('-n', dest='nclasses', type=int, nargs='*',
                     default=4)
+parser.add_argument('-l', dest='level', type=int, required=True)
+parser.add_argument('-s', dest='sim', type=int, required=True)
 args = parser.parse_args()
 
 indir = args.indir.rstrip('/')
@@ -57,6 +61,8 @@ treeprog = args.treeprog
 datatype = args.datatype
 file_format = args.format
 nclasses = args.nclasses
+level = args.level
+rep = args.sim
 
 # print indir, treeprog, datatype, file_format, nclasses
 # sys.exit()
@@ -119,17 +125,18 @@ if os.path.isfile('{0}/../treedistances.txt'.format(indir)):
     with open('{0}/../treedistances.txt'.format(indir)) as truthf:
         true_clustering = \
             tuple(eval(truthf.readline().strip().split('\t')[1]))
-    sc.clusters_to_partitions[('true', '')] = true_clustering
+    sc.clusters_to_partitions[('true', 'na')] = true_clustering
     sc.partitions[true_clustering] = Partition(true_clustering)
 
 sc.concatenate_records()
-sc.put_cluster_trees(program=treeprog, tmpdir=TMPDIR)
+sc.put_cluster_trees(program=treeprog, tmpdir=TMPDIR, first_only=False)
 
 d = sc.clusters_to_partitions
-
+true_score = sc.partitions[sc.clusters_to_partitions[('true','na')]].score
 print 'writing to', outf
 with open(outf, 'w') as writer:
     for k in sorted(d):
+        if k[0] == 'true': continue
         partition_object = sc.partitions[d[k]]
         score = partition_object.score
         if calc_varinf:
@@ -137,6 +144,7 @@ with open(outf, 'w') as writer:
                     true_clustering)
         else:
             varinf = ''
-
-        head = ' '.join(k[:2])
-        writer.write(','.join([head, str(score), str(varinf)]) + '\n')
+        
+        head = ','.join(k[:2])
+        
+        writer.write(','.join([head, str(score), str(score-true_score), str(varinf), str(level), str(rep)]) + '\n')
