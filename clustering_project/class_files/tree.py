@@ -450,7 +450,6 @@ class Tree(object):
         process.wait()
         (stdout, stderr) = process.communicate()
         info = stdout.split()
-        print info
         tree = info[-2]
         if deroot:
             tree = cls.deroot_tree(tree)

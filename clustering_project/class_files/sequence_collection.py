@@ -494,7 +494,7 @@ class SequenceCollection(object):
     def put_partition_vector(self, partition_vector, name):
         """
         Given a partition vector (i.e. a tuple containing the class-
-        membership for each gene alignment), insets the relevant data
+        membership for each gene alignment), inserts the relevant data
         structures into the SequenceCollection object.
         NEXT: run concatenate_records(), put_cluster_trees()
         """
@@ -642,7 +642,7 @@ class SequenceCollection(object):
             print 'unrecognised program {0}'.format(program)
             return
         if program == 'treecollection':
-            self._put_best_TC_trees(tmpdir=tmpdir, overwrite=overwrite, first_only=first_only)
+            return self._put_best_TC_trees(tmpdir=tmpdir, overwrite=overwrite, first_only=first_only)
         rec_list = self.get_cluster_records()
         print 'Inferring {0} cluster trees'.format(len(rec_list))
         self.put_trees(
@@ -660,7 +660,9 @@ class SequenceCollection(object):
     def _put_best_TC_trees(self, tmpdir='/tmp', overwrite=True, first_only=True):
         rec_list = self.get_cluster_records_with_memberships()
         for rec, members in rec_list:
-            if rec.name in self.inferred_trees:
+            print 'Calculating treecollection tree for {0}'.format(rec.name),
+            if rec.name in self.inferred_trees and overwrite==False:
+                print 'Skipping - already calculated (overwrite set to False)'
                 continue
             guidetrees = [self.keys_to_records[member].tree for member in members]
             TCtrees = []
@@ -669,6 +671,8 @@ class SequenceCollection(object):
             dv_file = pref+'_dv.txt'
             labels_file = pref+'_labels.txt'
             map_file = pref+'_map.txt'
+            if not first_only: print '(using best of {0} guidetrees)'.format(len(guidetrees))
+            else: print '(using single guidetree)' 
             for t in guidetrees:
                 guidetree_file = '{0}/{1}.nwk'.format(tmpdir,t.name)
                 n = t.reroot_newick()
@@ -679,10 +683,6 @@ class SequenceCollection(object):
             rec.tree = best
             self.inferred_trees[rec.name] = best
         self.update_scores()
-
-
-
-
 
     def update_scores(self):
         for partition in self.partitions.values():
