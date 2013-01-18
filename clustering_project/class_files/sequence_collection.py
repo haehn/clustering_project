@@ -38,6 +38,7 @@ if import_debugging:
     print '  mpl_toolkits.mplot3d::Axes3D (pa)'
 from sequence_record import TCSeqRec
 from distance_matrix import DistanceMatrix
+from tree import Tree
 if import_debugging:
     print '  distance_matrix::DistanceMatrix (sc)'
 from clustering import Clustering
@@ -634,13 +635,14 @@ class SequenceCollection(object):
         optimise='n',
         tmpdir='/tmp',
         overwrite=True,
+        first_only=True,
         ):
 
         if program not in ['treecollection', 'raxml', 'phyml', 'bionj']:
             print 'unrecognised program {0}'.format(program)
             return
         if program == 'treecollection':
-            return
+            self._put_best_TC_trees(tmpdir=tmpdir, overwrite=overwrite, first_only=first_only)
         rec_list = self.get_cluster_records()
         print 'Inferring {0} cluster trees'.format(len(rec_list))
         self.put_trees(
@@ -654,6 +656,33 @@ class SequenceCollection(object):
             overwrite=overwrite,
             )
         self.update_scores()
+
+    def _put_best_TC_trees(self, tmpdir='/tmp', overwrite=True, first_only=True):
+        rec_list = self.get_cluster_records_with_memberships()
+        for rec, members in rec_list:
+            if rec.name in self.inferred_trees:
+                continue
+            guidetrees = [self.keys_to_records[member].tree for member in members]
+            TCtrees = []
+            pref = rec._write_temp_tc(make_guide_tree=False)
+            pref = '{0}/{1}'.format(tmpdir, pref)
+            dv_file = pref+'_dv.txt'
+            labels_file = pref+'_labels.txt'
+            map_file = pref+'_map.txt'
+            for t in guidetrees:
+                guidetree_file = '{0}/{1}.nwk'.format(tmpdir,t.name)
+                n = t.reroot_newick()
+                with open(guidetree_file, 'w') as writer: writer.write(n)
+                TCtrees.append(Tree.new_treecollection_tree(dv_file, map_file, labels_file, guidetree_file, rec.name))
+                if first_only: break
+            best = max(TCtrees, key=lambda x: x.score)
+            rec.tree = best
+            self.inferred_trees[rec.name] = best
+        self.update_scores()
+
+
+
+
 
     def update_scores(self):
         for partition in self.partitions.values():

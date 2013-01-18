@@ -198,6 +198,13 @@ class Tree(object):
         t.deroot()
         return t.as_newick_string() + ';'
 
+    def reroot_newick(self):
+        dpy_tree = dpy.Tree()
+        dpy_tree.read_from_string(self.newick, 'newick')
+        dpy_tree.resolve_polytomies()
+        newick_string = dpy_tree.as_newick_string() + ';\n'
+        return newick_string
+
     def load_phyml_results(
         self,
         tree_file,
@@ -443,6 +450,7 @@ class Tree(object):
         process.wait()
         (stdout, stderr) = process.communicate()
         info = stdout.split()
+        print info
         tree = info[-2]
         if deroot:
             tree = cls.deroot_tree(tree)

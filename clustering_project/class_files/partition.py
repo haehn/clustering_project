@@ -53,7 +53,7 @@ class Partition(object):
         return concats # guaranteed same order as get_membership()
 
     def update_score(self, concats_dict):
-        self.score = sum([concats_dict[rec.name].tree.score for rec, _ in
+        self.score = sum([concats_dict[rec.name][0].tree.score for rec, _ in
                          self.concats])
 
     def get_membership(self, partition_vector=None, flatten=False):
