@@ -192,6 +192,12 @@ class DistanceMatrix(object):
                     new[i, j] = new[j, i] = dm[i, j] - eps
         return new
 
+    def noisy_copy(self):
+        new_object = DistanceMatrix(trees=self.trees,tmpdir=self.tmpdir,gtp_path=self.gtp_path)
+        new_object.metric = self.metric
+        new_object.matrix = self.add_noise()
+        return new_object
+
     def plot_heatmap(self, sort_partition=None):
         """
         Sort partition should be a flatlist of the clusters

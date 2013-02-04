@@ -635,14 +635,16 @@ class SequenceCollection(object):
         optimise='n',
         tmpdir='/tmp',
         overwrite=True,
-        first_only=True,
+        max_guide_trees=True,
         ):
 
         if program not in ['treecollection', 'raxml', 'phyml', 'bionj']:
             print 'unrecognised program {0}'.format(program)
             return
         if program == 'treecollection':
-            return self._put_best_TC_trees(tmpdir=tmpdir, overwrite=overwrite, first_only=first_only)
+            return self._put_best_TC_trees(tmpdir=tmpdir,
+                    overwrite=overwrite,
+                    max_guide_trees=max_guide_trees)
         rec_list = self.get_cluster_records()
         print 'Inferring {0} cluster trees'.format(len(rec_list))
         self.put_trees(
@@ -657,29 +659,42 @@ class SequenceCollection(object):
             )
         self.update_scores()
 
-    def _put_best_TC_trees(self, tmpdir='/tmp', overwrite=True, first_only=True):
+    def _put_best_TC_trees(
+        self,
+        tmpdir='/tmp',
+        overwrite=True,
+        max_guide_trees=-1,
+        ):
         rec_list = self.get_cluster_records_with_memberships()
-        for rec, members in rec_list:
+        for (rec, members) in rec_list:
             print 'Calculating treecollection tree for {0}'.format(rec.name),
-            if rec.name in self.inferred_trees and overwrite==False:
+            if rec.name in self.inferred_trees and overwrite == False:
                 print 'Skipping - already calculated (overwrite set to False)'
                 continue
-            guidetrees = [self.keys_to_records[member].tree for member in members]
+            guidetrees = [self.keys_to_records[member].tree
+                          for member in members]
+            if max_guide_trees > 0:
+                guidetrees = guidetrees[:max_guide_trees]
             TCtrees = []
-            pref = rec._write_temp_tc(make_guide_tree=False)
+            pref = rec._write_temp_tc(make_guide_tree=False,
+                    tmpdir=tmpdir)
             pref = '{0}/{1}'.format(tmpdir, pref)
-            dv_file = pref+'_dv.txt'
-            labels_file = pref+'_labels.txt'
-            map_file = pref+'_map.txt'
-            if not first_only: print '(using best of {0} guidetrees)'.format(len(guidetrees))
-            else: print '(using single guidetree)' 
+            dv_file = pref + '_dv.txt'
+            labels_file = pref + '_labels.txt'
+            map_file = pref + '_map.txt'
+            if len(guidetrees) > 1:
+                print '(using best of {0} guidetrees)'.format(len(guidetrees))
+            else:
+                print '(using single guidetree)'
             for t in guidetrees:
-                guidetree_file = '{0}/{1}.nwk'.format(tmpdir,t.name)
+                guidetree_file = '{0}/{1}.nwk'.format(tmpdir, t.name)
                 n = t.reroot_newick()
-                with open(guidetree_file, 'w') as writer: writer.write(n)
-                TCtrees.append(Tree.new_treecollection_tree(dv_file, map_file, labels_file, guidetree_file, rec.name))
-                if first_only: break
-            best = max(TCtrees, key=lambda x: x.score)
+                with open(guidetree_file, 'w') as writer:
+                    writer.write(n)
+                TCtrees.append(Tree.new_treecollection_tree(dv_file,
+                               map_file, labels_file, guidetree_file,
+                               rec.name))            
+            best = min(TCtrees, key=lambda x: x.score)
             rec.tree = best
             self.inferred_trees[rec.name] = best
         self.update_scores()
@@ -785,9 +800,11 @@ class SequenceCollection(object):
             datatype = self.datatype
         p = self.get_partition(key)
         for c in p.concats:
-            updated_record = self.concats[c.name][0] # bug: records in Partition
+            updated_record = self.concats[c.name][0]  # bug: records in Partition
+
                                                   # objects aren't linked
                                                   # to trees
+
             members = c.name.split('-')
             lengths = [self.keys_to_records[int(x)].seqlength for x in
                        members]
@@ -818,7 +835,8 @@ class SequenceCollection(object):
         sort_key = lambda item: tuple((int(num) if num else alpha)
                 for (num, alpha) in re.findall(r'(\d+)|(\D+)',
                 item[0].name))
-        return [rec for rec, _ in sorted(self.concats.values(), key=sort_key)]
+        return [rec for (rec, _) in sorted(self.concats.values(),
+                key=sort_key)]
 
     def get_cluster_records_with_memberships(self):
         """

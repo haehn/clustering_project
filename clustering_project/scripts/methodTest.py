@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+print 'going'
 ################################################################################
 # methodTest.py
 # -------------
@@ -17,6 +17,7 @@
 #    -n nclasses
 #    -l level
 #    -s simulation rep
+#    -g number of guidetrees to use (treecollection)
 ################################################################################
 
 from sequence_collection import SequenceCollection
@@ -30,7 +31,6 @@ def topdir(s):
     if '/' in s:
         return s[s.rindex('/') + 1:]
     return s
-
 
 prog = topdir(sys.argv[0])
 desc = \
@@ -53,6 +53,7 @@ parser.add_argument('-n', dest='nclasses', type=int, nargs='*',
                     default=4)
 parser.add_argument('-l', dest='level', type=int, required=True)
 parser.add_argument('-s', dest='sim', type=int, required=True)
+parser.add_argument('-g', dest='guide', type=int, default=10)
 args = parser.parse_args()
 
 indir = args.indir.rstrip('/')
@@ -63,6 +64,7 @@ file_format = args.format
 nclasses = args.nclasses
 level = args.level
 rep = args.sim
+nguide = args.guide
 
 # print indir, treeprog, datatype, file_format, nclasses
 # sys.exit()
@@ -104,10 +106,13 @@ except:
     TMPDIR = '/tmp'
 
 ### MAIN
-
+if treeprog == 'treecollection':
+    get_distances = True
+else:
+    get_distances = False
 sc = SequenceCollection(indir, file_format=file_format,
                         gtp_path=gtp_path, datatype=datatype,
-                        get_distances=True, tmpdir=TMPDIR, helper=helper)
+                        get_distances=get_distances, tmpdir=TMPDIR, helper=helper)
 
 sc.put_trees(program=treeprog)
 sc.put_partitions(['geo', 'euc', 'rf'], [
@@ -116,7 +121,10 @@ sc.put_partitions(['geo', 'euc', 'rf'], [
     'kmedoids',
     'MDS',
     'single',
-    'spectral',
+    'spectral00',
+    'spectral01',
+    'spectral10',
+    'spectral11',
     'ward',
     ], nclasses, recalculate=True)
 
@@ -129,7 +137,7 @@ if os.path.isfile('{0}/../treedistances.txt'.format(indir)):
     sc.partitions[true_clustering] = Partition(true_clustering)
 
 sc.concatenate_records()
-sc.put_cluster_trees(program=treeprog, tmpdir=TMPDIR, first_only=False)
+sc.put_cluster_trees(program=treeprog, tmpdir=TMPDIR, max_guide_trees=nguide)
 
 d = sc.clusters_to_partitions
 true_score = sc.partitions[sc.clusters_to_partitions[('true','na')]].score
@@ -146,5 +154,4 @@ with open(outf, 'w') as writer:
             varinf = ''
         
         head = ','.join(k[:2])
-        
-        writer.write(','.join([head, str(score), str(score-true_score), str(varinf), str(level), str(rep)]) + '\n')
+        writer.write(','.join([head, str(score), str(round(score-true_score, 10)), str(round(varinf,10)), str(level), str(rep)]) + '\n')

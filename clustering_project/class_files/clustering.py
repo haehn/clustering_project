@@ -28,7 +28,7 @@ if import_debugging:
 import evrot
 if import_debugging:
     print '  evrot (cl)'
-
+import cPickle
 
 class Clustering(object):
 
@@ -89,7 +89,8 @@ class Clustering(object):
             noise = False
 
         if recalculate or not 'spectral_decomp' in self.cache:
-            laplacian = self.spectral(dm, prune=prune, add_noise=noise)
+            laplacian = self.spectral(dm, prune=prune, sigma7=sigma7,
+                add_noise=noise)
 
             (eigvals, eigvecs, cve) = self.get_eigen(laplacian,
                     standardize=False)
@@ -298,14 +299,20 @@ class Clustering(object):
 
         if method == 'kmedoids':
             return self.run_kmedoids(dm, nclusters)
-        elif method == 'spectral':
-            return self.run_spectral(dm, nclusters, prune,
-                    recalculate=recalculate)
-        elif method == 'spectral_rotate':
-            return self.run_spectral_rotate(dm, recalculate=recalculate)
-        elif method == 'spectral-prune':
+        elif method == 'spectral' or method == 'spectral10':
+            return self.run_spectral(dm, nclusters, prune=True,
+                    sigma7=False,recalculate=recalculate)
+        elif method == 'spectral01':
             return self.run_spectral(dm, nclusters, prune=False,
                     sigma7=True, recalculate=recalculate)
+        elif method == 'spectral11':
+            return self.run_spectral(dm, nclusters, prune=True,
+                    sigma7=True, recalculate=recalculate)
+        elif method == 'spectral00':
+            return self.run_spectral(dm, nclusters, prune=False,
+                    sigma7=False, recalculate=recalculate)
+        elif method == 'spectral_rotate':
+            return self.run_spectral_rotate(dm, recalculate=recalculate)
         elif method == 'NJW':
             return self.run_NJW(dm, nclusters, recalculate=recalculate)
         elif method == 'ShiMalik':
@@ -514,7 +521,8 @@ class Clustering(object):
         Self-tuning spectral clustering.
         Advances in neural information processing systems, 2004 vol. 17 pp. 1601-1608
         """
-
+        # if add_noise:
+        #     dm = dm.noisy_copy()
         size = len(dm.matrix)  # assume square and symmetrical input
         if size <= 10:  # no point pruning a small matrix
             prune = False
@@ -560,80 +568,62 @@ class Clustering(object):
             else:
                 return True
 
-        # def knn(dm, k, add_noise):
-        #     """
-        #     Acts on distance matrix. For each datapoint, finds
-        #     the `k` nearest neighbours. Returns an adjacency
-        #     matrix, and a dictionary of the kth distance for 
-        #     each node.
-        #     """
-
-        #     return dm.get_knn(k)
-
-        # def get_affinity_matrix(dm, kneighbour_matrix, max_dists):
-        #     """
-        #     Makes weighted adjacency matrix along the lines of
-        #     Zelnik-Manor and Perona (2004), with local scaling.
-        #     """
-
-        #     return dm.get_affinity_matrix(dm, kneighbour_matrix,
-        #             max_dists)
-
         def laplace(affinity_matrix):
 
             diagonal = affinity_matrix.sum(axis=1) \
                 - affinity_matrix.diagonal()
+            if 0. in diagonal: raise ZeroDivisionError
             invRootD = np.diag(np.sqrt(1 / diagonal))
             return np.dot(np.dot(invRootD, affinity_matrix), invRootD)
 
-        # prune the adjacency matrix
+        # tuning step for adjacency matrix + max dists step
 
-        if prune:  # binary search
-            mink = 1
-            maxk = size
-            guessk = int(np.log(size).round())
-            while maxk - mink != 1:
-                test = dm.get_knn(guessk, add_noise=add_noise)
-                if isconnected(test[0]) and nodivzero(test[1]):
-
-                    # either correct or too high
-                    # try a lower number
-
-                    maxk = guessk
-                    guessk = mink + (guessk - mink) / 2
-                else:
-
-                    # too low
-
-                    mink = guessk
-                    guessk = guessk + (maxk - guessk) / 2
-            (kneighbour_matrix, max_dists) = \
-                dm.get_knn(guessk + 1,
-                           add_noise=add_noise)
-            print 'Pruning adjacencies to {0}-NN'.format(guessk + 1)
-        else:
-
-            (kneighbour_matrix, max_dists) = \
-                dm.get_knn(size, add_noise=add_noise)
-
-        affinity_matrix = dm.get_affinity_matrix(kneighbour_matrix,
-                max_dists, add_noise=add_noise)
-
-        # Tune the sigma parameter
-
-        md7 = dm.get_knn(7, add_noise=False)[1]
-        if nodivzero(md7):
-            affinity_matrix = dm.get_affinity_matrix(kneighbour_matrix,
-                    md7, add_noise=add_noise)
-            print 'Setting sigma to 7-NN'
-        else:
-
-            if prune and nodivzero(max_dists):
-                print 'Setting sigma to {0}-NN'.format(guessk + 1)
+        # Binary Search:
+        mink = 1
+        maxk = size
+        guessk = int(np.log(size).round())
+        while maxk - mink != 1:
+            test = dm.get_knn(guessk, add_noise=False)
+            if isconnected(test[0]) and nodivzero(test[1]):
+                maxk = guessk                       # either correct or too high
+                guessk = mink + (guessk - mink) / 2 # try a lower number
+            
             else:
+                mink = guessk                       # too low
+                guessk = guessk + (maxk - guessk) / 2
+        (kneighbour_matrix, max_dists) = \
+            dm.get_knn(guessk + 1,
+                       add_noise=False)
+        if prune:
+            print 'Pruning adjacencies to {0}-NN'.format(guessk + 1)
+        else: # we don't want a pruned adjacency matrix
+            print 'Not pruning adjacencies'
+            kneighbour_matrix = np.ones((size,size))
+
+        # Tune the sigma parameter 
+
+        md7 = dm.get_knn(7, add_noise=False)[1] # try local scaling based on
+                                                # 7th nearest-neighbour
+        if sigma7 and nodivzero(md7): # zero-division safety test
+            affinity_matrix = dm.get_affinity_matrix(kneighbour_matrix,
+                    md7, add_noise=add_noise) # make affinity matrix based on
+                                              # previous step's adjacency matrix
+                                              # and 7th nearest-neighbour local
+                                              # scale
+            print 'Setting sigma to 7-NN'
+        
+        else: # 7th nearest neighbour is no good, use max dists from adjacency
+              # matrix step
+
+            if nodivzero(max_dists):
+                print 'Setting sigma to {0}-NN'.format(guessk + 1)
+                affinity_matrix = \
+                    dm.get_affinity_matrix(kneighbour_matrix, max_dists,
+                        add_noise=add_noise)
+            else: # tuned max dists is no good, use untuned version
                 print 'Setting sigma to {0}-NN'.format(size)
                 mdmax = dm.get_knn(size,
-                                   add_noise=add_noise)[1]
+                                   add_noise=False)[1]
                 affinity_matrix = \
                     dm.get_affinity_matrix(kneighbour_matrix, mdmax,
                         add_noise=add_noise)
@@ -641,7 +631,14 @@ class Clustering(object):
         # normalise affinities to [0,1]
 
         affinity_matrix *= 1.0 / np.max(affinity_matrix)
-        L = laplace(affinity_matrix)
+        try:
+            L = laplace(affinity_matrix)
+        except ZeroDivisionError:
+            print 'ERROR!'
+            # cPickle.dump(dm, open('dm.pkl','w'))
+            # cPickle.dump(kneighbour_matrix, open('knn.pkl','w'))
+            # cPickle.dump(affinity_matrix, open('affinity_matrix.pkl','w'))
+            raise
         return L
 
     def NJW(self, distance_matrix, sigma):

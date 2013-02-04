@@ -326,11 +326,11 @@ class SeqSim(object):
 
     def indels(
         self,
-        gain_rate=0.0001,
+        gain_rate=0.00001,
         gain_model='ZIPF',
         gain_params=[1.821],
         max_gain_length=10,
-        loss_rate=0.0001,
+        loss_rate=0.00001,
         loss_model='ZIPF',
         loss_params=[1.821],
         max_loss_length=10,
@@ -666,6 +666,7 @@ class SeqSim(object):
         inner_edge_params,
         leaf_params,
         scale_func,
+        mk=None,
         master_tree_generator_method='random_topology',
         class_tree_permuter='nni',
         guarantee_unique=False,
@@ -739,8 +740,8 @@ class SeqSim(object):
 
         def make_master_tree(
             n,
-            names,
             method,
+            names=None,
             inner_edge_params=(1, 1),
             leaf_params=(1, 1),
             distribution_func=np.random.gamma,
@@ -753,7 +754,7 @@ class SeqSim(object):
             """
 
             if method == 'random_topology':
-                master_topology = Tree().random_topology(n,
+                master_topology = Tree.new_random_topology(n,
                         names=names, rooted=True)
                 master_tree = \
                     master_topology.randomise_branch_lengths(inner_edges=inner_edge_params,
@@ -761,9 +762,9 @@ class SeqSim(object):
                         distribution_func=branch_length_func)
                 master_tree.newick = '[&R] ' + master_tree.newick
             elif method == 'random_yule':
-                master_tree = Tree().random_yule(n, names=names)
+                master_tree = Tree.new_random_yule(n, names=names)
             elif method == 'random_coal':
-                master_tree = Tree().random_coal(n, names=names)
+                master_tree = Tree.new_random_coal(n, names=names)
             return master_tree
 
         def make_class_tree(
@@ -803,7 +804,7 @@ class SeqSim(object):
                         new_tree = Tree(master_tree.newick)
                         for i in range(permutation_extent):
                             new_tree = \
-                                new_tree.spr(disallow_sibling_SPRS=True)
+                                new_tree.spr(disallow_sibling_SPRs=True)
                 else:
                     for i in range(num_permutations):
                         new_tree = new_tree.spr()
@@ -835,22 +836,26 @@ class SeqSim(object):
         if regime == 1:
             K = 1
 
-        if tune == 0:
-            proportions = [float(K) / M for x in range(K)]
-        else:
+        if tune is not None and mk is None:
+            if tune == 0:
+                proportions = [float(K) / M for x in range(K)]
+            else:
 
-            proportions = np.random.gamma(shape=float(M) / (tune * K),
-                    scale=tune * float(K) / M, size=K)
+                proportions = np.random.gamma(shape=float(M) / (tune * K),
+                        scale=tune * float(K) / M, size=K)
 
-        s = sum(proportions)
-        mk = [int((np.round(x * M / s) if x * M / s > 0.5 else 1.0))
-              for x in proportions]
-        diff = M - sum(mk)
-        if diff > 0:
-            mk[mk.index(min(mk))] += diff
+            s = sum(proportions)
+            mk = [int((np.round(x * M / s) if x * M / s > 0.5 else 1.0))
+                  for x in proportions]
+            diff = M - sum(mk)
+            if diff > 0:
+                mk[mk.index(min(mk))] += diff
+            else:
+                mk[mk.index(max(mk))] += diff
+            assert min(mk) > 0.0
+
         else:
-            mk[mk.index(max(mk))] += diff
-        assert min(mk) > 0.0
+            assert sum(mk) == M
 
         true_clustering = []
         for i in range(K):
@@ -860,7 +865,7 @@ class SeqSim(object):
         print 'Simulating {0} genes in {1} classes, distributed as {2}'.format(M,
                 K, mk)
 
-        names = ['Sp{0}'.format(i) for i in range(1, n + 1)]
+        # names = ['Sp{0}'.format(i) for i in range(1, n + 1)]
 
         print 'N classes =', K
         print 'N genes = ', M
@@ -877,7 +882,6 @@ class SeqSim(object):
 
         master_tree = make_master_tree(
             n,
-            names,
             method=master_tree_generator_method,
             inner_edge_params=inner_edge_params,
             leaf_params=leaf_params,
@@ -905,7 +909,6 @@ class SeqSim(object):
 
                 class_tree = make_master_tree(
                     n,
-                    names,
                     method=master_tree_generator_method,
                     inner_edge_params=inner_edge_params,
                     leaf_params=leaf_params,

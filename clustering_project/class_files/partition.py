@@ -1,10 +1,14 @@
 #!/usr/bin/env python
+
 import_debugging = False
-if import_debugging: print 'partition.py imports:'
+if import_debugging:
+    print 'partition.py imports:'
 from math import log
-if import_debugging: print '  math::log (pa)'
+if import_debugging:
+    print '  math::log (pa)'
 from copy import deepcopy
-if import_debugging: print '  copy::deepcopy (pa)'
+if import_debugging:
+    print '  copy::deepcopy (pa)'
 
 
 class Partition(object):
@@ -44,17 +48,17 @@ class Partition(object):
             cluster = sorted(cluster)
             member_records = [keys_to_records_map[n] for n in cluster]
             first_rec = member_records.pop(0)
-            seed = deepcopy(first_rec)  # use of deepcopy here 
-            for rec in member_records:              # is important
+            seed = deepcopy(first_rec)  # use of deepcopy here
+            for rec in member_records:  # is important
                 seed += rec
             seed.name = '-'.join(str(x) for x in cluster)
             concats.append((seed, cluster))
         self.concats = concats
-        return concats # guaranteed same order as get_membership()
+        return concats  # guaranteed same order as get_membership()
 
     def update_score(self, concats_dict):
-        self.score = sum([concats_dict[rec.name][0].tree.score for rec, _ in
-                         self.concats])
+        self.score = sum([concats_dict[rec.name][0].tree.score
+                         for (rec, _) in self.concats])
 
     def get_membership(self, partition_vector=None, flatten=False):
         if not partition_vector:
@@ -77,7 +81,7 @@ class Partition(object):
             return flatlist
         return result
 
-    def variation_of_information(self, partition_1, partition_2):
+    def entropies(self, partition_1, partition_2):
         """ 
         Functions to calculate Variation of Information Metric between two 
         clusterings of the same data - SEE Meila, M. (2007). Comparing 
@@ -143,5 +147,16 @@ class Partition(object):
                     mut_inf += intersect / total * log(total
                             * intersect / (len(m1[i]) * len(m2[j])), 2)
 
+        return (entropy_1, entropy_2, mut_inf)
+
+    def variation_of_information(self, partition_1, partition_2):
+        (entropy_1, entropy_2, mut_inf) = self.entropies(partition_1,
+                partition_2)
+
         return entropy_1 + entropy_2 - 2 * mut_inf
 
+    def normalised_mutual_information(self, partition_1, partition_2):
+        (entropy_1, entropy_2, mut_inf) = self.entropies(partition_1,
+                partition_2)
+
+        return (2*mut_inf)/(entropy_1+entropy_2)

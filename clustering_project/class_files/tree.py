@@ -121,8 +121,14 @@ class Tree(object):
 
             output_string = reg_ex.sub(converter, input_string)
 
-        return Tree(output_string, self.score, self.program, self.name,
-                    self.rooted)
+        return Tree(
+            output_string,
+            self.score,
+            self.program,
+            self.name,
+            self.output,
+            self.rooted,
+            )
 
     def read_from_file(self, infile, name=None):
         """
@@ -450,7 +456,7 @@ class Tree(object):
         process.wait()
         (stdout, stderr) = process.communicate()
         info = stdout.split()
-        print info
+
         tree = info[-2]
         if deroot:
             tree = cls.deroot_tree(tree)
@@ -458,12 +464,12 @@ class Tree(object):
         rooted = cls.check_rooted(tree)
 
         return Tree(
-            tree,
-            score,
-            'TreeCollection',
-            name,
-            stdout,
-            rooted,
+            newick=tree,
+            score=score,
+            program='TreeCollection',
+            name=name,
+            output=stdout,
+            rooted=rooted,
             ).pam2sps('pam2sps')
 
     def run_treecollection(
@@ -589,9 +595,12 @@ class Tree(object):
         names=None,
         rooted=False,
         ):
+
         new_tree = cls()
-        if not names: names = taxonnames.names
-        return new_tree.random_topology(nspecies, names[:nspecies], rooted)
+        if not names:
+            names = taxonnames.names
+        return new_tree.random_topology(nspecies, names[:nspecies],
+                rooted)
 
     def random_topology(
         self,
@@ -660,11 +669,14 @@ class Tree(object):
                 nspecies = len(names)
         elif names and not nspecies:
             nspecies = len(names)
-        elif not names and nspecies:
-            names = ['Sp{0}'.format(i) for i in range(1, nspecies + 1)]
-        elif not names and not nspecies:
-            nspecies = 16
-            names = ['Sp{0}'.format(i) for i in range(1, nspecies + 1)]
+        elif not names:
+            if not nspecies:
+                nspecies = 16
+            names = taxonnames.names[:nspecies]
+            if nspecies > len(taxonnames.names):
+                names.extend(['Sp{0}'.format(i) for i in
+                             range(len(taxonnames.names) + 1, nspecies
+                             + 1)])
 
         taxon_set = dpy.TaxonSet(names)
         tree = treesim.uniform_pure_birth(taxon_set)
@@ -686,12 +698,15 @@ class Tree(object):
                 nspecies = len(names)
         elif names and not nspecies:
             nspecies = len(names)
-        elif not names and nspecies:
-            names = ['Sp{0}'.format(i) for i in range(1, nspecies + 1)]
-        elif not names and not nspecies:
-            nspecies = 16
-            names = ['Sp{0}'.format(i) for i in range(1, nspecies + 1)]
-
+        elif not names:
+            if not nspecies:
+                nspecies = 16
+            names = taxonnames.names[:nspecies]
+            if nspecies > len(taxonnames.names):
+                names.extend(['Sp{0}'.format(i) for i in
+                             range(len(taxonnames.names) + 1, nspecies
+                             + 1)])
+                
         taxon_set = dpy.TaxonSet(names)
         tree = treesim.pure_kingman(taxon_set)
 
@@ -974,8 +989,7 @@ class Tree(object):
                 disallow_sibling_SPRs=disallow_sibling_SPRs)
 
         if (p, r) == (None, None):
-            return spr(self,
-                       disallow_sibling_SPRs=disallow_sibling_SPRs)
+            return self.spr(disallow_sibling_SPRs=disallow_sibling_SPRs)
 
         new_node = _add_node(tree, time, r)
         _prunef(tree, p[0])

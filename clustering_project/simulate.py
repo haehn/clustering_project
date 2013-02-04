@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 
 from seqsim import SeqSim
 import numpy as np
@@ -135,49 +134,60 @@ If selected, constrains class trees to have different topologies
 
 '''
 desc = 'Run ALF simulator to generate different topological classes'
-parser = argparse.ArgumentParser(
-                    prog='testsim.py',
-                    description=desc,
-                    formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(prog='testsim.py', description=desc,
+                                 formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-k', '--classes', help='Number of classes',
                     type=int, default=2)
 parser.add_argument('-n', '--species', help='Number of species',
                     type=int, default=20)
-parser.add_argument('-m', '--genes', help='Number of genes', type=int,
-                    default=100)
+parser.add_argument(
+    '-m',
+    '--genes',
+    help='Number of genes',
+    type=int,
+    nargs='+',
+    default=[25, 25],
+    )
 parser.add_argument('-r', '--regime', help=help_regime, type=int,
                     default=2)
 parser.add_argument('-t', '--tune', help=help_tuning, type=int,
-                    default=1)
-parser.add_argument('-master', help=help_master, type=str, 
+                    default=None)
+parser.add_argument('-master', help=help_master, type=str,
                     default='random_yule')
-parser.add_argument('-c', '--class_permuter', help=help_permuter, type=str,
-                    default='nni')
+parser.add_argument('-c', '--class_permuter', help=help_permuter,
+                    type=str, choices=['nni','spr', 'coal'], default='nni')
 parser.add_argument('-p', '--permutations', help=help_permutations,
-                    type=int, default=0)
-parser.add_argument('-d','--directory', help='Base output directory\n', 
-                    type=fpath, default='.')
+                    type=int, default=1)
+parser.add_argument('-d', '--directory', help='Base output directory\n'
+                    , type=fpath, default='.')
 parser.add_argument('-g', '--geodesic',
-                    help=\
-                    'path to gtp.jar, used to calculate geodesic distance\n',
-                    type=fpath, default='./class_files')
+                    help='path to gtp.jar, used to calculate geodesic distance\n'
+                    , type=fpath, default='./class_files')
 parser.add_argument('-tmp', '--temp-directory',
-                    help='Directory to use for temp files\n', type=fpath,
-                    default='/tmp')
+                    help='Directory to use for temp files\n',
+                    type=fpath, default='/tmp')
 parser.add_argument('-i', '--indels',
                     help='Simulate indels (default=no)\n',
                     action='store_true')
 parser.add_argument('-ratevar', '--ratevar',
-                    help=\
-                    'Simulate rate variation among sites (default=no)\n',
-                    action='store_true')
+                    help='Simulate rate variation among sites (default=no)\n'
+                    , action='store_true')
 parser.add_argument('-q', '--quiet', help='Less printing to screen\n',
                     action='store_true')
-parser.add_argument('-u', '--unique', help=help_unique, action='store_true')
+parser.add_argument('-u', '--unique', help=help_unique,
+                    action='store_true')
 args = vars(parser.parse_args())
 
 K = args['classes']
-M = args['genes']
+mk = args['genes']
+if len(mk) > 1:
+    M = sum(mk)
+    K = len(mk)
+else:
+    M = mk[0]
+    K = 1
+    mk = None
+
 n = args['species']
 tune = args['tune']
 regime = args['regime']
@@ -212,7 +222,27 @@ if ratevar:
     sim.rate_variation()
 
 print 'Regime = {0}'.format(regime)
-print 'Temp directory used was {0}'.format(tmpdir)
+print 'Parameter settings:'
+params = '\n  '.join([
+    '  K: {0}'.format(K),
+    'M: {0}'.format(M),
+    'mk: {0}'.format(mk),
+    'n: {0}'.format(n),
+    'tune: {0}'.format(tune),
+    'permutation type: {0}'.format(permutation_type),
+    'permutation strength: {0}'.format(permutation_strength),
+    'master tree generator: {0}'.format(master_tree_generator),
+    'filepath: {0}'.format(filepath),
+    'tmpdir: {0}'.format(tmpdir),
+    'gtp path: {0}'.format(gtp_path),
+    'indels: {0}'.format(indels),
+    'ratevar: {0}'.format(ratevar),
+    ])
+print params
+print '''
+
+
+'''
 sim.simulate_set(
     K=K,
     M=M,
@@ -223,9 +253,10 @@ sim.simulate_set(
     inner_edge_params=(3.2, 0.029),
     leaf_params=(2.2, 0.097),
     scale_func=np.random.gamma,
+    mk=mk,
     master_tree_generator_method=master_tree_generator,
     class_tree_permuter=permutation_type,
-    guarantee_unique=False,
+    guarantee_unique=True,
     num_permutations=permutation_strength,
     scale_params=(2, 0.5),
     gene_length_kappa=6,

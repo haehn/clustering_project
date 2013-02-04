@@ -614,7 +614,7 @@ class TCSeqRec(SequenceRecord):
         self,
         tmpdir='/tmp',
         make_guide_tree=True,
-        use_hashname=False,
+        use_hashname=True,
         ):
         if use_hashname:
             filename = self.hashname()
@@ -757,6 +757,7 @@ class TCSeqRec(SequenceRecord):
         filename = self._write_temp_phylip(tmpdir=tmpdir, use_hashname=True)
         print 'Running bionj on ' + str(self.name) + '...'
         input_file = '{0}/{1}.phy'.format(tmpdir, filename)
+
         if not model and not datatype:  # quick-fix to allow specification of other
             if self.datatype == 'dna':  # models when calling phyml
                 model = 'GTR'
@@ -804,8 +805,8 @@ class TCSeqRec(SequenceRecord):
         return self.tree
 
     def get_guide_tree(self, tmpdir='/tmp', overwrite=True):
-        self._write_temp_phylip(tmpdir=tmpdir)
-        input_file = '{0}/{1}.phy'.format(tmpdir, self.name)
+        filename = self._write_temp_phylip(tmpdir=tmpdir, use_hashname=True)
+        input_file = '{0}/{1}.phy'.format(tmpdir, filename)
         if self.datatype == 'dna':
             model = 'GTRGAMMA'
         elif self.datatype == 'protein':
@@ -815,31 +816,31 @@ class TCSeqRec(SequenceRecord):
             return
         t = Tree().run_raxml(model, input_file, self.name, tmpdir,
                              guide=True)
-        if os.path.isfile('{0}/{1}.phy'.format(tmpdir, self.name)):
-            os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
+        if os.path.isfile('{0}/{1}.phy'.format(tmpdir, filename)):
+            os.remove('{0}/{1}.phy'.format(tmpdir, filename))
         if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir,
-                          self.name)):
-            os.remove('{0}/{1}.phy.reduced'.format(tmpdir, self.name))
+                          filename)):
+            os.remove('{0}/{1}.phy.reduced'.format(tmpdir, filename))
         return t
 
     def get_TC_tree(self, tmpdir='/tmp', overwrite=True):
         if not overwrite and self.tree.newick:
             print '{0}: Tree exists and overwrite set to false'.format(self.name)
             return self.tree
-        self._write_temp_tc(tmpdir=tmpdir)
+        filename = self._write_temp_tc(tmpdir=tmpdir, use_hashname=True)
         print 'Running TreeCollection on ' + str(self.name) + '...'
         self.tree.run_treecollection(
-            '{0}/{1}_dv.txt'.format(tmpdir, self.name),
-            '{0}/{1}_map.txt'.format(tmpdir, self.name),
-            '{0}/{1}_labels.txt'.format(tmpdir, self.name),
-            '{0}/{1}_tree.nwk'.format(tmpdir, self.name),
+            '{0}/{1}_dv.txt'.format(tmpdir, filename),
+            '{0}/{1}_map.txt'.format(tmpdir, filename),
+            '{0}/{1}_labels.txt'.format(tmpdir, filename),
+            '{0}/{1}_tree.nwk'.format(tmpdir, filename),
             self.name,
             overwrite=overwrite,
             )
-        os.remove('{0}/{1}_dv.txt'.format(tmpdir, self.name))
-        os.remove('{0}/{1}_map.txt'.format(tmpdir, self.name))
-        os.remove('{0}/{1}_labels.txt'.format(tmpdir, self.name))
-        os.remove('{0}/{1}_tree.nwk'.format(tmpdir, self.name))
+        os.remove('{0}/{1}_dv.txt'.format(tmpdir, filename))
+        os.remove('{0}/{1}_map.txt'.format(tmpdir, filename))
+        os.remove('{0}/{1}_labels.txt'.format(tmpdir, filename))
+        os.remove('{0}/{1}_tree.nwk'.format(tmpdir, filename))
         return self.tree
 
     def get_dv_matrix(
@@ -919,9 +920,3 @@ class TCSeqRec(SequenceRecord):
             for i, newrec in enumerate(newrecs):            
                 newrec.name = 'record_{0}'.format(i+1)
         return newrecs
-
-
-
-
-
-
