@@ -142,7 +142,7 @@ class Clustering(object):
             self.cluster_rotate(eigvecs, max_groups=max_groups,
                                 min_groups=min_groups)
 
-        translate_clustering = [None] * len(dm.M)
+        translate_clustering = [None] * len(M)
         no_of_empty_clusters = 0
         for (group_number, group_membership) in enumerate(clustering):
             if len(group_membership) == 0:
