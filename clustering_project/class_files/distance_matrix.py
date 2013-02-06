@@ -1,23 +1,14 @@
 #!/usr/bin/env python
 
-import_debugging = False
-if import_debugging:
-    print 'distance_matrix.py imports:'
-import numpy as np
-if import_debugging:
-    print '  numpy (dm)'
-import os
-if import_debugging:
-    print '  os (dm)'
-import dendropy as dpy
-if import_debugging:
-    print '  dendropy (dm)'
+from gtp import GTP
 from matplotlib import pyplot as plt
-if import_debugging:
-    print '  matplotlib::pyplot (dm)'
 from matplotlib import cm as CM
-if import_debugging:
-    print '  matplotlib::cm (dm)'
+import numpy as np
+import os
+from dpy_utils import *
+
+
+
 
 
 class DistanceMatrix(object):
@@ -30,40 +21,49 @@ class DistanceMatrix(object):
         None: 'Empty matrix',
         }
 
-    def __init__(
-        self,
-        trees,
-        tmpdir='/tmp',
-        gtp_path='./class_files',
-        ):
+    def __init__(self, trees, tmpdir='/tmp'):
 
         size = len(trees)
         self.matrix = np.zeros((size, size), dtype='float')
         self.metric = None
         self.trees = trees
         self.tmpdir = tmpdir
-        self.gtp_path = gtp_path
 
     def __str__(self):
         return '\n'.join([str(self.matrix),
                          'Metric: {0}'.format(self.metrics_dict[self.metric])])
 
-    def convert_to_dendropy_trees(self, trees=None):
-        taxa = dpy.TaxonSet()
-        if not trees:
-            trees = self.trees
-        dpy_tree_list = [dpy.Tree.get_from_string(tree.newick, 'newick'
-                         , taxon_set=taxa) for tree in trees]
-        return dpy_tree_list
+    def get_dendropy_distances(self, fn):
+        num_trees = len(self.trees)
+        dpy_trees = convert_to_dendropy_trees(self.trees)
+        
+        matrix = np.zeros((num_trees, num_trees))
+        for i in range(num_trees):
+            for j in range(i + 1, num_trees):
+                distance = fn(dpy_trees[i], dpy_trees[j])
+                matrix[i, j] = matrix[j, i] = distance
+        return matrix
 
-    def get_rf_distance(self, tree1, tree2):
-        return tree1.symmetric_difference(tree2)
+    def get_geo_distances(self, tmpdir=None):
 
-    def get_wrf_distance(self, tree1, tree2):
-        return tree1.robinson_foulds_distance(tree2)
+        if not tmpdir:
+            tmpdir = self.tmpdir
 
-    def get_euc_distance(self, tree1, tree2):
-        return tree1.euclidean_distance(tree2)
+        g = GTP(tmpdir=tmpdir)
+        return g.run(self.trees)
+
+    def get_geo_distance(
+        self,
+        tree1,
+        tree2,
+        tmpdir=None,
+        ):
+
+        if not tmpdir:
+            tmpdir = self.tmpdir
+
+        g = GTP(tmpdir=tmpdir)
+        return g.pairwise(tree1, tree2)
 
     @staticmethod
     def _sum_of_branch_lengths(dpy_tree):
@@ -76,10 +76,8 @@ class DistanceMatrix(object):
     def get_distance_matrix(
         self,
         metric,
-        trees=None,
         normalise=False,
         tmpdir=None,
-        gtp_path=None,
         ):
         """
         Generates pairwise distance matrix between trees
@@ -91,90 +89,40 @@ class DistanceMatrix(object):
         Geodesic distance - branch lengths (='geo')
         """
 
-        matrix = self.matrix
-        if not trees:
-            trees = self.trees
         if not tmpdir:
             tmpdir = self.tmpdir
-        if not gtp_path:
-            gtp_path = self.gtp_path
-        assert os.path.isfile('{0}/gtp.jar'.format(gtp_path))
 
-        # print 'gtp_path=',gtp_path
-        # print 'tmpdir=',tmpdir
-
-        num_trees = matrix.shape[0]
         self.metric = metric
-        dpy_trees = self.convert_to_dendropy_trees(trees)
+        dpy_trees = convert_to_dendropy_trees(self.trees)
         branch_lengths = [self._sum_of_branch_lengths(x) for x in
                           dpy_trees]
 
         if metric == 'geo':
-            rooted = all([tree.rooted for tree in trees])
-            with open('{0}/geotrees.nwk'.format(tmpdir), 'w') as file:
-                file.write('\n'.join([tree.newick.rstrip() for tree in
-                           trees]))
-            if rooted:
-                os.system('java -jar {1}/gtp.jar -o {0}/output.txt {0}/geotrees.nwk'.format(tmpdir,
-                          gtp_path))
-            else:
-                os.system('java -jar {1}/gtp.jar -u -o {0}/output.txt {0}/geotrees.nwk'.format(tmpdir,
-                          gtp_path))
-            try:
-                with open('{0}/output.txt'.format(tmpdir)) as file:
-                    for line in file:
-                        line = line.rstrip()
-                        if line:
-                            (i, j, value) = line.split()
-                            i = int(i)
-                            j = int(j)
-                            value = float(value)
-                            if normalise:
-                                value /= (branch_lengths[i]
-                                        + branch_lengths[j]) / 2
-                            matrix[i, j] = matrix[j, i] = value
-                os.remove('{0}/output.txt'.format(tmpdir))
-                os.remove('{0}/geotrees.nwk'.format(tmpdir))
-            except IOError, e:
-                print 'There was an IOError: {0}'.format(e)
-                print 'Geodesic distances couldn\'t be calculated'
-                return
+            matrix = self.get_geo_distances(tmpdir=tmpdir)
         elif metric == 'rf':
 
             ntax = len(dpy_trees[0].leaf_nodes())
             max_rf = 2.0 * (ntax - 3)
-            for i in range(num_trees):
-                for j in range(i + 1, num_trees):
-                    distance = self.get_rf_distance(dpy_trees[i],
-                            dpy_trees[j])
-                    if normalise:
-                        distance /= max_rf
-                    matrix[i, j] = matrix[j, i] = distance
+
+            matrix = self.get_dendropy_distances(get_rf_distance)
+
+            if normalise:
+                matrix /= max_rf
         elif metric == 'wrf':
 
-            for i in range(num_trees):
-                for j in range(i + 1, num_trees):
-                    distance = self.get_wrf_distance(dpy_trees[i],
-                            dpy_trees[j])
-                    if normalise:
-                        distance /= (branch_lengths[i]
-                                + branch_lengths[j]) / 2
-                    matrix[i, j] = matrix[j, i] = distance
+            matrix = self.get_dendropy_distances(get_wrf_distance)
         elif metric == 'euc':
 
-            for i in range(num_trees):
-                for j in range(i + 1, num_trees):
-                    distance = self.get_euc_distance(dpy_trees[i],
-                            dpy_trees[j])
-                    if normalise:
-                        distance /= (branch_lengths[i]
-                                + branch_lengths[j]) / 2
-                    matrix[i, j] = matrix[j, i] = distance
+            matrix = self.get_dendropy_distances(get_euc_distance)
         else:
 
             print 'Unrecognised distance metric'
             return
 
+        if matrix is None:
+            return
+        else:
+            self.matrix = matrix
         return matrix
 
     def add_noise(self, dm=None):
@@ -193,7 +141,8 @@ class DistanceMatrix(object):
         return new
 
     def noisy_copy(self):
-        new_object = DistanceMatrix(trees=self.trees,tmpdir=self.tmpdir,gtp_path=self.gtp_path)
+        new_object = DistanceMatrix(trees=self.trees,
+                                    tmpdir=self.tmpdir)
         new_object.metric = self.metric
         new_object.matrix = self.add_noise()
         return new_object
@@ -271,9 +220,10 @@ class DistanceMatrix(object):
         matrix, and a dictionary of the kth distance for 
         each node.
         """
+
         if add_noise:
             M = self.add_noise()
-        else: 
+        else:
             M = self.matrix
         shape = M.shape
         kneighbour_matrix = np.zeros(shape)
@@ -300,7 +250,7 @@ class DistanceMatrix(object):
 
         if add_noise:
             M = self.add_noise()
-        else: 
+        else:
             M = self.matrix
         shape = M.shape
         affinity_matrix = np.zeros(shape)
@@ -333,7 +283,7 @@ class DistanceMatrix(object):
 
         if add_noise:
             M = self.add_noise()
-        else: 
+        else:
             M = np.array(self.matrix, copy=True)
         if square_input:
             M *= M

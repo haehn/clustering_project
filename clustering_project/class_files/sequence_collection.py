@@ -135,7 +135,6 @@ class SequenceCollection(object):
         file_format='fasta',
         datatype='protein',
         helper='./class_files/DV_wrapper.drw',
-        gtp_path='./class_files',
         tmpdir='/tmp',
         get_distances=False,
         parallel_load=False,
@@ -166,7 +165,6 @@ class SequenceCollection(object):
 
         # Set Variables
 
-        self.gtp_path = gtp_path
         self.tmpdir = tmpdir
 
         # Lambda for sorting by name and number
@@ -445,7 +443,6 @@ class SequenceCollection(object):
         self,
         metrics,
         tmpdir='/tmp',
-        gtp_path=None,
         normalise=False,
         ):
         """
@@ -453,13 +450,11 @@ class SequenceCollection(object):
         valid kwargs - invert (bool), normalise (bool)
         """
 
-        if not gtp_path:
-            gtp_path = self.gtp_path
         if not isinstance(metrics, list):
             metrics = [metrics]
         trees = [rec.tree for rec in self.get_records()]
         for metric in metrics:
-            dm = DistanceMatrix(trees, tmpdir=tmpdir, gtp_path=gtp_path)
+            dm = DistanceMatrix(trees, tmpdir=tmpdir)
             dm.get_distance_matrix(metric, normalise=normalise)
             self.distance_matrices[metric] = dm
 
@@ -470,17 +465,13 @@ class SequenceCollection(object):
         nclusters,
         prune=True,
         tmpdir=None,
-        gtp_path=None,
         recalculate=False,
         ):
 
         if not tmpdir:
             tmpdir = self.tmpdir
-        if not gtp_path:
-            gtp_path = self.gtp_path
         if not metric in self.get_distance_matrices():
-            self.put_distance_matrices(metric, tmpdir=tmpdir,
-                    gtp_path=gtp_path)
+            self.put_distance_matrices(metric, tmpdir=tmpdir)
         partition_vector = \
             self.Clustering.run_clustering(self.distance_matrices[metric],
                 cluster_method, nclusters, prune=prune,
@@ -509,7 +500,6 @@ class SequenceCollection(object):
         nclusters,
         prune=True,
         tmpdir=None,
-        gtp_path=None,
         recalculate=False,
         ):
         """
@@ -525,8 +515,6 @@ class SequenceCollection(object):
             nclusters = [nclusters]
         if tmpdir is None:
             tmpdir = self.tmpdir
-        if gtp_path is None:
-            gtp_path = self.gtp_path
         else:
             nclusters = sorted(nclusters, reverse=True)
 
@@ -548,7 +536,6 @@ class SequenceCollection(object):
                             n,
                             prune=prune,
                             tmpdir=tmpdir,
-                            gtp_path=gtp_path,
                             recalculate=recalculate,
                             )
 
@@ -566,7 +553,6 @@ class SequenceCollection(object):
         KMeans=True,
         recalculate=True,
         tmpdir=None,
-        gtp_path=None,
         max_groups=None,
         min_groups=2,
         check_single=True,
@@ -578,11 +564,8 @@ class SequenceCollection(object):
 
         if not tmpdir:
             tmpdir = self.tmpdir
-        if not gtp_path:
-            gtp_path = self.gtp_path
         if not metric in self.get_distance_matrices():
-            self.put_distance_matrices(metric, tmpdir=tmpdir,
-                    gtp_path=gtp_path)
+            self.put_distance_matrices(metric, tmpdir=tmpdir)
         dm = self.get_distance_matrices()[metric]
 
         if check_single and min_groups > 1:
@@ -732,7 +715,6 @@ class SequenceCollection(object):
             file_format=self.file_format,
             datatype=self.datatype,
             helper=self.helper,
-            gtp_path=self.gtp_path,
             tmpdir=tmpdir,
             get_distances=get_distances,
             parallel_load=parallel_load,
