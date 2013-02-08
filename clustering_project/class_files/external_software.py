@@ -157,39 +157,41 @@ class Phyml(ExternalSoftware):
     default_binary = 'phyml'
 
     def clean(self, filename):
-        prefix = '{0}/{1}.phy_phyml_'.format(self.tmpdir, filename)
-        delete(prefix + 'tree.txt')
-        delete(prefix + 'stats.txt')
+        delete(filename)
+        delete(filename + '_phyml_tree.txt')
+        delete(filename + '_phyml_stats.txt')
 
-    def call(self):
-        cmd = ' '.join([self.binary] + ['{0} {1}'.format(k,
-                                v) for k,v in self.flags.items()])
-        return subprocess(cmd)
-
-    def writetmp(self, sequence_record):
-        if '-i' in self.flags:
-            filename = (self.flags['-i'] if len(self.flags['-i'])
-                        < 100 else hashname(self.flags['-i']))
-        else:
-            print 'No input file to write!'
-            return
-
-        sequence_record.write_phylip('{0}/{1}.phy'.format(self.tmpdir,
-                filename))
-        return filename
+    def call(self, verbose=False):
+        cmd = ' '.join([self.binary] + ['{0} {1}'.format(k, v) for (k,
+                       v) in self.flags.items()])
+        (stdout, stderr) = subprocess(cmd)
+        if verbose:
+            print stdout, stderr
+        return (stdout, stderr)
 
     def read(self, filename):
-        prefix = '{0}/{1}.phy_phyml_'.format(self.tmpdir, filename)
-        with open(prefix + 'tree.txt') as treefile:
-            with open(prefix + 'stats.txt') as statsfile:
+        with open(filename + '_phyml_tree.txt') as treefile:
+            with open(filename + '_phyml_stats.txt') as statsfile:
                 return (treefile.read(), statsfile.read())
 
     def run(self, sequence_record):
         filename = self.writetmp(sequence_record)
-        filecheck_and_raise('{0}/{1}.phy'.format(self.tmpdir,
-                filename))
+        filecheck_and_raise(filename)
+        self.add_flag('-i', filename)
         print 'Running phyml on', sequence_record.name
-        self.call()
+        (stdout, stderr) = self.call()
+        (tree, stats) = self.read(filename)
+        self.clean(filename)
+        return (tree, stats)
+
+    def writetmp(self, sequence_record):
+        filename = ((sequence_record.name if len(sequence_record.name)
+                    < 40 else sequence_record.hashname()) if sequence_record.name else 'tmp_phyml_input'
+                    )
+
+        filename = '{0}/{1}.phy'.format(self.tmpdir, filename)
+        sequence_record.write_phylip(filename)
+        return filename
 
 
 class TreeCollection(ExternalSoftware):

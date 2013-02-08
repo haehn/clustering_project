@@ -1,46 +1,11 @@
 #!/usr/bin/env python
 
-import_debugging = False
-if import_debugging:
-    print 'tree.py imports:'
-import re
-if import_debugging:
-    print '  re (tr)'
-import os
-if import_debugging:
-    print '  os (tr)'
-import dendropy as dpy
-if import_debugging:
-    print '  dendropy (tr)'
-from dendropy import treesim
-if import_debugging:
-    print '  dendropy::treesim (tr)'
-import numpy as np
-if import_debugging:
-    print '  numpy (tr)'
-import ete2
-if import_debugging:
-    print '  ete2 (tr)'
-import random
-if import_debugging:
-    print '  random (tr)'
-from subprocess import Popen, PIPE, call
-if import_debugging:
-    print '  subprocess::Popen, PIPE, call (tr)'
-from errors import FileError
-import taxonnames
-from external_software import Phyml
+import dpy_utils
 
 
 class Tree(object):
 
-    """
-    Class for storing the results of phylogenetic inference
-    """
-
     score_regex = re.compile('(?<=Log-likelihood: ).+')
-    name_regex = \
-        re.compile('([A-Za-z0-9\-_]+).([A-Za-z0-9\-_]+)(?=_phyml_)')
 
     def __init__(
         self,
@@ -91,6 +56,37 @@ class Tree(object):
             return False
         return equal
 
+    def write_to_file(
+        self,
+        outfile,
+        metadata=False,
+        suppress_NHX=False,
+        ):
+        """
+        Writes a string representation of the object's contents
+        to file.
+        """
+
+        writer = open(outfile, 'w')
+        if metadata:
+            writer.write(str(self))
+        else:
+
+            writeable = self.newick
+            if suppress_NHX:
+                if writeable.startswith('[&R] '):
+                    writeable = writeable[5:]
+            if not writeable.endswith('\n'):
+                writeable += '\n'
+            writer.write(writeable)
+        writer.close()
+        return outfile
+
+    def reroot_newick(self):
+        dpy_tree = dpy.Tree.get_from_string(self.newick, 'newick')
+        dpy_tree.resolve_polytomies()
+        return dpy_tree.as_newick_string() + ';\n'
+
     def pam2sps(self, multiplier=0.01):
         """
         Scales branch lengths by an order of `multiplier`.
@@ -130,434 +126,6 @@ class Tree(object):
             self.output,
             self.rooted,
             )
-
-    def read_from_file(self, infile, name=None):
-        """
-        This and the write_to_file function allow the class to be
-        easily stored and reconstituted without using a pickle or
-        JSON
-        """
-
-        program = None
-        tree = None
-        score = None
-        self.name = name
-        reader = open(infile)
-        try:
-            for line in reader:
-                line = [l.rstrip().replace(']', '') for l in
-                        line.split()]
-                if not name and line[0] == 'Name:':
-                    self.name = line[1]
-                elif line[0] == 'Program:':
-                    self.program = line[1]
-                elif line[0] == 'Tree:':
-                    self.newick = line[1]
-                elif line[0] == 'Score:':
-                    self.score = line[1]
-        except IndexError:
-            return
-        return self
-
-    def write_to_file(
-        self,
-        outfile,
-        metadata=False,
-        suppress_NHX=False,
-        ):
-        """
-        Writes a string representation of the object's contents
-        to file. This can be read using read_from_file to
-        reconstruct the Tree object, if metadata is included (i.e.
-        metadata=True)
-        """
-
-        writer = open(outfile, 'w')
-        if metadata:
-            writer.write(str(self))
-        else:
-
-            writeable = self.newick
-            if suppress_NHX:
-                if writeable.startswith('[&R] '):
-                    writeable = writeable[5:]
-            if not writeable.endswith('\n'):
-                writeable += '\n'
-            writer.write(writeable)
-        writer.close()
-        return outfile
-
-    @classmethod
-    def check_rooted(cls, newick):
-        if newick is None:
-            return None
-        if newick == '':
-            return None
-        t = dpy.Tree()
-        t.read_from_string(newick, 'newick')
-        root_degree = len(t.seed_node.child_nodes())
-        return root_degree == 2
-
-    @classmethod
-    def deroot_tree(cls, newick):
-        t = dpy.Tree()
-        t.read_from_string(newick, 'newick')
-        t.deroot()
-        return t.as_newick_string() + ';'
-
-    def reroot_newick(self):
-        dpy_tree = dpy.Tree()
-        dpy_tree.read_from_string(self.newick, 'newick')
-        dpy_tree.resolve_polytomies()
-        newick_string = dpy_tree.as_newick_string() + ';\n'
-        return newick_string
-
-    def load_phyml_strings(
-        self,
-        tree,
-        stats,
-        name=None,
-        program='phyml',
-        ):
-
-        score = float(self.score_regex.search(stats).group(1))
-        self.program = program
-        self.newick = tree
-        self.output = stats
-        self.score = score
-        self.name = name
-        self.rooted = self.check_rooted(tree)
-
-    def load_phyml_files(
-        self,
-        tree_file,
-        stats_file,
-        name=None,
-        program='phyml',
-        ):
-        """
-        Loads phyml results into existing tree object
-           - returns None
-        """
-
-        exit = False
-        for f in (tree_file, stats_file):
-            try:
-                if not os.path.isfile(f):
-                    raise FileError(f)
-            except FileError, e:
-                print e
-                exit = True
-
-        if exit:
-            print 'Results were not loaded'
-            raise FileError()
-
-        if not name:
-            name = self.name_regex.search(tree_file).group(1)
-        newick = open(tree_file).read()
-        stats = open(stats_file).read()
-        self.load_phyml_strings(newick, stats, name=name,
-                                program=program)
-
-    @classmethod
-    def new_tree_from_phyml_results(
-        cls,
-        tree_file,
-        stats_file,
-        program='phyml',
-        ):
-        """
-        classmethod version of load_phyml_files
-           - returns a new Tree object
-        """
-
-        new_tree = cls()
-        new_tree.load_phyml_files(tree_file, stats_file,
-                                  program=program)
-        return new_tree
-
-    @classmethod
-    def new_tree_from_phyml_strings(
-        cls,
-        tree,
-        stats,
-        program='phyml',
-        ):
-
-        new_tree = cls()
-        new_tree.load_phyml_strings(tree, stats, program=program)
-        return new_tree
-
-    def run_phyml(
-        self,
-        model,
-        alignment_file,
-        datatype,
-        name=None,
-        interleaved=False,
-        ncat=4,
-        verbose=True,
-        overwrite=True,
-        ):
-
-        if not overwrite and self.newick:
-            return self
-        command = \
-            'phyml -m {0} -i {1} -d {2} -c {3} -a e -b 0 --sequential --no_memory_check'.format(model,
-                alignment_file, datatype, ncat)
-        if interleaved:
-            command = command.replace('--sequential ', '')
-        if verbose:
-            print command
-        process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
-                        stderr=PIPE)
-        process.wait()
-        tree_file = '{0}_phyml_tree.txt'.format(alignment_file)
-        stats_file = '{0}_phyml_stats.txt'.format(alignment_file)
-        new_tree = self.new_tree_from_phyml_results(tree_file,
-                stats_file)
-
-        (
-            self.newick,
-            self.score,
-            self.program,
-            self.name,
-            self.output,
-            self.rooted,
-            ) = (
-            new_tree.newick,
-            new_tree.score,
-            new_tree.program,
-            new_tree.name,
-            new_tree.output,
-            new_tree.rooted,
-            )
-
-        os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
-
-        return new_tree
-
-    def run_bionj(
-        self,
-        model,
-        alignment_file,
-        datatype,
-        name=None,
-        interleaved=False,
-        ncat=4,
-        optimise='n',
-        verbose=True,
-        overwrite=True,
-        ):
-
-        if not overwrite and self.newick:
-            return self
-
-        if not optimise in ['n', 'r', 'lr', 'rl']:
-            print 'optimise parameter should be one of:'
-            print 'n | r | lr'
-            return
-
-        command = \
-            'phyml -m {0} -i {1} -d {2} -c {3} -b 0 -o {4} -a e --sequential --no_memory_check'.format(model,
-                alignment_file, datatype, ncat, optimise)
-        if interleaved:
-            command = command.replace('--sequential ', '')
-        if verbose:
-            print command
-        process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
-                        stderr=PIPE)
-        process.wait()
-        tree_file = '{0}_phyml_tree.txt'.format(alignment_file)
-        stats_file = '{0}_phyml_stats.txt'.format(alignment_file)
-        new_tree = self.new_tree_from_phyml_results(tree_file,
-                stats_file, program='bionj')
-
-        (
-            self.newick,
-            self.score,
-            self.program,
-            self.name,
-            self.output,
-            self.rooted,
-            ) = (
-            new_tree.newick,
-            new_tree.score,
-            new_tree.program,
-            new_tree.name,
-            new_tree.output,
-            new_tree.rooted,
-            )
-
-        os.system('rm {0}_phyml_tree.txt {0}_phyml_stats.txt'.format(alignment_file))  # Cleanup
-
-        return new_tree
-
-    def run_raxml(
-        self,
-        model,
-        alignment_file,
-        name,
-        tmpdir,
-        guide=False,
-        overwrite=True,
-        ):
-
-        if not overwrite and self.newick:
-            return self
-        command = 'raxml -m {0} -s {1} -n {2} -w {3}'.format(model,
-                alignment_file, name, tmpdir)
-        if guide:
-            command += ' -y'
-        process = call(command, shell=True, stdin=PIPE, stdout=PIPE,
-                       stderr=PIPE)
-        if guide:
-            dpy_tree = dpy.Tree()
-            dpy_tree.read_from_stream(open('{0}/RAxML_parsimonyTree.{1}'.format(tmpdir,
-                    name)), 'newick')
-            dpy_tree.resolve_polytomies()
-            for n in dpy_tree.postorder_node_iter():
-                n.edge_length = 1
-            tree = dpy_tree.as_newick_string()
-            if not tree.rstrip().endswith(';'):
-                tree += ';\n'
-            score = None
-            output = None
-        else:
-            tree = open('{0}/RAxML_bestTree.{1}'.format(tmpdir,
-                        name)).read()
-            score = float(re.compile('(?<=Score of best tree ).+'
-                          ).search(open('{0}/RAxML_info.{1}'.format(tmpdir,
-                          name)).read()).group())
-            output = open('{0}/RAxML_info.{1}'.format(tmpdir,
-                          name)).read()
-        rooted = self.check_rooted(tree)
-        os.system('rm {0}/*.{1}'.format(tmpdir, name))  # Cleanup
-
-        (
-            self.newick,
-            self.score,
-            self.program,
-            self.name,
-            self.output,
-            self.rooted,
-            ) = (
-            tree,
-            score,
-            'raxml',
-            name,
-            output,
-            rooted,
-            )
-        return Tree(
-            tree,
-            score,
-            'raxml',
-            name,
-            output,
-            rooted,
-            )
-
-    @classmethod
-    def new_treecollection_tree(
-        cls,
-        dv_file,
-        map_file,
-        label_file,
-        tree_file,
-        name,
-        overwrite=True,
-        deroot=True,
-        ):
-
-        command = \
-            'TreeCollection -D {0} -M {1} -L {2} -T {3}'.format(dv_file,
-                map_file, label_file, tree_file)
-        process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE,
-                        stderr=PIPE)
-        process.wait()
-        (stdout, stderr) = process.communicate()
-        info = stdout.split()
-
-        tree = info[-2]
-        if deroot:
-            tree = cls.deroot_tree(tree)
-        score = float(info[-1])
-        rooted = cls.check_rooted(tree)
-
-        return Tree(
-            newick=tree,
-            score=score,
-            program='TreeCollection',
-            name=name,
-            output=stdout,
-            rooted=rooted,
-            ).pam2sps('pam2sps')
-
-    def run_treecollection(
-        self,
-        dv_file,
-        map_file,
-        label_file,
-        tree_file,
-        name,
-        overwrite=True,
-        deroot=True,
-        ):
-
-        if not overwrite and self.newick:
-            return self
-
-        new_tree = self.new_treecollection_tree(
-            dv_file,
-            map_file,
-            label_file,
-            tree_file,
-            name,
-            overwrite,
-            deroot,
-            )
-
-        (
-            self.newick,
-            self.score,
-            self.program,
-            self.name,
-            self.output,
-            self.rooted,
-            ) = (
-            new_tree.newick,
-            new_tree.score,
-            new_tree.program,
-            new_tree.name,
-            new_tree.output,
-            new_tree.rooted,
-            )
-
-    def _unpack_raxml_args(packed_args):
-        """
-        Used as helper to enable parallelising multiple system calls
-        to raxml
-        """
-
-        return run_raxml(*packed_args)  # * to unpack
-
-    def _unpack_phyml_args(packed_args):
-        """
-        Used as helper to enable parallelising multiple system calls
-        to phyml
-        """
-
-        return run_phyml(*packed_args)  # * to unpack
-
-    def _unpack_TC_args(packed_args):
-        """
-        Used as helper to enable parallelising multiple system calls
-        to treecollection
-        """
-
-        return run_treecollection(*packed_args)  # * to unpack
 
     def extract_gamma_parameter(self):
         gamma_regex = \
@@ -611,45 +179,6 @@ class Tree(object):
 
         return d
 
-    @classmethod
-    def new_random_topology(
-        cls,
-        nspecies,
-        names=None,
-        rooted=False,
-        ):
-
-        new_tree = cls()
-        names = names or taxonnames.names
-        return new_tree.random_topology(nspecies, names[:nspecies],
-                rooted)
-
-    def random_topology(
-        self,
-        nspecies,
-        names=None,
-        rooted=False,
-        ):
-        """
-        Use ete2 to make a random topology
-        Then add random branch lengths drawn from
-        some distribution (default = gamma)
-        Inner and leaf edge lengths can be drawn from differently parameterised
-        versions of the distribution
-        """
-
-        if names:
-            random.shuffle(names)
-        t = ete2.Tree()
-        t.populate(nspecies, names_library=names)
-        if rooted:
-            t.set_outgroup(t.children[0])
-        else:
-            t.unroot()
-
-        t_as_newick = t.write()
-        t_as_newick = t_as_newick.replace(')1', ')')
-        return Tree(t_as_newick, name='random tree').pam2sps('strip')
 
     def randomise_branch_lengths(
         self,
