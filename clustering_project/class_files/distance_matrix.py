@@ -8,9 +8,6 @@ import os
 from dpy_utils import *
 
 
-
-
-
 class DistanceMatrix(object):
 
     metrics_dict = {
@@ -36,7 +33,7 @@ class DistanceMatrix(object):
     def get_dendropy_distances(self, fn):
         num_trees = len(self.trees)
         dpy_trees = convert_to_dendropy_trees(self.trees)
-        
+
         matrix = np.zeros((num_trees, num_trees))
         for i in range(num_trees):
             for j in range(i + 1, num_trees):

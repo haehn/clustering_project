@@ -1,19 +1,22 @@
 #!/usr/bin/env python
 
-# from sequence_record import TCSeqRec
-
-from errors import FileError
+from errors import FileError, filecheck_and_raise
 from file_utils import *
 import numpy as np
+import hashlib
 
 local_dir = path_to(__file__)
 
 
-class GTP(object):
+def hashname(name):
+    return hashlib.sha1(name).hexdigest()
 
-    """
-    Interacts with gtp.jar to calculate geodesic distances from trees
-    """
+
+class ExternalSoftware(object):
+
+    flags = {}
+    default_binary = ''
+    default_env = ''
 
     def __init__(self, supplied_binary='', tmpdir='/tmp'):
 
@@ -21,14 +24,49 @@ class GTP(object):
             self.binary = supplied_binary
         else:
 
-            default_binary = locate_file('gtp.jar', 'GTP_PATH',
-                    local_dir)
+            default_binary = locate_file(self.default_binary,
+                    self.default_env, local_dir)
             self.binary = default_binary
 
         if self.binary is None:
             raise FileError(supplied_binary)
 
         self.tmpdir = tmpdir.rstrip('/')
+
+    def __str__(self):
+        desc = 'Wrapper for {0}'.format(self.default_binary)
+        return desc
+
+    def add_flag(self, flag, value):
+        self.flags[flag] = value
+
+    def remove_flag(self, flag):
+        del self.flags[flag]
+
+    def call(self):
+        pass
+
+    def clean(self):
+        pass
+
+    def read(self):
+        pass
+
+    def run(self):
+        pass
+
+    def writetmp(self):
+        pass
+
+
+class GTP(ExternalSoftware):
+
+    """
+    Interacts with gtp.jar to calculate geodesic distances from trees
+    """
+
+    default_binary = 'gtp.jar'
+    default_env = 'GTP_PATH'
 
     def __str__(self):
         desc = 'Wrapper for gtp.jar - geodesic distance calculator'
@@ -114,10 +152,46 @@ class GTP(object):
                        trees))
 
 
-if __name__ == '__main__':
-    from tree import Tree
-    trees = [Tree.new_random_coal(10) for _ in range(100)]
-    g = GTP()
-    print g
-    m = g.run(trees)
-    print m
+class Phyml(ExternalSoftware):
+
+    default_binary = 'phyml'
+
+    def clean(self, filename):
+        prefix = '{0}/{1}.phy_phyml_'.format(self.tmpdir, filename)
+        delete(prefix + 'tree.txt')
+        delete(prefix + 'stats.txt')
+
+    def call(self):
+        cmd = ' '.join([self.binary] + ['{0} {1}'.format(k,
+                                v) for k,v in self.flags.items()])
+        return subprocess(cmd)
+
+    def writetmp(self, sequence_record):
+        if '-i' in self.flags:
+            filename = (self.flags['-i'] if len(self.flags['-i'])
+                        < 100 else hashname(self.flags['-i']))
+        else:
+            print 'No input file to write!'
+            return
+
+        sequence_record.write_phylip('{0}/{1}.phy'.format(self.tmpdir,
+                filename))
+        return filename
+
+    def read(self, filename):
+        prefix = '{0}/{1}.phy_phyml_'.format(self.tmpdir, filename)
+        with open(prefix + 'tree.txt') as treefile:
+            with open(prefix + 'stats.txt') as statsfile:
+                return (treefile.read(), statsfile.read())
+
+    def run(self, sequence_record):
+        filename = self.writetmp(sequence_record)
+        filecheck_and_raise('{0}/{1}.phy'.format(self.tmpdir,
+                filename))
+        print 'Running phyml on', sequence_record.name
+        self.call()
+
+
+class TreeCollection(ExternalSoftware):
+
+    default_binary = 'TreeCollection'

@@ -597,8 +597,7 @@ class Tree(object):
         ):
 
         new_tree = cls()
-        if not names:
-            names = taxonnames.names
+        names = names or taxonnames.names
         return new_tree.random_topology(nspecies, names[:nspecies],
                 rooted)
 

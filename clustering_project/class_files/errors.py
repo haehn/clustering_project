@@ -18,7 +18,7 @@ class FileError(Exception):
         self.value = filename
 
     def __str__(self):
-        return 'Error opening file {0}'.format(self.value)
+        return 'Error opening file \'{0}\''.format(self.value)
 
 
 class DirectoryError(FileError):
