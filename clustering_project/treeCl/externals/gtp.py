@@ -2,7 +2,7 @@
 
 from . import ExternalSoftware
 from ..errors import FileError, filecheck_and_raise
-from ..utils.file_utils import *
+from ..utils.fileIO import *
 import numpy as np
 
 local_dir = path_to(__file__)

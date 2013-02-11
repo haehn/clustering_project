@@ -2,12 +2,12 @@
 
 from . import ExternalSoftware
 from ..errors import FileError, filecheck_and_raise
-from ..utils.file_utils import *
+from ..utils.fileIO import *
 
 local_dir = path_to(__file__)
 
 
-class DV_wrapper(ExternalSoftware):
+class DVWrapper(ExternalSoftware):
 
     default_binary = 'darwin'
     DV_wrapper = locate_file('DV_wrapper.drw', directory=local_dir)
@@ -42,6 +42,7 @@ class DV_wrapper(ExternalSoftware):
         dv_string = self.read()
         labels = ' '.join(sequence_record.headers)
         self.clean()
+        sequence_record.dv = [(dv_string, labels)]
         return (dv_string, labels)
 
     def write(self, sequence_record):

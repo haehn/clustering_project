@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from ..errors import FileError, filecheck_and_raise
-from ..utils.file_utils import *
+from ..utils.fileIO import *
 
 local_dir = path_to(__file__)
 
@@ -12,12 +12,13 @@ class ExternalSoftware(object):
     this class, and should implement their own call(), read(), run() and write()
     methods """
 
-    flags = {}
-    tempfiles = []
     default_binary = ''
     default_env = ''
 
     def __init__(self, supplied_binary='', tmpdir='/tmp'):
+
+        self.flags = {}
+        self.tempfiles = []
 
         if can_locate(supplied_binary):
             self.binary = supplied_binary
@@ -56,8 +57,13 @@ class ExternalSoftware(object):
     def remove_flag(self, flag):
         del self.flags[flag]
 
-    def call(self):
-        pass
+    def call(self, verbose=False):
+        cmd = ' '.join([self.binary] + ['{0} {1}'.format(k, v) for (k, v) in
+                       self.flags.items()])
+        (stdout, stderr) = subprocess(cmd)
+        if verbose:
+            print stdout, stderr
+        return (stdout, stderr)
 
     def clean(self):
         for fil in self.tempfiles:

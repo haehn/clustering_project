@@ -29,7 +29,7 @@ if import_debugging:
     print '  subprocess::Popen, PIPE, call (tr)'
 from errors import FileError
 import taxonnames
-from external_software import Phyml
+
 
 
 class Tree(object):
@@ -356,7 +356,7 @@ class Tree(object):
 
         if not optimise in ['n', 'r', 'lr', 'rl']:
             print 'optimise parameter should be one of:'
-            print 'n | l | r | lr'
+            print 'n | r | lr'
             return
 
         command = \

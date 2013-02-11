@@ -1,29 +1,35 @@
 #!/usr/bin/env python
+
 import_debugging = False
-if import_debugging: print 'sequence_record imports:'
+if import_debugging:
+    print 'sequence_record imports:'
 import re
-if import_debugging: print '  re (sr)'
+if import_debugging:
+    print '  re (sr)'
 import os
-if import_debugging: print '  os (sr)'
+if import_debugging:
+    print '  os (sr)'
 import dendropy as dpy
-if import_debugging: print '  dendropy (sr)'
+if import_debugging:
+    print '  dendropy (sr)'
 from subprocess import Popen, PIPE
-if import_debugging: print '  subprocess::Popen, PIPE (sr)'
+if import_debugging:
+    print '  subprocess::Popen, PIPE (sr)'
 from tree import Tree
-if import_debugging: print '  tree::Tree (sr)'
+if import_debugging:
+    print '  tree::Tree (sr)'
 import hashlib
-if import_debugging: print '  hashlib (sr)'
+if import_debugging:
+    print '  hashlib (sr)'
 from random import shuffle as shf
+
 
 class SequenceRecord(object):
 
-    """
-    Class for reading sequence files in fasta or phylip formats
-    Supports writing in fasta, phylip, phylip interleaved, nexus formats,
-    sorting sequences by length and name,
-    concatenating sequences when sequence names are a perfect match,
-    iterating over records.
-    """
+    """ Class for reading sequence files in fasta or phylip formats Supports
+    writing in fasta, phylip, phylip interleaved, nexus formats, sorting
+    sequences by length and name, concatenating sequences when sequence names
+    are a perfect match, iterating over records. """
 
     def get_fasta_file(
         self,
@@ -172,17 +178,15 @@ class SequenceRecord(object):
         self.is_aligned = False
         if infile:
             if file_format == 'fasta':
-                self.get_fasta_file(infile, name=name,
-                                    datatype=datatype)
+                self.get_fasta_file(infile, name=name, datatype=datatype)
             elif file_format == 'phylip':
-                self.get_phylip_file(infile, name=name,
-                        datatype=datatype)
+                self.get_phylip_file(infile, name=name, datatype=datatype)
         self.index = -1
         self._update()
 
     def _update(self):
         """ For updating the length and mapping attributes of the object after
-            reading sequences """
+        reading sequences """
 
         if self.headers and self.sequences:
             self.mapping = dict(zip(self.headers, self.sequences))
@@ -212,8 +216,7 @@ class SequenceRecord(object):
     def __str__(self):
         output_string = ''
         if self.is_aligned:
-            output_string += \
-                'Aligned_Sequence_Record: {0}\n'.format(self.name)
+            output_string += 'Aligned_Sequence_Record: {0}\n'.format(self.name)
         else:
             output_string += \
                 'Unaligned_Sequence_Record: {0}\n'.format(self.name)
@@ -221,8 +224,7 @@ class SequenceRecord(object):
             if len(self.sequences[i]) > 50:
                 output_string += '>{0}\n'.format(self.headers[i]) \
                     + '{0}\n'.format((self.sequences[i])[:50]) \
-                    + '... ({0}) ...\n'.format(len(self.sequences[i])
-                        - 100) \
+                    + '... ({0}) ...\n'.format(len(self.sequences[i]) - 100) \
                     + '{0}\n'.format((self.sequences[i])[-50:]) + '\n'
             else:
                 output_string += '>{0}\n{1}'.format(self.headers[i],
@@ -234,8 +236,7 @@ class SequenceRecord(object):
         return self.length
 
     def __add__(self, other):
-        """
-        Allows SequenceRecords to be added together, concatenating sequences
+        """ Allows SequenceRecords to be added together, concatenating sequences
         """
 
         try:
@@ -252,10 +253,8 @@ class SequenceRecord(object):
         return other.__add__(self)
 
     def __mul__(self, n):
-        """
-        Allows SequenceRecord * x to return a concatenation of the record x
-        times
-        """
+        """ Allows SequenceRecord * x to return a concatenation of the record x
+        times """
 
         if not isinstance(n, int):
             print 'Truncating {0} to {1}'.format(n, int(n))
@@ -284,12 +283,9 @@ class SequenceRecord(object):
         return not self.__eq__(other)
 
     def sort_by_length(self, in_place=True):
-        """
-        Sorts sequences by ungapped length
-        If in_place = False the sorting doesn't mutate the underlying
-        object, and the output is returned
-        If in_place = True the sorting mutates the self object
-        """
+        """ Sorts sequences by ungapped length If in_place = False the sorting
+        doesn't mutate the underlying object, and the output is returned If
+        in_place = True the sorting mutates the self object """
 
         # Sort sequences by descending order of length
         # Uses zip as its own inverse [ zip(*zip(A,B)) == (A,B) ]
@@ -303,25 +299,22 @@ class SequenceRecord(object):
         return SequenceRecord(name=self.name, headers=h, sequences=s)
 
     def sort_by_name(self, in_place=True):
-        """
-        Sorts sequences by name, treating numbers as integers (i.e.
-        sorting like this: 1, 2, 3, 10, 20 not 1, 10, 2, 20, 3).
-        If in_place = False the sorting doesn't mutate the underlying
-        object, and the output is returned
-        If in_place = True the sorting mutates the self object
-        """
+        """ Sorts sequences by name, treating numbers as integers (i.e. sorting
+        like this: 1, 2, 3, 10, 20 not 1, 10, 2, 20, 3). If in_place = False the
+        sorting doesn't mutate the underlying object, and the output is returned
+        If in_place = True the sorting mutates the self object """
 
         items = self.mapping.items()
-        sort_key = lambda item: tuple((int(num) if num else alpha)
-                for (num, alpha) in re.findall(r'(\d+)|(\D+)', item[0]))
+        sort_key = lambda item: tuple((int(num) if num else alpha) for (num,
+                                      alpha) in re.findall(r'(\d+)|(\D+)',
+                                      item[0]))
         items = sorted(items, key=sort_key)
         (h, s) = zip(*items)
         if in_place:
             self.headers = h
             self.sequences = s
         else:
-            return SequenceRecord(name=self.name, headers=h,
-                                  sequences=s)
+            return SequenceRecord(name=self.name, headers=h, sequences=s)
 
     @staticmethod
     def linebreaker(string, length):
@@ -334,8 +327,7 @@ class SequenceRecord(object):
             num_chunks += 1
 
         new_records = []
-        generators = [self.linebreaker(s, chunksize) for s in
-                      self.sequences]
+        generators = [self.linebreaker(s, chunksize) for s in self.sequences]
         for _ in range(num_chunks):
             new_record = type(self)(headers=self.headers)
             new_record.sequences = [next(g) for g in generators]
@@ -349,26 +341,23 @@ class SequenceRecord(object):
         print_to_screen=False,
         linebreaks=None,
         ):
-        """
-        Writes sequences to file in fasta format
-        If outfile = 'stdout' the sequences are printed to screen, not written
-        to file
-        If print_to_screen = True the sequences are printed to screen
-        whether they are written to disk or not
-        """
+        """ Writes sequences to file in fasta format If outfile = 'stdout' the
+        sequences are printed to screen, not written to file If print_to_screen
+        = True the sequences are printed to screen whether they are written to
+        disk or not """
 
         if linebreaks:
             try:
                 int(linebreaks)
             except ValueError:
                 print 'Can\'t use {0} as value for linebreaks'.format(linebreaks)
-            sequences = ['\n'.join(self.linebreaker(s, linebreaks))
-                         for s in self.sequences]
+            sequences = ['\n'.join(self.linebreaker(s, linebreaks)) for s in
+                         self.sequences]
         else:
             sequences = self.sequences
 
-        lines = ['>{0}\n{1}'.format(h, seq) for (h, seq) in
-                 zip(self.headers, sequences)]
+        lines = ['>{0}\n{1}'.format(h, seq) for (h, seq) in zip(self.headers,
+                 sequences)]
         s = '\n'.join(lines)
         s += '\n'
         if outfile == 'stdout':
@@ -391,8 +380,7 @@ class SequenceRecord(object):
         file_header = '#NEXUS\n' + '\n'
         file_header += 'begin data;\n'
         file_header += \
-            '    dimensions ntax={0} nchar={1};\n'.format(self.length,
-                maxlen)
+            '    dimensions ntax={0} nchar={1};\n'.format(self.length, maxlen)
         file_header += \
             '    format datatype={0} interleave=no gap=-;\n'.format(sequence_type)
         file_header += '    matrix\n' + '\n' + '\n'
@@ -416,13 +404,10 @@ class SequenceRecord(object):
         interleaved=False,
         linebreaks=120,
         ):
-        """
-        Writes sequences to file in phylip format, interleaving optional
-        If outfile = 'stdout' the sequences are printed to screen, not written
-        to disk
-        If print_to_screen = True the sequences are printed to screen
-        whether they are written to disk or not
-        """
+        """ Writes sequences to file in phylip format, interleaving optional If
+        outfile = 'stdout' the sequences are printed to screen, not written to
+        disk If print_to_screen = True the sequences are printed to screen
+        whether they are written to disk or not """
 
         maxlen = len(max(self.sequences, key=len))
         file_header = ' {0} {1}'.format(self.length, maxlen)
@@ -439,18 +424,16 @@ class SequenceRecord(object):
                 for seq_header in self.headers:
                     if i == 0:
                         s.append('{0:<{1}} {2}'.format(seq_header,
-                                 label_length,
-                                 (self.mapping[seq_header])[i
+                                 label_length, (self.mapping[seq_header])[i
                                  * seq_length:(i + 1) * seq_length]))
                     else:
                         s.append('{0} {1}'.format(' ' * label_length,
-                                 (self.mapping[seq_header])[i
-                                 * seq_length:(i + 1) * seq_length]))
+                                 (self.mapping[seq_header])[i * seq_length:(i
+                                 + 1) * seq_length]))
                 s.append('')
         else:
-            lines = ['{0:<{1}} {2:-<{3}}'.format(x, label_length, y,
-                     maxlen) for (x, y) in zip(self.headers,
-                     self.sequences)]
+            lines = ['{0:<{1}} {2:-<{3}}'.format(x, label_length, y, maxlen)
+                     for (x, y) in zip(self.headers, self.sequences)]
             s.extend(lines)
             s.append('')
         s = '\n'.join(s)
@@ -467,13 +450,22 @@ class SequenceRecord(object):
                 print s
             return outfile
 
+    def hashname(self):
+        H = hashlib.sha1()
+        H.update(self.name)
+        return H.hexdigest()
+
+    def get_name(self, maxlen=40, default='noname'):
+        if self.name:
+            return (self.name if len(self.name) < maxlen else self.hashname())
+        else:
+            return default
+
 
 class TCSeqRec(SequenceRecord):
 
-    """
-    A version of the SequenceRecord class with some extra functionality
-    for working with tree inference packages, notably TreeCollection
-    """
+    """ A version of the SequenceRecord class with some extra functionality for
+    working with tree inference packages, notably TreeCollection """
 
     def __init__(
         self,
@@ -504,18 +496,14 @@ class TCSeqRec(SequenceRecord):
             self.tree = Tree()
         if infile:
             if file_format == 'fasta':
-                self.get_fasta_file(infile, name=name,
-                                    datatype=datatype)
+                self.get_fasta_file(infile, name=name, datatype=datatype)
             elif file_format == 'phylip':
-                self.get_phylip_file(infile, name=name,
-                        datatype=datatype)
+                self.get_phylip_file(infile, name=name, datatype=datatype)
         self.index = -1
         self._update()
 
     def __add__(self, other):
-        """
-        Allows Records to be added together, concatenating sequences
-        """
+        """ Allows Records to be added together, concatenating sequences """
 
         self_set = set(self.headers)
         other_set = set(other.headers)
@@ -536,22 +524,19 @@ class TCSeqRec(SequenceRecord):
             elif k in only_in_other:
                 d[k] = 'N' * self.seqlength + other.mapping[k]
         dvsum = self.dv + other.dv
-        return_object = TCSeqRec(headers=d.keys(),
-                                 sequences=d.values(),
+        return_object = TCSeqRec(headers=d.keys(), sequences=d.values(),
                                  datatype=self.datatype).sort_by_name(in_place=False)
         return_object.dv = dvsum
         return return_object
 
     def sort_by_length(self, in_place=True):
-        """
-        Sorts sequences by descending order of length
-        Uses zip as its own inverse [ zip(*zip(A,B)) == (A,B) ]
-        Gaps and 'N' characters are not counted
-        """
+        """ Sorts sequences by descending order of length Uses zip as its own
+        inverse [ zip(*zip(A,B)) == (A,B) ] Gaps and 'N' characters are not
+        counted """
 
         (h, s) = zip(*sorted(zip(self.headers, self.sequences),
-                     key=lambda item: len(item[1].replace('-', ''
-                     ).replace('N', '')), reverse=True))
+                     key=lambda item: len(item[1].replace('-', '').replace('N',
+                     '')), reverse=True))
         if in_place:
             self.headers = h
             self.sequences = s
@@ -560,19 +545,17 @@ class TCSeqRec(SequenceRecord):
                             datatype=self.datatype)
 
     def sort_by_name(self, in_place=True):
-        """
-        Sorts sequences by name, treating numbers as integers (i.e.
-        sorting like this: 1, 2, 3, 10, 20 not 1, 10, 2, 20, 3).
-        If in_place = False the sorting doesn't mutate the underlying
-        object, and the output is returned
-        If in_place = True the sorting mutates the self object
-        """
+        """ Sorts sequences by name, treating numbers as integers (i.e. sorting
+        like this: 1, 2, 3, 10, 20 not 1, 10, 2, 20, 3). If in_place = False the
+        sorting doesn't mutate the underlying object, and the output is returned
+        If in_place = True the sorting mutates the self object """
 
         items = self.mapping.items()
         if items == []:
             return self
-        sort_key = lambda item: tuple((int(num) if num else alpha)
-                for (num, alpha) in re.findall(r'(\d+)|(\D+)', item[0]))
+        sort_key = lambda item: tuple((int(num) if num else alpha) for (num,
+                                      alpha) in re.findall(r'(\d+)|(\D+)',
+                                      item[0]))
         items = sorted(items, key=sort_key)
         (h, s) = zip(*items)
         if in_place:
@@ -597,11 +580,6 @@ class TCSeqRec(SequenceRecord):
         self.sequences = [seq.upper() for seq in self.sequences]
         self._update()
 
-    def hashname(self):
-        H = hashlib.sha1()
-        H.update(self.name)
-        return H.hexdigest()
-
     def _write_temp_phylip(self, tmpdir='/tmp', use_hashname=False):
         if use_hashname:
             filename = self.hashname()
@@ -616,6 +594,7 @@ class TCSeqRec(SequenceRecord):
         make_guide_tree=True,
         use_hashname=True,
         ):
+
         if use_hashname:
             filename = self.hashname()
         else:
@@ -629,24 +608,19 @@ class TCSeqRec(SequenceRecord):
 
         # Temporary files
 
-        dv_tmpfile = open('{0}/{1}_dv.txt'.format(tmpdir, filename), 'w'
-                          )
-        labels_tmpfile = open('{0}/{1}_labels.txt'.format(tmpdir,
-                              filename), 'w')
-        map_tmpfile = open('{0}/{1}_map.txt'.format(tmpdir, filename),
-                           'w')
+        dv_tmpfile = open('{0}/{1}_dv.txt'.format(tmpdir, filename), 'w')
+        labels_tmpfile = open('{0}/{1}_labels.txt'.format(tmpdir, filename), 'w'
+                              )
+        map_tmpfile = open('{0}/{1}_map.txt'.format(tmpdir, filename), 'w')
         if make_guide_tree:
             guidetree_tmpfile = open('{0}/{1}_tree.nwk'.format(tmpdir,
-                    filename), 'w')
+                                     filename), 'w')
 
         # Write headers to temp files
 
         dv_tmpfile.write('{0}\n'.format(num_matrices))
-        map_tmpfile.write('{0} {1}\n'.format(num_matrices,
-                          len_all_labels))
-        labels_tmpfile.write('''{0}
-{1}
-'''.format(len_all_labels,
+        map_tmpfile.write('{0} {1}\n'.format(num_matrices, len_all_labels))
+        labels_tmpfile.write('{0}\n{1}\n'.format(len_all_labels,
                              ' '.join(all_labels)))
         labels_tmpfile.flush()
 
@@ -658,13 +632,11 @@ class TCSeqRec(SequenceRecord):
             index = i + 1
             dv_tmpfile.write('''{0} {0} {1}
 {2}
-'''.format(dim, index,
-                             matrix))
+'''.format(dim, index, matrix))
             dv_tmpfile.flush()
             for lab in all_labels:
                 if lab in labels:
-                    map_tmpfile.write('{0} '.format(labels.index(lab)
-                            + 1))
+                    map_tmpfile.write('{0} '.format(labels.index(lab) + 1))
                 else:
                     map_tmpfile.write('-1 ')
             map_tmpfile.write('\n')
@@ -691,13 +663,10 @@ class TCSeqRec(SequenceRecord):
         # Check it all worked
 
         assert os.path.isfile('{0}/{1}_dv.txt'.format(tmpdir, filename))
-        assert os.path.isfile('{0}/{1}_labels.txt'.format(tmpdir,
-                              filename))
-        assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir,
-                              filename))
+        assert os.path.isfile('{0}/{1}_labels.txt'.format(tmpdir, filename))
+        assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir, filename))
         if make_guide_tree:
-            assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir,
-                                  filename))
+            assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir, filename))
         return filename
 
     def get_phyml_tree(
@@ -717,7 +686,8 @@ class TCSeqRec(SequenceRecord):
         filename = self._write_temp_phylip(tmpdir=tmpdir, use_hashname=True)
         print 'Running phyml on ' + str(self.name) + '...'
         input_file = '{0}/{1}.phy'.format(tmpdir, filename)
-        if not model and not datatype:  # quick-fix to allow specification of other
+        if not model and not datatype:  # quick-fix to allow specification of
+                                        # other
             if self.datatype == 'dna':  # models when calling phyml
                 model = 'GTR'
                 datatype = 'nt'
@@ -758,7 +728,8 @@ class TCSeqRec(SequenceRecord):
         print 'Running bionj on ' + str(self.name) + '...'
         input_file = '{0}/{1}.phy'.format(tmpdir, filename)
 
-        if not model and not datatype:  # quick-fix to allow specification of other
+        if not model and not datatype:  # quick-fix to allow specification of
+                                        # other
             if self.datatype == 'dna':  # models when calling phyml
                 model = 'GTR'
                 datatype = 'nt'
@@ -799,8 +770,7 @@ class TCSeqRec(SequenceRecord):
         self.tree.run_raxml(model, input_file, self.name, tmpdir,
                             overwrite=overwrite)
         os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
-        if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir,
-                          self.name)):
+        if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir, self.name)):
             os.remove('{0}/{1}.phy.reduced'.format(tmpdir, self.name))
         return self.tree
 
@@ -814,12 +784,10 @@ class TCSeqRec(SequenceRecord):
         else:
             print 'I don\'t know this datatype: {0}'.format(self.datatype)
             return
-        t = Tree().run_raxml(model, input_file, self.name, tmpdir,
-                             guide=True)
+        t = Tree().run_raxml(model, input_file, self.name, tmpdir, guide=True)
         if os.path.isfile('{0}/{1}.phy'.format(tmpdir, filename)):
             os.remove('{0}/{1}.phy'.format(tmpdir, filename))
-        if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir,
-                          filename)):
+        if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir, filename)):
             os.remove('{0}/{1}.phy.reduced'.format(tmpdir, filename))
         return t
 
@@ -850,11 +818,9 @@ class TCSeqRec(SequenceRecord):
             ,
         overwrite=True,
         ):
-        """
-        Makes a call to the TC_wrapper.drw darwin helper script, which
-        calculates a distance-variance matrix from the sequence alignments,
-        and generates files needed by the treecollection binary
-        """
+        """ Makes a call to the TC_wrapper.drw darwin helper script, which
+        calculates a distance-variance matrix from the sequence alignments, and
+        generates files needed by the treecollection binary """
 
         if not overwrite and self.dv:
             return self.dv[0]
@@ -877,11 +843,12 @@ class TCSeqRec(SequenceRecord):
         command = \
             'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\'; fpath := \'{2}/\'; ReadProgram(\'{3}\');" | darwin'.format(fastafile,
                 datatype, tmpdir, helper)
+
         # print command
+
         process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
         (stdout, stderr) = process.communicate()
-        dv_string = \
-            open('{0}/temp_distvar.txt'.format(tmpdir)).read().rstrip()
+        dv_string = open('{0}/temp_distvar.txt'.format(tmpdir)).read().rstrip()
         labels = ' '.join(self.headers)
         os.remove(fastafile)
         os.remove('{0}/temp_distvar.txt'.format(tmpdir))
@@ -892,9 +859,8 @@ class TCSeqRec(SequenceRecord):
         return [''.join(x) for x in new_lst]
 
     def shuffle(self):
-        """
-        Modifies in-place
-        """
+        """ Modifies in-place """
+
         columns = self._pivot(self.sequences)
         shf(columns)
         self.sequences = self._pivot(columns)
@@ -910,13 +876,13 @@ class TCSeqRec(SequenceRecord):
         newrecs = []
         for col in newcols:
             newseqs = self._pivot(col)
-            newrec = TCSeqRec(headers=self.headers,
-                              sequences=newseqs, datatype=self.datatype)
+            newrec = TCSeqRec(headers=self.headers, sequences=newseqs,
+                              datatype=self.datatype)
             newrecs.append(newrec)
         if names:
-            for i, newrec in enumerate(newrecs):            
+            for (i, newrec) in enumerate(newrecs):
                 newrec.name = names[i]
         else:
-            for i, newrec in enumerate(newrecs):            
-                newrec.name = 'record_{0}'.format(i+1)
+            for (i, newrec) in enumerate(newrecs):
+                newrec.name = 'record_{0}'.format(i + 1)
         return newrecs

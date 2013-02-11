@@ -1,91 +1,68 @@
 #!/usr/bin/env python
 
-import dpy_utils
+import_debugging = False
+if import_debugging:
+    print 'tree.py imports:'
+import re
+if import_debugging:
+    print '  re (tr)'
+import os
+if import_debugging:
+    print '  os (tr)'
+import dendropy as dpy
+if import_debugging:
+    print '  dendropy (tr)'
+from dendropy import treesim
+if import_debugging:
+    print '  dendropy::treesim (tr)'
+import numpy as np
+if import_debugging:
+    print '  numpy (tr)'
+import ete2
+if import_debugging:
+    print '  ete2 (tr)'
+import random
+if import_debugging:
+    print '  random (tr)'
+from subprocess import Popen, PIPE, call
+if import_debugging:
+    print '  subprocess::Popen, PIPE, call (tr)'
+from errors import FileError
+import taxonnames
 
+class Manipulations(object):
 
-class Tree(object):
-
-    score_regex = re.compile('(?<=Log-likelihood: ).+')
-
-    def __init__(
-        self,
-        newick=None,
-        score=0,
-        program=None,
-        name=None,
-        output=None,
-        rooted=None,
-        ):
-
+    def __init__(self, newick):
         self.newick = newick
-        self.score = score
-        self.program = program
-        self.name = name
-        self.output = output
-        self.rooted = self.check_rooted(self.newick)
 
-    def __str__(self):
-        """
-        Represents the object's information inside
-        a newick comment, so is still interpretable
-        by a (good) newick parser
-        """
-
-        s = '[Tree Object:\n'
-        if self.name:
-            s += 'Name:\t' + self.name + '\n'
-        s += 'Program:\t{0}\n'.format(self.program) \
-            + 'Score:\t{0}\n'.format(self.score) \
-            + 'Rooted:\t{0}\n'.format(self.rooted) \
-            + 'Tree:\t]{0}\n'.format(self.newick)
-        return s
-
-    def __eq__(self, other):
-        equal = True
-        if not self.name == other.name:
-            return False
-        if not self.newick == other.newick:
-            return False
-        if not self.program == other.program:
-            return False
-        if not self.score == other.score:
-            return False
-        if not self.rooted == other.rooted:
-            return False
-        if not self.output == other.output:
-            return False
-        return equal
-
-    def write_to_file(
+    def randomise_branch_lengths(
         self,
-        outfile,
-        metadata=False,
-        suppress_NHX=False,
+        inner_edges,
+        leaves,
+        distribution_func=np.random.gamma,
+        output_format=5,
         ):
         """
-        Writes a string representation of the object's contents
-        to file.
+        inner_edges and leaves are tuples describing the parameters of the
+        distribution function
+        distribution_func is a function generating samples from a probability
+        distribution (eg gamma, normal ...)
         """
 
-        writer = open(outfile, 'w')
-        if metadata:
-            writer.write(str(self))
-        else:
+        t = ete2.Tree(self.newick)
 
-            writeable = self.newick
-            if suppress_NHX:
-                if writeable.startswith('[&R] '):
-                    writeable = writeable[5:]
-            if not writeable.endswith('\n'):
-                writeable += '\n'
-            writer.write(writeable)
-        writer.close()
-        return outfile
+        for node in t.iter_descendants():
+            if node.children:
+                node.dist = max(0, distribution_func(*inner_edges))  # 0 length or greater
+            else:
+                node.dist = max(0, distribution_func(*leaves))
 
-    def reroot_newick(self):
-        dpy_tree = dpy.Tree.get_from_string(self.newick, 'newick')
-        dpy_tree.resolve_polytomies()
-        return dpy_tree.as_newick_string() + ';\n'
+        t_as_newick = t.write(format=output_format)
+        return Tree(t_as_newick, name='random tree')
+
+    def scale(self, scaling_factor):
+
+        return self.pam2sps(scaling_factor)
 
     def pam2sps(self, multiplier=0.01):
         """
@@ -126,197 +103,6 @@ class Tree(object):
             self.output,
             self.rooted,
             )
-
-    def extract_gamma_parameter(self):
-        gamma_regex = \
-            re.compile(r'(?<=Gamma shape parameter: \t\t)[.\d+]+')
-        try:
-            gamma = float(gamma_regex.search(self.output).group())
-        except AttributeError:
-            print 'Couldn\'t extract parameters'
-            return
-        return gamma
-
-    def extract_GTR_parameters(self):
-        Afreq_regex = re.compile(r'(?<=f\(A\)= )[.\d+]+')
-        Cfreq_regex = re.compile(r'(?<=f\(C\)= )[.\d+]+')
-        Gfreq_regex = re.compile(r'(?<=f\(G\)= )[.\d+]+')
-        Tfreq_regex = re.compile(r'(?<=f\(T\)= )[.\d+]+')
-        AtoC_regex = re.compile(r'(?<=A <-> C    )[.\d+]+')
-        AtoG_regex = re.compile(r'(?<=A <-> G    )[.\d+]+')
-        AtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
-        CtoG_regex = re.compile(r'(?<=A <-> G    )[.\d+]+')
-        CtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
-        GtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
-
-        try:
-            Afreq = float(Afreq_regex.search(self.output).group())
-            Cfreq = float(Cfreq_regex.search(self.output).group())
-            Gfreq = float(Gfreq_regex.search(self.output).group())
-            Tfreq = float(Tfreq_regex.search(self.output).group())
-            AtoC = float(AtoC_regex.search(self.output).group())
-            AtoG = float(AtoG_regex.search(self.output).group())
-            AtoT = float(AtoT_regex.search(self.output).group())
-            CtoG = float(CtoG_regex.search(self.output).group())
-            CtoT = float(CtoT_regex.search(self.output).group())
-            GtoT = float(GtoT_regex.search(self.output).group())
-        except AttributeError:
-            print 'Couldn\'t extract parameters'
-            return
-
-        d = dict(
-            Afreq=Afreq,
-            Cfreq=Cfreq,
-            Gfreq=Gfreq,
-            Tfreq=Tfreq,
-            AtoC=AtoC,
-            AtoG=AtoG,
-            AtoT=AtoT,
-            CtoG=CtoG,
-            CtoT=CtoT,
-            GtoT=GtoT,
-            )
-
-        return d
-
-
-    def randomise_branch_lengths(
-        self,
-        inner_edges,
-        leaves,
-        distribution_func=np.random.gamma,
-        output_format=5,
-        ):
-        """
-        inner_edges and leaves are tuples describing the parameters of the
-        distribution function
-        distribution_func is a function generating samples from a probability
-        distribution (eg gamma, normal ...)
-        """
-
-        t = ete2.Tree(self.newick)
-
-        for node in t.iter_descendants():
-            if node.children:
-                node.dist = max(0, distribution_func(*inner_edges))  # 0 length or greater
-            else:
-                node.dist = max(0, distribution_func(*leaves))
-
-        t_as_newick = t.write(format=output_format)
-        return Tree(t_as_newick, name='random tree')
-
-    def scale(self, scaling_factor):
-
-        return self.pam2sps(scaling_factor)
-
-    @classmethod
-    def new_random_yule(cls, nspecies=None, names=None):
-        new_tree = cls()
-        return new_tree.random_yule(nspecies, names)
-
-    def random_yule(self, nspecies=None, names=None):
-        if names and nspecies:
-            if not nspecies == len(names):
-                nspecies = len(names)
-        elif names and not nspecies:
-            nspecies = len(names)
-        elif not names:
-            if not nspecies:
-                nspecies = 16
-            names = taxonnames.names[:nspecies]
-            if nspecies > len(taxonnames.names):
-                names.extend(['Sp{0}'.format(i) for i in
-                             range(len(taxonnames.names) + 1, nspecies
-                             + 1)])
-
-        taxon_set = dpy.TaxonSet(names)
-        tree = treesim.uniform_pure_birth(taxon_set)
-
-        newick = '[&R] ' + tree.as_newick_string()
-        if not newick.endswith(';'):
-            newick += ';'
-
-        return Tree(newick)
-
-    @classmethod
-    def new_random_coal(cls, nspecies=None, names=None):
-        new_tree = cls()
-        return new_tree.random_coal(nspecies, names)
-
-    def random_coal(self, nspecies=None, names=None):
-        if names and nspecies:
-            if not nspecies == len(names):
-                nspecies = len(names)
-        elif names and not nspecies:
-            nspecies = len(names)
-        elif not names:
-            if not nspecies:
-                nspecies = 16
-            names = taxonnames.names[:nspecies]
-            if nspecies > len(taxonnames.names):
-                names.extend(['Sp{0}'.format(i) for i in
-                             range(len(taxonnames.names) + 1, nspecies
-                             + 1)])
-
-        taxon_set = dpy.TaxonSet(names)
-        tree = treesim.pure_kingman(taxon_set)
-
-        newick = '[&R] ' + tree.as_newick_string()
-        if not newick.endswith(';'):
-            newick += ';'
-
-        return Tree(newick)
-
-    def get_constrained_gene_tree(
-        self,
-        scale_to=None,
-        population_size=None,
-        trim_names=True,
-        ):
-        """
-        Using the current tree object as a species tree, generate
-        a gene tree using the constrained Kingman coalescent
-        process from dendropy.
-        The species tree should probably be a valid, ultrametric
-        tree, generated by some pure birth, birth-death or coalescent
-        process, but no checks are made.
-        Optional kwargs are: 
-        -- scale_to, which is a floating point value to
-        scale the total tree tip-to-root length to,
-        -- population_size, which is a floating point value which 
-        all branch lengths will be divided by to convert them to coalescent 
-        units, and
-        -- trim_names, boolean, defaults to true, trims off the number
-        which dendropy appends to the sequence name
-        """
-
-        tree = dpy.Tree()
-        tree.read_from_string(self.newick, 'newick')
-
-        for leaf in tree.leaf_iter():
-            leaf.num_genes = 1
-
-        tree_height = tree.seed_node.distance_from_root() \
-            + tree.seed_node.distance_from_tip()
-
-        if scale_to:
-            population_size = tree_height / scale_to
-
-        for edge in tree.preorder_edge_iter():
-            edge.pop_size = population_size
-
-        gene_tree = treesim.constrained_kingman(tree)[0]
-
-        if trim_names:
-            for leaf in gene_tree.leaf_iter():
-                leaf.taxon.label = leaf.taxon.label.replace('\'', ''
-                        ).split('_')[0]
-
-        newick = '[&R] ' + gene_tree.as_newick_string()
-        if not newick.endswith(';'):
-            newick += ';'
-
-        return Tree(newick)
 
     def nni(self):
 
@@ -562,3 +348,405 @@ class Tree(object):
             newick = '[&R] ' + newick
 
         return Tree(newick=newick, rooted=tree.is_rooted)
+
+class Tree(object):
+
+    """
+    Class for storing the results of phylogenetic inference
+    """
+
+    score_regex = re.compile('(?<=Log-likelihood: ).+')
+    name_regex = \
+        re.compile('([A-Za-z0-9\-_]+).([A-Za-z0-9\-_]+)(?=_phyml_)')
+
+    def __init__(
+        self,
+        newick=None,
+        score=0,
+        program=None,
+        name=None,
+        output=None,
+        rooted=None,
+        ):
+
+        self.newick = newick
+        self.score = score
+        self.program = program
+        self.name = name
+        self.output = output
+        self.rooted = self.check_rooted(self.newick)
+
+    def __str__(self):
+        """
+        Represents the object's information inside
+        a newick comment, so is still interpretable
+        by a (good) newick parser
+        """
+
+        s = '[Tree Object:\n'
+        if self.name:
+            s += 'Name:\t' + self.name + '\n'
+        s += 'Program:\t{0}\n'.format(self.program) \
+            + 'Score:\t{0}\n'.format(self.score) \
+            + 'Rooted:\t{0}\n'.format(self.rooted) \
+            + 'Tree:\t]{0}\n'.format(self.newick)
+        return s
+
+    def __eq__(self, other):
+        equal = True
+        if not self.name == other.name:
+            return False
+        if not self.newick == other.newick:
+            return False
+        if not self.program == other.program:
+            return False
+        if not self.score == other.score:
+            return False
+        if not self.rooted == other.rooted:
+            return False
+        if not self.output == other.output:
+            return False
+        return equal
+
+    
+
+    def read_from_file(self, infile, name=None):
+        """
+        This and the write_to_file function allow the class to be
+        easily stored and reconstituted without using a pickle or
+        JSON
+        """
+
+        program = None
+        tree = None
+        score = None
+        self.name = name
+        reader = open(infile)
+        try:
+            for line in reader:
+                line = [l.rstrip().replace(']', '') for l in
+                        line.split()]
+                if not name and line[0] == 'Name:':
+                    self.name = line[1]
+                elif line[0] == 'Program:':
+                    self.program = line[1]
+                elif line[0] == 'Tree:':
+                    self.newick = line[1]
+                elif line[0] == 'Score:':
+                    self.score = line[1]
+        except IndexError:
+            return
+        return self
+
+    def write_to_file(
+        self,
+        outfile,
+        metadata=False,
+        suppress_NHX=False,
+        ):
+        """
+        Writes a string representation of the object's contents
+        to file. This can be read using read_from_file to
+        reconstruct the Tree object, if metadata is included (i.e.
+        metadata=True)
+        """
+
+        writer = open(outfile, 'w')
+        if metadata:
+            writer.write(str(self))
+        else:
+
+            writeable = self.newick
+            if suppress_NHX:
+                if writeable.startswith('[&R] '):
+                    writeable = writeable[5:]
+            if not writeable.endswith('\n'):
+                writeable += '\n'
+            writer.write(writeable)
+        writer.close()
+        return outfile
+
+
+    def load_phyml_strings(
+        self,
+        tree,
+        stats,
+        name=None,
+        program='phyml',
+        ):
+
+        score = float(self.score_regex.search(stats).group(1))
+        self.program = program
+        self.newick = tree
+        self.output = stats
+        self.score = score
+        self.name = name
+        self.rooted = self.check_rooted(tree)
+
+    def load_phyml_files(
+        self,
+        tree_file,
+        stats_file,
+        name=None,
+        program='phyml',
+        ):
+        """
+        Loads phyml results into existing tree object
+           - returns None
+        """
+
+        exit = False
+        for f in (tree_file, stats_file):
+            try:
+                if not os.path.isfile(f):
+                    raise FileError(f)
+            except FileError, e:
+                print e
+                exit = True
+
+        if exit:
+            print 'Results were not loaded'
+            raise FileError()
+
+        if not name:
+            name = self.name_regex.search(tree_file).group(1)
+        newick = open(tree_file).read()
+        stats = open(stats_file).read()
+        self.load_phyml_strings(newick, stats, name=name,
+                                program=program)
+
+    @classmethod
+    def new_tree_from_phyml_results(
+        cls,
+        tree_file,
+        stats_file,
+        program='phyml',
+        ):
+        """
+        classmethod version of load_phyml_files
+           - returns a new Tree object
+        """
+
+        new_tree = cls()
+        new_tree.load_phyml_files(tree_file, stats_file,
+                                  program=program)
+        return new_tree
+
+    @classmethod
+    def new_tree_from_phyml_strings(
+        cls,
+        tree,
+        stats,
+        program='phyml',
+        ):
+
+        new_tree = cls()
+        new_tree.load_phyml_strings(tree, stats, program=program)
+        return new_tree
+
+    
+
+    def extract_gamma_parameter(self):
+        gamma_regex = \
+            re.compile(r'(?<=Gamma shape parameter: \t\t)[.\d+]+')
+        try:
+            gamma = float(gamma_regex.search(self.output).group())
+        except AttributeError:
+            print 'Couldn\'t extract parameters'
+            return
+        return gamma
+
+    def extract_GTR_parameters(self):
+        Afreq_regex = re.compile(r'(?<=f\(A\)= )[.\d+]+')
+        Cfreq_regex = re.compile(r'(?<=f\(C\)= )[.\d+]+')
+        Gfreq_regex = re.compile(r'(?<=f\(G\)= )[.\d+]+')
+        Tfreq_regex = re.compile(r'(?<=f\(T\)= )[.\d+]+')
+        AtoC_regex = re.compile(r'(?<=A <-> C    )[.\d+]+')
+        AtoG_regex = re.compile(r'(?<=A <-> G    )[.\d+]+')
+        AtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
+        CtoG_regex = re.compile(r'(?<=A <-> G    )[.\d+]+')
+        CtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
+        GtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
+
+        try:
+            Afreq = float(Afreq_regex.search(self.output).group())
+            Cfreq = float(Cfreq_regex.search(self.output).group())
+            Gfreq = float(Gfreq_regex.search(self.output).group())
+            Tfreq = float(Tfreq_regex.search(self.output).group())
+            AtoC = float(AtoC_regex.search(self.output).group())
+            AtoG = float(AtoG_regex.search(self.output).group())
+            AtoT = float(AtoT_regex.search(self.output).group())
+            CtoG = float(CtoG_regex.search(self.output).group())
+            CtoT = float(CtoT_regex.search(self.output).group())
+            GtoT = float(GtoT_regex.search(self.output).group())
+        except AttributeError:
+            print 'Couldn\'t extract parameters'
+            return
+
+        d = dict(
+            Afreq=Afreq,
+            Cfreq=Cfreq,
+            Gfreq=Gfreq,
+            Tfreq=Tfreq,
+            AtoC=AtoC,
+            AtoG=AtoG,
+            AtoT=AtoT,
+            CtoG=CtoG,
+            CtoT=CtoT,
+            GtoT=GtoT,
+            )
+
+        return d
+
+    @classmethod
+    def new_random_topology(
+        cls,
+        nspecies,
+        names=None,
+        rooted=False,
+        ):
+
+        new_tree = cls()
+        names = names or taxonnames.names
+        return new_tree.random_topology(nspecies, names[:nspecies],
+                rooted)
+
+    def random_topology(
+        self,
+        nspecies,
+        names=None,
+        rooted=False,
+        ):
+        """
+        Use ete2 to make a random topology
+        Then add random branch lengths drawn from
+        some distribution (default = gamma)
+        Inner and leaf edge lengths can be drawn from differently parameterised
+        versions of the distribution
+        """
+
+        if names:
+            random.shuffle(names)
+        t = ete2.Tree()
+        t.populate(nspecies, names_library=names)
+        if rooted:
+            t.set_outgroup(t.children[0])
+        else:
+            t.unroot()
+
+        t_as_newick = t.write()
+        t_as_newick = t_as_newick.replace(')1', ')')
+        return Tree(t_as_newick, name='random tree').pam2sps('strip')
+
+    
+
+    @classmethod
+    def new_random_yule(cls, nspecies=None, names=None):
+        new_tree = cls()
+        return new_tree.random_yule(nspecies, names)
+
+    def random_yule(self, nspecies=None, names=None):
+        if names and nspecies:
+            if not nspecies == len(names):
+                nspecies = len(names)
+        elif names and not nspecies:
+            nspecies = len(names)
+        elif not names:
+            if not nspecies:
+                nspecies = 16
+            names = taxonnames.names[:nspecies]
+            if nspecies > len(taxonnames.names):
+                names.extend(['Sp{0}'.format(i) for i in
+                             range(len(taxonnames.names) + 1, nspecies
+                             + 1)])
+
+        taxon_set = dpy.TaxonSet(names)
+        tree = treesim.uniform_pure_birth(taxon_set)
+
+        newick = '[&R] ' + tree.as_newick_string()
+        if not newick.endswith(';'):
+            newick += ';'
+
+        return Tree(newick)
+
+    @classmethod
+    def new_random_coal(cls, nspecies=None, names=None):
+        new_tree = cls()
+        return new_tree.random_coal(nspecies, names)
+
+    def random_coal(self, nspecies=None, names=None):
+        if names and nspecies:
+            if not nspecies == len(names):
+                nspecies = len(names)
+        elif names and not nspecies:
+            nspecies = len(names)
+        elif not names:
+            if not nspecies:
+                nspecies = 16
+            names = taxonnames.names[:nspecies]
+            if nspecies > len(taxonnames.names):
+                names.extend(['Sp{0}'.format(i) for i in
+                             range(len(taxonnames.names) + 1, nspecies
+                             + 1)])
+
+        taxon_set = dpy.TaxonSet(names)
+        tree = treesim.pure_kingman(taxon_set)
+
+        newick = '[&R] ' + tree.as_newick_string()
+        if not newick.endswith(';'):
+            newick += ';'
+
+        return Tree(newick)
+
+    def get_constrained_gene_tree(
+        self,
+        scale_to=None,
+        population_size=None,
+        trim_names=True,
+        ):
+        """
+        Using the current tree object as a species tree, generate
+        a gene tree using the constrained Kingman coalescent
+        process from dendropy.
+        The species tree should probably be a valid, ultrametric
+        tree, generated by some pure birth, birth-death or coalescent
+        process, but no checks are made.
+        Optional kwargs are: 
+        -- scale_to, which is a floating point value to
+        scale the total tree tip-to-root length to,
+        -- population_size, which is a floating point value which 
+        all branch lengths will be divided by to convert them to coalescent 
+        units, and
+        -- trim_names, boolean, defaults to true, trims off the number
+        which dendropy appends to the sequence name
+        """
+
+        tree = dpy.Tree()
+        tree.read_from_string(self.newick, 'newick')
+
+        for leaf in tree.leaf_iter():
+            leaf.num_genes = 1
+
+        tree_height = tree.seed_node.distance_from_root() \
+            + tree.seed_node.distance_from_tip()
+
+        if scale_to:
+            population_size = tree_height / scale_to
+
+        for edge in tree.preorder_edge_iter():
+            edge.pop_size = population_size
+
+        gene_tree = treesim.constrained_kingman(tree)[0]
+
+        if trim_names:
+            for leaf in gene_tree.leaf_iter():
+                leaf.taxon.label = leaf.taxon.label.replace('\'', ''
+                        ).split('_')[0]
+
+        newick = '[&R] ' + gene_tree.as_newick_string()
+        if not newick.endswith(';'):
+            newick += ';'
+
+        return Tree(newick)
+
+    

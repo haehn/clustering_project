@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 __all__ = [
+    'basename',
     'can_locate',
     'can_open',
     'delete',
@@ -17,6 +18,8 @@ __all__ = [
 import os
 from subprocess import Popen, PIPE
 
+def basename(filename):
+    return os.path.basename(filename)
 
 def can_locate(filename):
     return (os.path.isfile(filename) if filename else False)

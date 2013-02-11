@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-from gtp import GTP
 from matplotlib import pyplot as plt
 from matplotlib import cm as CM
 import numpy as np
 import os
-from dpy_utils import *
+from externals import GTP
+from utils.dpy import convert_to_dendropy_trees, get_euc_distance, \
+    get_rf_distance, get_wrf_distance
 
 
 class DistanceMatrix(object):
@@ -76,23 +77,18 @@ class DistanceMatrix(object):
         normalise=False,
         tmpdir=None,
         ):
-        """
-        Generates pairwise distance matrix between trees
-        Uses one of the following distance metrics:
-        Robinson-Foulds distance - topology only (='rf')
-        Robinson-Foulds distance - branch lengths (='wrf')
-        Euclidean distance - Felsenstein's branch lengths
-            distance (='euc')
-        Geodesic distance - branch lengths (='geo')
-        """
+        """ Generates pairwise distance matrix between trees Uses one of the
+        following distance metrics: Robinson-Foulds distance - topology only
+        (='rf') Robinson-Foulds distance - branch lengths (='wrf') Euclidean
+        distance - Felsenstein's branch lengths distance (='euc') Geodesic
+        distance - branch lengths (='geo') """
 
         if not tmpdir:
             tmpdir = self.tmpdir
 
         self.metric = metric
         dpy_trees = convert_to_dendropy_trees(self.trees)
-        branch_lengths = [self._sum_of_branch_lengths(x) for x in
-                          dpy_trees]
+        branch_lengths = [self._sum_of_branch_lengths(x) for x in dpy_trees]
 
         if metric == 'geo':
             matrix = self.get_geo_distances(tmpdir=tmpdir)
@@ -138,17 +134,14 @@ class DistanceMatrix(object):
         return new
 
     def noisy_copy(self):
-        new_object = DistanceMatrix(trees=self.trees,
-                                    tmpdir=self.tmpdir)
+        new_object = DistanceMatrix(trees=self.trees, tmpdir=self.tmpdir)
         new_object.metric = self.metric
         new_object.matrix = self.add_noise()
         return new_object
 
     def plot_heatmap(self, sort_partition=None):
-        """
-        Sort partition should be a flatlist of the clusters
-        as returned by Partition().get_memberships(..., flatten=True)
-        """
+        """ Sort partition should be a flatlist of the clusters as returned by
+        Partition().get_memberships(..., flatten=True) """
 
         dm = np.array(self.matrix, copy=True)
         length = dm.shape[0]
@@ -185,14 +178,9 @@ class DistanceMatrix(object):
         return P
 
     def check_euclidean(self):
-        """
-        A distance matrix is euclidean iff
-        F = -0.5 * (I - 1/n)D(I - 1/n) is PSD,
-        where I is the identity matrix
-              D is the distance matrix
-              1 is a square matrix of ones
-              n is the matrix size, common to all
-        """
+        """ A distance matrix is euclidean iff F = -0.5 * (I - 1/n)D(I - 1/n) is
+        PSD, where I is the identity matrix D is the distance matrix 1 is a
+        square matrix of ones n is the matrix size, common to all """
 
         D = self.matrix
         I = np.identity(D.shape)
@@ -211,12 +199,9 @@ class DistanceMatrix(object):
         return True
 
     def get_knn(self, k, add_noise=False):
-        """
-        Acts on distance matrix. For each datapoint, finds
-        the `k` nearest neighbours. Returns an adjacency
-        matrix, and a dictionary of the kth distance for 
-        each node.
-        """
+        """ Acts on distance matrix. For each datapoint, finds the `k` nearest
+        neighbours. Returns an adjacency matrix, and a dictionary of the kth
+        distance for each node. """
 
         if add_noise:
             M = self.add_noise()
@@ -240,10 +225,8 @@ class DistanceMatrix(object):
         sigma=2,
         add_noise=False,
         ):
-        """
-        Makes weighted adjacency matrix along the lines of
-        Zelnik-Manor and Perona (2004), with local scaling.
-        """
+        """ Makes weighted adjacency matrix along the lines of Zelnik-Manor and
+        Perona (2004), with local scaling. """
 
         if add_noise:
             M = self.add_noise()
@@ -261,22 +244,15 @@ class DistanceMatrix(object):
                         affinity_matrix[i, j] = np.exp(-distance ** 2
                                 / (sigma_i * sigma_j))
                     else:
-                        affinity_matrix[i, j] = np.exp(-distance ** 2
-                                / 2 * sigma)
+                        affinity_matrix[i, j] = np.exp(-distance ** 2 / 2
+                                * sigma)
         return affinity_matrix
 
     def get_double_centre(self, square_input=False, add_noise=False):
-        """ 
-        Double-centres the input matrix:
-          From each element:
-            Subtract the row mean
-            Subtract the column mean
-            Add the grand mean
-            Divide by -2
-        Method from:
-        Torgerson, W S (1952). 
-        Multidimensional scaling: I. Theory and method.
-        """
+        """ Double-centres the input matrix: From each element: Subtract the row
+        mean Subtract the column mean Add the grand mean Divide by -2 Method
+        from: Torgerson, W S (1952). Multidimensional scaling: I. Theory and
+        method. """
 
         if add_noise:
             M = self.add_noise()
