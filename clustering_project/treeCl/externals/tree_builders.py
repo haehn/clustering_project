@@ -92,7 +92,7 @@ class TreeCollection(TreeSoftware):
 
     default_binary = 'TreeCollection'
 
-    def parse(self, output):
+    def read(self, output):
         output = output.split()
         score = float(output[-1])
         tree = output[-2]
@@ -114,7 +114,7 @@ class TreeCollection(TreeSoftware):
         self.clean()
         if verbose: 
             print stdout, stderr
-        score, tree = self.parse(stdout)
+        score, tree = self.read(stdout)
         return Tree(tree, score, fileIO.basename(self.binary),
                 self.record.name, stdout).scale(0.01)
 
@@ -124,7 +124,6 @@ class TreeCollection(TreeSoftware):
         have to look it up once"""
 
         # Look up info
-
         dv_info = self.record.dv
         num_matrices = len(dv_info)
         if num_matrices == 0:

@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
-import re
-import dendropy as dpy
-from dendropy import treesim
-from numpy.random import gamma
-import random
-from errors import FileError, filecheck_and_raise
-import utils.dpy
-from externals import GTP
+import  random
+import  re
+import  dendropy        as      dpy
+from    numpy.random    import  gamma
+from    errors          import  FileError, filecheck_and_raise
+import  utils.dpy
+from    externals       import  GTP
 
 
 class Manipulations(object):
@@ -29,18 +28,6 @@ class Manipulations(object):
     def dendropy_as_newick(self, dpy_tree):
         return utils.dpy.convert_dendropy_to_newick(dpy_tree)
 
-    def randomise_labels(self):
-        t = self.convert_to_dendropy_tree()
-        names = [l.taxon.label for l in t.leaf_iter()]
-        names_copy = names[:]
-        random.shuffle(names_copy)
-        for l in t.leaf_iter():
-            l.taxon.label = names_copy.pop()
-        tree_copy = self.tree.copy()
-        tree_copy.newick = self.dendropy_as_newick(t)
-        self.tree = tree_copy
-        return self.tree
-
     def randomise_branch_lengths(
         self,
         i=(1, 1),
@@ -59,6 +46,18 @@ class Manipulations(object):
                 n.edge.length = max(0, distribution_func(*i))
             else:
                 n.edge.length = max(0, distribution_func(*l))
+        tree_copy = self.tree.copy()
+        tree_copy.newick = self.dendropy_as_newick(t)
+        self.tree = tree_copy
+        return self.tree
+
+    def randomise_labels(self):
+        t = self.convert_to_dendropy_tree()
+        names = [l.taxon.label for l in t.leaf_iter()]
+        names_copy = names[:]
+        random.shuffle(names_copy)
+        for l in t.leaf_iter():
+            l.taxon.label = names_copy.pop()
         tree_copy = self.tree.copy()
         tree_copy.newick = self.dendropy_as_newick(t)
         self.tree = tree_copy
@@ -575,7 +574,7 @@ class Generator(object):
 
     def coal(self):
         taxon_set = dpy.TaxonSet(self.names)
-        tree = treesim.pure_kingman(taxon_set)
+        tree = dpy.treesim.pure_kingman(taxon_set)
         newick = '[&R] ' + utils.dpy.convert_dendropy_to_newick(tree)
         return Tree(newick)
 
@@ -611,7 +610,7 @@ class Generator(object):
         for edge in tree.preorder_edge_iter():
             edge.pop_size = population_size
 
-        gene_tree = treesim.constrained_kingman(tree)[0]
+        gene_tree = dpy.treesim.constrained_kingman(tree)[0]
 
         if trim_names:
             for leaf in gene_tree.leaf_iter():
@@ -629,7 +628,7 @@ class Generator(object):
 
     def yule(self):
         taxon_set = dpy.TaxonSet(self.names)
-        tree = treesim.uniform_pure_birth(taxon_set)
+        tree = dpy.treesim.uniform_pure_birth(taxon_set)
         newick = '[&R] ' + utils.dpy.convert_dendropy_to_newick(tree)
         return Tree(newick)
 

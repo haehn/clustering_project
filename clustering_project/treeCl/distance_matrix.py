@@ -30,7 +30,7 @@ class DistanceMatrix(object):
 
     def copy(self, add_noise=False):
         copy = self.__new__(type(self))
-        copy.__dict__ = {key: value for (key, value) in self.__dict__.items()}
+        copy.__dict__ = dict(self.__dict__.items())
         if add_noise:
             return MatrixTricks(copy).add_noise()
         return copy
@@ -69,6 +69,7 @@ class DistanceMatrix(object):
             return self.get_geo_distances(trees, tmpdir=tmpdir)
 
         dpy_trees = convert_to_dendropy_trees(trees)
+        
         if metric == 'rf':
             matrix = self.get_dendropy_distances(dpy_trees, get_rf_distance)
         
@@ -77,7 +78,7 @@ class DistanceMatrix(object):
         
         elif metric == 'euc':
             matrix = self.get_dendropy_distances(dpy_trees, get_euc_distance)
-       
+        
         else:
             print 'Unrecognised distance metric'
             return
@@ -105,6 +106,37 @@ class MatrixTricks(object):
         noisy[noisy < 0] = np.abs(noisy[noisy < 0])
         return noisy
 
+    def affinity_matrix(
+        self,
+        kneighbour_matrix,
+        max_dists,
+        local_scaling=True,
+        sigma=2,
+        add_noise=False,
+        ):
+        """ Makes weighted adjacency matrix along the lines of Zelnik-Manor and
+        Perona (2004), with local scaling. """
+
+        if add_noise:
+            M = self.add_noise()
+        else:
+            M = self.matrix
+        shape = M.shape
+        affinity_matrix = np.zeros(shape)
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                if kneighbour_matrix[i, j] == 1:
+                    distance = M[i, j]
+                    if local_scaling:
+                        sigma_i = max_dists[i]
+                        sigma_j = max_dists[j]
+                        affinity_matrix[i, j] = np.exp(-distance ** 2
+                                / (sigma_i * sigma_j))
+                    else:
+                        affinity_matrix[i, j] = np.exp(-distance ** 2 / 2
+                                * sigma)
+        return affinity_matrix
+
     def check_euclidean(self):
         """ A distance matrix is euclidean iff F = -0.5 * (I - 1/n)D(I - 1/n) is
         PSD, where I is the identity matrix D is the distance matrix 1 is a
@@ -117,14 +149,32 @@ class MatrixTricks(object):
         bracket = I - ones / D.shape[0]
         F = -0.5 * bracket.dot(D.dot(bracket))
 
-        # Can calculate Cholesky decomp iff F is PSD
-
         try:
-            np.linalg.cholesky(F)
+            np.linalg.cholesky(F) # Can calculate Cholesky decomp iff F is PSD
         except:
             return False
 
         return True
+
+    def double_centre(self, square_input=False, add_noise=False):
+        """ Double-centres the input matrix: From each element: Subtract the row
+        mean Subtract the column mean Add the grand mean Divide by -2 Method
+        from: Torgerson, W S (1952). Multidimensional scaling: I. Theory and
+        method. """
+
+        if add_noise:
+            M = self.add_noise()
+        else:
+            M = np.array(self.matrix, copy=True)
+        if square_input:
+            M *= M
+        (rows, cols) = M.shape
+        cm = np.mean(M, axis=0)  # column means
+        rm = np.mean(M, axis=1).reshape((rows, 1))  # row means
+        gm = np.mean(cm)  # grand mean
+        M -= rm + cm - gm
+        M /= -2
+        return M
 
     def eigen(self, matrix, standardize=False):
         """ Calculates the eigenvalues and eigenvectors from the double-centred
@@ -160,57 +210,6 @@ class MatrixTricks(object):
                 max_dists[i] = M[i, sorted_dists[k - 1]]
         return (kneighbour_matrix, max_dists)
 
-    def affinity_matrix(
-        self,
-        kneighbour_matrix,
-        max_dists,
-        local_scaling=True,
-        sigma=2,
-        add_noise=False,
-        ):
-        """ Makes weighted adjacency matrix along the lines of Zelnik-Manor and
-        Perona (2004), with local scaling. """
-
-        if add_noise:
-            M = self.add_noise()
-        else:
-            M = self.matrix
-        shape = M.shape
-        affinity_matrix = np.zeros(shape)
-        for i in range(shape[0]):
-            for j in range(shape[1]):
-                if kneighbour_matrix[i, j] == 1:
-                    distance = M[i, j]
-                    if local_scaling:
-                        sigma_i = max_dists[i]
-                        sigma_j = max_dists[j]
-                        affinity_matrix[i, j] = np.exp(-distance ** 2
-                                / (sigma_i * sigma_j))
-                    else:
-                        affinity_matrix[i, j] = np.exp(-distance ** 2 / 2
-                                * sigma)
-        return affinity_matrix
-
-    def double_centre(self, square_input=False, add_noise=False):
-        """ Double-centres the input matrix: From each element: Subtract the row
-        mean Subtract the column mean Add the grand mean Divide by -2 Method
-        from: Torgerson, W S (1952). Multidimensional scaling: I. Theory and
-        method. """
-
-        if add_noise:
-            M = self.add_noise()
-        else:
-            M = np.array(self.matrix, copy=True)
-        if square_input:
-            M *= M
-        (rows, cols) = M.shape
-        cm = np.mean(M, axis=0)  # column means
-        rm = np.mean(M, axis=1).reshape((rows, 1))  # row means
-        gm = np.mean(cm)  # grand mean
-        M -= rm + cm - gm
-        M /= -2
-        return M
-
 
 class MatrixPlots(object):
 
@@ -219,6 +218,17 @@ class MatrixPlots(object):
         self.matrix = dm.matrix.copy()
         self.shape = dm.matrix.shape
         self.size = dm.matrix.size
+
+    def get_permutation_matrix(self, input_ordering, desired_ordering):
+        length = len(input_ordering)
+        if not len(desired_ordering) == length:
+            print 'List lengths don\'t match'
+            return
+        P = np.zeros((length, length), dtype=np.int)
+        for i in range(length):
+            j = desired_ordering.index(input_ordering[i])
+            P[i, j] = 1
+        return P
 
     def plot_heatmap(self, sort_partition=None):
         """ Sort partition should be a flatlist of the clusters as returned by
@@ -246,14 +256,3 @@ class MatrixPlots(object):
         cbar = fig.colorbar(cax, ticks=ticks_at, format='%1.2g')
         cbar.set_label('Distance')
         return fig
-
-    def get_permutation_matrix(self, input_ordering, desired_ordering):
-        length = len(input_ordering)
-        if not len(desired_ordering) == length:
-            print 'List lengths don\'t match'
-            return
-        P = np.zeros((length, length), dtype=np.int)
-        for i in range(length):
-            j = desired_ordering.index(input_ordering[i])
-            P[i, j] = 1
-        return P
