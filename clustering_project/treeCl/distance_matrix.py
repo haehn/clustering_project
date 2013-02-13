@@ -3,7 +3,6 @@
 from matplotlib import pyplot as plt
 from matplotlib import cm as CM
 import numpy as np
-import os
 from externals import GTP
 from utils.dpy import convert_to_dendropy_trees, get_euc_distance, \
     get_rf_distance, get_wrf_distance
@@ -11,29 +10,33 @@ from utils.dpy import convert_to_dendropy_trees, get_euc_distance, \
 
 class DistanceMatrix(object):
 
-    metrics_dict = {
-        'rf': 'Robinson-Foulds distances',
-        'wrf': 'Weighted Robinson-Foulds distances',
-        'euc': 'Euclidean distances',
-        'geo': 'Geodesic distances',
-        None: 'Empty matrix',
-        }
+    def __init__(
+        self,
+        trees,
+        metric,
+        tmpdir='/tmp',
+        **kwargs
+        ):
+        """ Initialise with a list of trees to compare, and a metric (one of
+        'geo', 'euc', 'wrf', 'rf') to compare them """
 
-    def __init__(self, trees, tmpdir='/tmp'):
-
-        size = len(trees)
-        self.matrix = np.zeros((size, size), dtype='float')
-        self.metric = None
-        self.trees = trees
         self.tmpdir = tmpdir
+        self.matrix = self.get_distance_matrix(trees, metric)
+        self.metric = metric
 
     def __str__(self):
         return '\n'.join([str(self.matrix),
                          'Metric: {0}'.format(self.metrics_dict[self.metric])])
 
-    def get_dendropy_distances(self, fn):
-        num_trees = len(self.trees)
-        dpy_trees = convert_to_dendropy_trees(self.trees)
+    def copy(self, add_noise=False):
+        copy = self.__new__(type(self))
+        copy.__dict__ = {key: value for (key, value) in self.__dict__.items()}
+        if add_noise:
+            return MatrixTricks(copy).add_noise()
+        return copy
+
+    def get_dendropy_distances(self, dpy_trees, fn):
+        num_trees = len(dpy_trees)
 
         matrix = np.zeros((num_trees, num_trees))
         for i in range(num_trees):
@@ -42,39 +45,17 @@ class DistanceMatrix(object):
                 matrix[i, j] = matrix[j, i] = distance
         return matrix
 
-    def get_geo_distances(self, tmpdir=None):
+    def get_geo_distances(self, trees, tmpdir=None):
 
-        if not tmpdir:
-            tmpdir = self.tmpdir
-
-        g = GTP(tmpdir=tmpdir)
-        return g.run(self.trees)
-
-    def get_geo_distance(
-        self,
-        tree1,
-        tree2,
-        tmpdir=None,
-        ):
-
-        if not tmpdir:
-            tmpdir = self.tmpdir
+        tmpdir = tmpdir or self.tmpdir
 
         g = GTP(tmpdir=tmpdir)
-        return g.pairwise(tree1, tree2)
-
-    @staticmethod
-    def _sum_of_branch_lengths(dpy_tree):
-        tot = 0
-        for n in dpy_tree.preorder_node_iter():
-            if n.edge_length:
-                tot += n.edge_length
-        return tot
+        return g.run(trees)
 
     def get_distance_matrix(
         self,
+        trees,
         metric,
-        normalise=False,
         tmpdir=None,
         ):
         """ Generates pairwise distance matrix between trees Uses one of the
@@ -83,99 +64,46 @@ class DistanceMatrix(object):
         distance - Felsenstein's branch lengths distance (='euc') Geodesic
         distance - branch lengths (='geo') """
 
-        if not tmpdir:
-            tmpdir = self.tmpdir
-
-        self.metric = metric
-        dpy_trees = convert_to_dendropy_trees(self.trees)
-        branch_lengths = [self._sum_of_branch_lengths(x) for x in dpy_trees]
-
+        tmpdir = tmpdir or self.tmpdir
         if metric == 'geo':
-            matrix = self.get_geo_distances(tmpdir=tmpdir)
-        elif metric == 'rf':
+            return self.get_geo_distances(trees, tmpdir=tmpdir)
 
-            ntax = len(dpy_trees[0].leaf_nodes())
-            max_rf = 2.0 * (ntax - 3)
-
-            matrix = self.get_dendropy_distances(get_rf_distance)
-
-            if normalise:
-                matrix /= max_rf
+        dpy_trees = convert_to_dendropy_trees(trees)
+        if metric == 'rf':
+            matrix = self.get_dendropy_distances(dpy_trees, get_rf_distance)
+        
         elif metric == 'wrf':
-
-            matrix = self.get_dendropy_distances(get_wrf_distance)
+            matrix = self.get_dendropy_distances(dpy_trees, get_wrf_distance)
+        
         elif metric == 'euc':
-
-            matrix = self.get_dendropy_distances(get_euc_distance)
+            matrix = self.get_dendropy_distances(dpy_trees, get_euc_distance)
+       
         else:
-
             print 'Unrecognised distance metric'
             return
 
-        if matrix is None:
-            return
-        else:
-            self.matrix = matrix
         return matrix
 
-    def add_noise(self, dm=None):
-        if dm is None:
-            dm = self.matrix
-        size = len(dm)
-        new = np.zeros((size, size))
-        r = range(size)
-        for i in r:
-            for j in r[i + 1:]:
-                eps = np.random.normal(0, 0.001)
-                if dm[i, j] + eps > 0:
-                    new[i, j] = new[j, i] = dm[i, j] + eps
-                else:
-                    new[i, j] = new[j, i] = dm[i, j] - eps
-        return new
 
-    def noisy_copy(self):
-        new_object = DistanceMatrix(trees=self.trees, tmpdir=self.tmpdir)
-        new_object.metric = self.metric
-        new_object.matrix = self.add_noise()
-        return new_object
+class MatrixTricks(object):
 
-    def plot_heatmap(self, sort_partition=None):
-        """ Sort partition should be a flatlist of the clusters as returned by
-        Partition().get_memberships(..., flatten=True) """
+    def __init__(self, dm):
 
-        dm = np.array(self.matrix, copy=True)
-        length = dm.shape[0]
-        datamax = abs(dm).max()
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ticks_at = [0, 0.5 * datamax, datamax]
-        if sort_partition:
-            p = self.get_permutation_matrix(range(len(sort_partition)),
-                    sort_partition)
-            dm = np.dot(p.T, np.dot(dm, p))
-        cax = ax.imshow(
-            dm,
-            interpolation='nearest',
-            origin='lower',
-            extent=[0.0, length, 0.0, length],
-            vmin=0,
-            vmax=datamax,
-            cmap=CM.Blues,
-            )
-        cbar = fig.colorbar(cax, ticks=ticks_at, format='%1.2g')
-        cbar.set_label('Distance')
-        return fig
+        self.matrix = dm.matrix
+        self.shape = dm.matrix.shape
+        self.size = dm.matrix.size
 
-    def get_permutation_matrix(self, input_ordering, desired_ordering):
-        length = len(input_ordering)
-        if not len(desired_ordering) == length:
-            print 'List lengths don\'t match'
-            return
-        P = np.zeros((length, length), dtype=np.int)
-        for i in range(length):
-            j = desired_ordering.index(input_ordering[i])
-            P[i, j] = 1
-        return P
+    def __str__(self):
+        return '\n'.join([str(self.matrix),
+                         'Metric: {0}'.format(self.metrics_dict[self.metric])])
+
+    def add_noise(self):
+
+        noise = np.random.normal(0, 0.001, self.size).reshape(self.shape)
+        np.fill_diagonal(noise, 0.0)
+        noisy = self.matrix + noise
+        noisy[noisy < 0] = np.abs(noisy[noisy < 0])
+        return noisy
 
     def check_euclidean(self):
         """ A distance matrix is euclidean iff F = -0.5 * (I - 1/n)D(I - 1/n) is
@@ -198,7 +126,22 @@ class DistanceMatrix(object):
 
         return True
 
-    def get_knn(self, k, add_noise=False):
+    def eigen(self, matrix, standardize=False):
+        """ Calculates the eigenvalues and eigenvectors from the double-centred
+        matrix. Returns a tuple of (eigenvalues, eigenvectors, cumulative
+        percentage of variance explained). Eigenvalues and eigenvectors are
+        sorted in order of eigenvalue magnitude, high to low """
+
+        (vals, vecs) = np.linalg.eigh(matrix)
+        ind = vals.argsort()[::-1]
+        vals = vals[ind]
+        vecs = vecs[:, ind]
+        cum_var_exp = np.cumsum(100 * abs(vals) / sum(abs(vals)))
+        if standardize:
+            vecs = vecs * np.sqrt(abs(vals))
+        return (vals, vecs, cum_var_exp)
+
+    def knn(self, k, add_noise=False):
         """ Acts on distance matrix. For each datapoint, finds the `k` nearest
         neighbours. Returns an adjacency matrix, and a dictionary of the kth
         distance for each node. """
@@ -217,7 +160,7 @@ class DistanceMatrix(object):
                 max_dists[i] = M[i, sorted_dists[k - 1]]
         return (kneighbour_matrix, max_dists)
 
-    def get_affinity_matrix(
+    def affinity_matrix(
         self,
         kneighbour_matrix,
         max_dists,
@@ -248,7 +191,7 @@ class DistanceMatrix(object):
                                 * sigma)
         return affinity_matrix
 
-    def get_double_centre(self, square_input=False, add_noise=False):
+    def double_centre(self, square_input=False, add_noise=False):
         """ Double-centres the input matrix: From each element: Subtract the row
         mean Subtract the column mean Add the grand mean Divide by -2 Method
         from: Torgerson, W S (1952). Multidimensional scaling: I. Theory and
@@ -267,3 +210,50 @@ class DistanceMatrix(object):
         M -= rm + cm - gm
         M /= -2
         return M
+
+
+class MatrixPlots(object):
+
+    def __init__(self, dm):
+
+        self.matrix = dm.matrix.copy()
+        self.shape = dm.matrix.shape
+        self.size = dm.matrix.size
+
+    def plot_heatmap(self, sort_partition=None):
+        """ Sort partition should be a flatlist of the clusters as returned by
+        Partition().get_memberships(..., flatten=True) """
+
+        dm = self.matrix
+        length = self.shape[0]
+        datamax = np.abs(dm).max()
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ticks_at = [0, 0.5 * datamax, datamax]
+        if sort_partition:
+            p = self.get_permutation_matrix(range(len(sort_partition)),
+                    sort_partition)
+            dm = np.dot(p.T, np.dot(dm, p))
+        cax = ax.imshow(
+            dm,
+            interpolation='nearest',
+            origin='lower',
+            extent=[0.0, length, 0.0, length],
+            vmin=0,
+            vmax=datamax,
+            cmap=CM.Blues,
+            )
+        cbar = fig.colorbar(cax, ticks=ticks_at, format='%1.2g')
+        cbar.set_label('Distance')
+        return fig
+
+    def get_permutation_matrix(self, input_ordering, desired_ordering):
+        length = len(input_ordering)
+        if not len(desired_ordering) == length:
+            print 'List lengths don\'t match'
+            return
+        P = np.zeros((length, length), dtype=np.int)
+        for i in range(length):
+            j = desired_ordering.index(input_ordering[i])
+            P[i, j] = 1
+        return P

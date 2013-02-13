@@ -12,10 +12,24 @@ def bifurcate_base(newick):
     return newick_string
 
 
+def brlen_sum(dpy_tree):
+    tot = 0
+    for n in dpy_tree.preorder_node_iter():
+        if n.edge_length:
+            tot += n.edge_length
+    return tot
+
+
+def convert_dendropy_to_newick(tree):
+    newick = tree.as_newick_string()
+    return (newick if newick.endswith(';') else newick + ';')
+
+
 def convert_to_dendropy_tree(tree, taxon_set=None):
     if taxon_set is None:
         return dendropy.Tree.get_from_string(tree.newick, 'newick')
-    return dendropy.Tree.get_from_string(tree.newick, 'newick', taxon_set=taxon_set)
+    return dendropy.Tree.get_from_string(tree.newick, 'newick',
+            taxon_set=taxon_set)
 
 
 def convert_to_dendropy_trees(trees):
@@ -52,16 +66,20 @@ def deroot(newick):
     return t.as_newick_string() + ';\n'
 
 
-def get_rf_distance(tree1, tree2):
-    return tree1.symmetric_difference(tree2)
+def get_rf_distance(dpy_tree1, dpy_tree2):
+    return dpy_tree1.symmetric_difference(dpy_tree2)
 
 
-def get_wrf_distance(tree1, tree2):
-    return tree1.robinson_foulds_distance(tree2)
+def get_wrf_distance(dpy_tree1, dpy_tree2):
+    return dpy_tree1.robinson_foulds_distance(dpy_tree2)
 
 
-def get_euc_distance(tree1, tree2):
-    return tree1.euclidean_distance(tree2)
+def get_euc_distance(dpy_tree1, dpy_tree2):
+    return dpy_tree1.euclidean_distance(dpy_tree2)
+
+
+def print_plot(tree):
+    return convert_to_dendropy_tree(tree).print_plot()
 
 
 def trifurcate_base(newick):

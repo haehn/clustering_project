@@ -1,26 +1,10 @@
 #!/usr/bin/env python
 
-import_debugging = False
-if import_debugging:
-    print 'sequence_record imports:'
-import re
-if import_debugging:
-    print '  re (sr)'
-import os
-if import_debugging:
-    print '  os (sr)'
-import dendropy as dpy
-if import_debugging:
-    print '  dendropy (sr)'
-from subprocess import Popen, PIPE
-if import_debugging:
-    print '  subprocess::Popen, PIPE (sr)'
+import re  # for sorting
 from tree import Tree
-if import_debugging:
-    print '  tree::Tree (sr)'
+from externals.dv_wrapper import DVWrapper
+from externals.tree_builders import Phyml, TreeCollection
 import hashlib
-if import_debugging:
-    print '  hashlib (sr)'
 from random import shuffle as shf
 
 
@@ -30,133 +14,6 @@ class SequenceRecord(object):
     writing in fasta, phylip, phylip interleaved, nexus formats, sorting
     sequences by length and name, concatenating sequences when sequence names
     are a perfect match, iterating over records. """
-
-    def get_fasta_file(
-        self,
-        fasta_file,
-        name=None,
-        datatype=None,
-        ):
-        """ FASTA format parser: turns fasta file into Alignment_record object
-        """
-
-        headers = []
-        sequences = []
-        openfile = open(fasta_file, 'r')
-
-        # skip over file until first header is found
-
-        while True:
-            line = openfile.readline()
-            if not line:
-                return
-            if line[0] == '>':
-                break
-
-            # we break the loop here at the start of the first record
-
-        headers.append(line[1:].rstrip())  # chuck the first header into list
-
-        while True:
-            line = openfile.readline()
-            sequence_so_far = []  # build up sequence a line at a time in list
-            while True:
-                if not line:
-                    break
-                elif not line[0] == '>':
-                    sequence_so_far.append(line.rstrip())
-                    line = openfile.readline()
-                else:
-                    break
-            sequences.append(''.join(sequence_so_far).replace(',', ''))
-            if not line:
-                break
-            headers.append(line[1:].rstrip())
-
-        # check all sequences the same length
-
-        first_seq_length = len(sequences[0])
-        is_alignment = True
-        for seq in sequences:
-            if len(seq) != first_seq_length:
-                is_alignment = False
-                break
-            else:
-                continue
-
-        # check same number of headers as sequences
-
-        if len(headers) != len(sequences):
-            print 'Error matching all headers and sequences'
-
-        if is_alignment:
-            self.is_aligned = True
-        self.name = name
-        self.headers = headers
-        self.sequences = sequences
-        self.datatype = datatype
-        self._update()
-
-    def get_phylip_file(
-        self,
-        phylip_file,
-        name=None,
-        datatype=None,
-        ):
-        """ PHYLIP format parser"""
-
-        openfile = open(phylip_file, 'r')
-        info = openfile.readline().split()
-        num_taxa = int(info[0])
-        seq_length = int(info[1])
-
-        # Initialise lists to hold the headers and sequences
-
-        headers = [None] * num_taxa
-        sequences = [None] * num_taxa
-
-        i = 0  # counter monitors how many (informative) lines we've seen
-        for line in openfile:
-            line = line.rstrip()
-            if not line:
-                continue  # skip empty lines and don't increment counter
-
-            line = line.split()
-
-            # IF header is None, split line into header / sequence pair
-            # ELSE header is not None, we've already seen it
-            # so this file must be interleaved, so carry on
-            # adding sequence fragments
-
-            if not headers[i % num_taxa]:
-                header = line[0]
-                sequence_fragment = ''.join(line[1:])
-
-                headers[i % num_taxa] = header
-                sequences[i % num_taxa] = [sequence_fragment]
-            else:
-
-                sequence_fragment = ''.join(line)
-                sequences[i % num_taxa].append(sequence_fragment)
-
-            i += 1  # increment counter
-
-        sequences = [''.join(x) for x in sequences]
-
-        # checks
-
-        try:
-            assert len(headers) == len(sequences) == num_taxa
-            for sequence in sequences:
-                assert len(sequence) == seq_length
-        except AssertionError:
-            print 'Error reading file'
-            return
-
-        self.name = name
-        self.datatype = datatype
-        (self.headers, self.sequences) = (headers, sequences)
-        self._update()
 
     def __init__(
         self,
@@ -178,9 +35,9 @@ class SequenceRecord(object):
         self.is_aligned = False
         if infile:
             if file_format == 'fasta':
-                self.get_fasta_file(infile, name=name, datatype=datatype)
+                self.read_fasta_file(infile, name=name, datatype=datatype)
             elif file_format == 'phylip':
-                self.get_phylip_file(infile, name=name, datatype=datatype)
+                self.read_phylip_file(infile, name=name, datatype=datatype)
         self.index = -1
         self._update()
 
@@ -316,6 +173,17 @@ class SequenceRecord(object):
         else:
             return SequenceRecord(name=self.name, headers=h, sequences=s)
 
+    def hashname(self):
+        H = hashlib.sha1()
+        H.update(self.name)
+        return H.hexdigest()
+
+    def get_name(self, maxlen=40, default='noname'):
+        if self.name:
+            return (self.name if len(self.name) < maxlen else self.hashname())
+        else:
+            return default
+
     @staticmethod
     def linebreaker(string, length):
         for i in range(0, len(string), length):
@@ -334,6 +202,123 @@ class SequenceRecord(object):
             new_record._update()
             new_records.append(new_record)
         return new_records
+
+    def read_fasta_file(
+        self,
+        fasta_file,
+        name=None,
+        datatype=None,
+        ):
+        """ FASTA format parser: turns fasta file into Alignment_record object
+        """
+
+        headers = []
+        sequences = []
+        openfile = open(fasta_file, 'r')
+
+        while True:                     # skip over file until first header is 
+            line = openfile.readline()  # found,
+            if not line:                
+                return                  
+            if line[0] == '>':          # then break the loop and put the first
+                break                   # header into the headers list                                        
+        headers.append(line[1:].rstrip())  
+
+        while True:
+            line = openfile.readline()
+            sequence_so_far = []        # build up sequence a line at a time
+            while True:
+                if not line:
+                    break
+                elif not line[0] == '>':
+                    sequence_so_far.append(line.rstrip())
+                    line = openfile.readline()
+                else:
+                    break
+            sequences.append(''.join(sequence_so_far).replace(',', ''))
+            if not line:
+                break
+            headers.append(line[1:].rstrip())
+
+        first_seq_length = len(sequences[0])    # check all sequences are the 
+        is_alignment = True                     # same length
+        for seq in sequences:
+            if len(seq) != first_seq_length:
+                is_alignment = False
+                break
+            else:
+                continue
+
+        if len(headers) != len(sequences):  
+            print 'Error matching all headers and sequences'
+
+        if is_alignment:
+            self.is_aligned = True
+        self.name = name
+        self.headers = headers
+        self.sequences = sequences
+        self.datatype = datatype
+        self._update()
+
+    def read_phylip_file(
+        self,
+        phylip_file,
+        name=None,
+        datatype=None,
+        ):
+        """ PHYLIP format parser"""
+
+        openfile = open(phylip_file, 'r')
+        info = openfile.readline().split()
+        num_taxa = int(info[0])
+        seq_length = int(info[1])
+
+        # Initialise lists to hold the headers and sequences
+        headers = [None] * num_taxa
+        sequences = [None] * num_taxa
+
+        i = 0  # counter monitors how many (informative) lines we've seen
+        for line in openfile:
+            line = line.rstrip()
+            if not line:
+                continue  # skip empty lines and don't increment counter
+
+            line = line.split()
+
+            # IF header is None, split line into header / sequence pair
+            # ELSE header is not None, we've already seen it
+            # so this file must be interleaved, so carry on
+            # adding sequence fragments
+
+            if not headers[i % num_taxa]:
+                header = line[0]
+                sequence_fragment = ''.join(line[1:])
+
+                headers[i % num_taxa] = header
+                sequences[i % num_taxa] = [sequence_fragment]
+            else:
+
+                sequence_fragment = ''.join(line)
+                sequences[i % num_taxa].append(sequence_fragment)
+
+            i += 1  # increment counter
+
+        sequences = [''.join(x) for x in sequences]
+
+        # checks
+
+        try:
+            assert len(headers) == len(sequences) == num_taxa
+            for sequence in sequences:
+                assert len(sequence) == seq_length
+        except AssertionError:
+            print 'Error reading file'
+            return
+
+        self.name = name
+        self.datatype = datatype
+        (self.headers, self.sequences) = (headers, sequences)
+        self._update()
 
     def write_fasta(
         self,
@@ -450,17 +435,6 @@ class SequenceRecord(object):
                 print s
             return outfile
 
-    def hashname(self):
-        H = hashlib.sha1()
-        H.update(self.name)
-        return H.hexdigest()
-
-    def get_name(self, maxlen=40, default='noname'):
-        if self.name:
-            return (self.name if len(self.name) < maxlen else self.hashname())
-        else:
-            return default
-
 
 class TCSeqRec(SequenceRecord):
 
@@ -472,35 +446,30 @@ class TCSeqRec(SequenceRecord):
         infile=None,
         file_format='fasta',
         name=None,
+        datatype=None,
         headers=[],
         sequences=[],
         dv=[],
-        datatype=None,
         tree=None,
+        tmpdir='/tmp',
         ):
 
-        self.name = name
-        self.headers = headers
-        self.sequences = sequences
-        self.mapping = {}
-        self.datatype = datatype
-        self.length = 0
-        self.seqlength = 0
-        self.is_aligned = False
         self.TCfiles = {}
         self.dv = dv
-        if tree:
-            if isinstance(tree, Tree):
-                self.tree = tree
+        if tree and isinstance(tree, Tree):
+            self.tree = tree
         else:
             self.tree = Tree()
-        if infile:
-            if file_format == 'fasta':
-                self.get_fasta_file(infile, name=name, datatype=datatype)
-            elif file_format == 'phylip':
-                self.get_phylip_file(infile, name=name, datatype=datatype)
-        self.index = -1
-        self._update()
+        self.tmpdir = tmpdir
+
+        super(TCSeqRec, self).__init__(
+            infile,
+            file_format,
+            name,
+            datatype,
+            headers,
+            sequences,
+            )
 
     def __add__(self, other):
         """ Allows Records to be added together, concatenating sequences """
@@ -528,6 +497,63 @@ class TCSeqRec(SequenceRecord):
                                  datatype=self.datatype).sort_by_name(in_place=False)
         return_object.dv = dvsum
         return return_object
+
+    def bionj(self):
+        """ Uses phyml (via treeCl.externals.tree_builders.Phyml) to build a
+        bioNJ tree for the current record """
+
+        p = Phyml(self)
+        self.tree = p.run('nj')
+
+    def dv_matrix(self):
+        """ Uses darwin (via treeCl.externals.DVWrapper) to calculate pairwise
+        distances and variances"""
+
+        dv = DVWrapper(self)
+        self.dv.append(dv.run())
+
+    def phyml(self):
+        """ Uses phyml (via treeCl.externals.tree_builders.Phyml) to build a
+        full ML tree for the current record """
+
+        p = Phyml(self)
+        self.tree = p.run('ml')
+
+    def tree_collection(self):
+        """ Uses TreeCollection (via
+        treeCl.externals.tree_builders.TreeCollection) to build a least squares
+        tree for the current record """
+
+        if self.dv <= []:
+            self.get_dv_matrix()
+        tc = TreeCollection(self)
+        self.tree = tc.run()
+
+    def _pivot(self, lst):
+        new_lst = zip(*lst)
+        return [''.join(x) for x in new_lst]
+
+    def sanitise(self):
+        self.sort_by_name()
+        l = []
+        for h in self.headers:
+            if '/' in h:
+                h = h[:h.index('/')]
+            while h.startswith(' '):
+                h = h[1:]
+            h = h.replace(' ', '_')
+            l.append(h)
+        self.headers = l
+        self.sequences = [seq.upper() for seq in self.sequences]
+        self._update()
+
+    def shuffle(self):
+        """ Modifies in-place """
+
+        columns = self._pivot(self.sequences)
+        shf(columns)
+        self.sequences = self._pivot(columns)
+        self._update()
 
     def sort_by_length(self, in_place=True):
         """ Sorts sequences by descending order of length Uses zip as its own
@@ -565,306 +591,6 @@ class TCSeqRec(SequenceRecord):
         else:
             return TCSeqRec(name=self.name, headers=h, sequences=s,
                             datatype=self.datatype)
-
-    def sanitise(self):
-        self.sort_by_name()
-        l = []
-        for h in self.headers:
-            if '/' in h:
-                h = h[:h.index('/')]
-            while h.startswith(' '):
-                h = h[1:]
-            h = h.replace(' ', '_')
-            l.append(h)
-        self.headers = l
-        self.sequences = [seq.upper() for seq in self.sequences]
-        self._update()
-
-    def _write_temp_phylip(self, tmpdir='/tmp', use_hashname=False):
-        if use_hashname:
-            filename = self.hashname()
-        else:
-            filename = self.name
-        self.write_phylip('{0}/{1}.phy'.format(tmpdir, filename))
-        return filename
-
-    def _write_temp_tc(
-        self,
-        tmpdir='/tmp',
-        make_guide_tree=True,
-        use_hashname=True,
-        ):
-
-        if use_hashname:
-            filename = self.hashname()
-        else:
-            filename = self.name
-        num_matrices = len(self.dv)
-        if num_matrices == 0:
-            print 'No distance-variance matrix available'
-            return
-        all_labels = self.headers
-        len_all_labels = len(all_labels)
-
-        # Temporary files
-
-        dv_tmpfile = open('{0}/{1}_dv.txt'.format(tmpdir, filename), 'w')
-        labels_tmpfile = open('{0}/{1}_labels.txt'.format(tmpdir, filename), 'w'
-                              )
-        map_tmpfile = open('{0}/{1}_map.txt'.format(tmpdir, filename), 'w')
-        if make_guide_tree:
-            guidetree_tmpfile = open('{0}/{1}_tree.nwk'.format(tmpdir,
-                                     filename), 'w')
-
-        # Write headers to temp files
-
-        dv_tmpfile.write('{0}\n'.format(num_matrices))
-        map_tmpfile.write('{0} {1}\n'.format(num_matrices, len_all_labels))
-        labels_tmpfile.write('{0}\n{1}\n'.format(len_all_labels,
-                             ' '.join(all_labels)))
-        labels_tmpfile.flush()
-
-        # Add info from self.dv to temp files
-
-        for (i, (matrix, labels)) in enumerate(self.dv):
-            labels = labels.split()
-            dim = len(labels)
-            index = i + 1
-            dv_tmpfile.write('''{0} {0} {1}
-{2}
-'''.format(dim, index, matrix))
-            dv_tmpfile.flush()
-            for lab in all_labels:
-                if lab in labels:
-                    map_tmpfile.write('{0} '.format(labels.index(lab) + 1))
-                else:
-                    map_tmpfile.write('-1 ')
-            map_tmpfile.write('\n')
-            map_tmpfile.flush()
-
-        # Close finished temp files
-
-        map_tmpfile.close()
-        dv_tmpfile.close()
-        labels_tmpfile.close()
-
-        # Write the guidetree
-
-        if make_guide_tree:
-            guidetree = self.get_bionj_tree(ncat=1, tmpdir=tmpdir)
-            dpy_guidetree = dpy.Tree()
-            dpy_guidetree.read_from_string(guidetree.newick, 'newick')
-            dpy_guidetree.resolve_polytomies()
-            newick_string = dpy_guidetree.as_newick_string() + ';\n'
-            guidetree_tmpfile.write(newick_string)
-            guidetree_tmpfile.flush()
-            guidetree_tmpfile.close()
-
-        # Check it all worked
-
-        assert os.path.isfile('{0}/{1}_dv.txt'.format(tmpdir, filename))
-        assert os.path.isfile('{0}/{1}_labels.txt'.format(tmpdir, filename))
-        assert os.path.isfile('{0}/{1}_map.txt'.format(tmpdir, filename))
-        if make_guide_tree:
-            assert os.path.isfile('{0}/{1}_tree.nwk'.format(tmpdir, filename))
-        return filename
-
-    def get_phyml_tree(
-        self,
-        model=None,
-        datatype=None,
-        ncat=4,
-        tmpdir='/tmp',
-        overwrite=True,
-        verbose=False,
-        ):
-
-        if not overwrite and self.tree.newick:
-            print '{0}: Tree exists and overwrite set to false'.format(self.name)
-            return self.tree
-        self.tree = Tree()
-        filename = self._write_temp_phylip(tmpdir=tmpdir, use_hashname=True)
-        print 'Running phyml on ' + str(self.name) + '...'
-        input_file = '{0}/{1}.phy'.format(tmpdir, filename)
-        if not model and not datatype:  # quick-fix to allow specification of
-                                        # other
-            if self.datatype == 'dna':  # models when calling phyml
-                model = 'GTR'
-                datatype = 'nt'
-            elif self.datatype == 'protein':
-                model = 'WAG'
-                datatype = 'aa'
-            else:
-                print 'I don\'t know this datatype: {0}'.format(self.datatype)
-                return
-        t = self.tree.run_phyml(
-            model,
-            input_file,
-            datatype,
-            self.name,
-            ncat=ncat,
-            overwrite=overwrite,
-            verbose=verbose,
-            )
-        os.remove('{0}/{1}.phy'.format(tmpdir, filename))
-        return self.tree
-
-    def get_bionj_tree(
-        self,
-        model=None,
-        datatype=None,
-        ncat=1,
-        optimise='n',
-        tmpdir='/tmp',
-        overwrite=True,
-        verbose=False,
-        ):
-
-        if not overwrite and self.tree.newick:
-            print '{0}: Tree exists and overwrite set to false'.format(self.name)
-            return self.tree
-        self.Tree = Tree()
-        filename = self._write_temp_phylip(tmpdir=tmpdir, use_hashname=True)
-        print 'Running bionj on ' + str(self.name) + '...'
-        input_file = '{0}/{1}.phy'.format(tmpdir, filename)
-
-        if not model and not datatype:  # quick-fix to allow specification of
-                                        # other
-            if self.datatype == 'dna':  # models when calling phyml
-                model = 'GTR'
-                datatype = 'nt'
-            elif self.datatype == 'protein':
-                model = 'WAG'
-                datatype = 'aa'
-            else:
-                print 'I don\'t know this datatype: {0}'.format(self.datatype)
-                return
-        t = self.tree.run_bionj(
-            model,
-            input_file,
-            datatype,
-            ncat=ncat,
-            name=self.name,
-            optimise=optimise,
-            overwrite=overwrite,
-            verbose=verbose,
-            )
-        os.remove('{0}/{1}.phy'.format(tmpdir, filename))
-        return self.tree
-
-    def get_raxml_tree(self, tmpdir='/tmp', overwrite=True):
-        if not overwrite and self.tree.newick:
-            print '{0}: Tree exists and overwrite set to false'.format(self.name)
-            return self.tree
-        self.tree = Tree()
-        self._write_temp_phylip(tmpdir=tmpdir)
-        print 'Running raxml on ' + str(self.name) + '...'
-        input_file = '{0}/{1}.phy'.format(tmpdir, self.name)
-        if self.datatype == 'dna':
-            model = 'GTRGAMMA'
-        elif self.datatype == 'protein':
-            model = 'PROTGAMMAWAG'
-        else:
-            print 'I don\'t know this datatype: {0}'.format(self.datatype)
-            return
-        self.tree.run_raxml(model, input_file, self.name, tmpdir,
-                            overwrite=overwrite)
-        os.remove('{0}/{1}.phy'.format(tmpdir, self.name))
-        if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir, self.name)):
-            os.remove('{0}/{1}.phy.reduced'.format(tmpdir, self.name))
-        return self.tree
-
-    def get_guide_tree(self, tmpdir='/tmp', overwrite=True):
-        filename = self._write_temp_phylip(tmpdir=tmpdir, use_hashname=True)
-        input_file = '{0}/{1}.phy'.format(tmpdir, filename)
-        if self.datatype == 'dna':
-            model = 'GTRGAMMA'
-        elif self.datatype == 'protein':
-            model = 'PROTGAMMAWAG'
-        else:
-            print 'I don\'t know this datatype: {0}'.format(self.datatype)
-            return
-        t = Tree().run_raxml(model, input_file, self.name, tmpdir, guide=True)
-        if os.path.isfile('{0}/{1}.phy'.format(tmpdir, filename)):
-            os.remove('{0}/{1}.phy'.format(tmpdir, filename))
-        if os.path.isfile('{0}/{1}.phy.reduced'.format(tmpdir, filename)):
-            os.remove('{0}/{1}.phy.reduced'.format(tmpdir, filename))
-        return t
-
-    def get_TC_tree(self, tmpdir='/tmp', overwrite=True):
-        if not overwrite and self.tree.newick:
-            print '{0}: Tree exists and overwrite set to false'.format(self.name)
-            return self.tree
-        filename = self._write_temp_tc(tmpdir=tmpdir, use_hashname=True)
-        print 'Running TreeCollection on ' + str(self.name) + '...'
-        self.tree.run_treecollection(
-            '{0}/{1}_dv.txt'.format(tmpdir, filename),
-            '{0}/{1}_map.txt'.format(tmpdir, filename),
-            '{0}/{1}_labels.txt'.format(tmpdir, filename),
-            '{0}/{1}_tree.nwk'.format(tmpdir, filename),
-            self.name,
-            overwrite=overwrite,
-            )
-        os.remove('{0}/{1}_dv.txt'.format(tmpdir, filename))
-        os.remove('{0}/{1}_map.txt'.format(tmpdir, filename))
-        os.remove('{0}/{1}_labels.txt'.format(tmpdir, filename))
-        os.remove('{0}/{1}_tree.nwk'.format(tmpdir, filename))
-        return self.tree
-
-    def get_dv_matrix(
-        self,
-        tmpdir='/tmp',
-        helper='/Users/kgori/Projects/clustering_project/class_files/DV_wrapper.drw'
-            ,
-        overwrite=True,
-        ):
-        """ Makes a call to the TC_wrapper.drw darwin helper script, which
-        calculates a distance-variance matrix from the sequence alignments, and
-        generates files needed by the treecollection binary """
-
-        if not overwrite and self.dv:
-            return self.dv[0]
-        if self.name:
-            fastafile = '{0}/{1}.fas'.format(tmpdir, self.name)
-        else:
-            fastafile = '{0}/fasta_tmp.fas'.format(tmpdir)
-        if self.datatype == 'dna':
-            datatype = 'DNA'
-        else:
-            datatype = 'AA'
-
-        if not os.path.isfile(helper):
-            print 'Can\'t find the darwin helper file at {0}'.format(helper)
-            return 0
-
-        self.write_fasta(fastafile)
-        print 'Running darwin on {0}, datatype = {1}'.format(fastafile,
-                datatype, helper)
-        command = \
-            'echo "fil := ReadFastaWithNames(\'{0}\'); seqtype := \'{1}\'; fpath := \'{2}/\'; ReadProgram(\'{3}\');" | darwin'.format(fastafile,
-                datatype, tmpdir, helper)
-
-        # print command
-
-        process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
-        (stdout, stderr) = process.communicate()
-        dv_string = open('{0}/temp_distvar.txt'.format(tmpdir)).read().rstrip()
-        labels = ' '.join(self.headers)
-        os.remove(fastafile)
-        os.remove('{0}/temp_distvar.txt'.format(tmpdir))
-        return (dv_string, labels)
-
-    def _pivot(self, lst):
-        new_lst = zip(*lst)
-        return [''.join(x) for x in new_lst]
-
-    def shuffle(self):
-        """ Modifies in-place """
-
-        columns = self._pivot(self.sequences)
-        shf(columns)
-        self.sequences = self._pivot(columns)
-        self._update()
 
     def split_by_lengths(self, lengths, names=None):
         assert sum(lengths) == self.seqlength

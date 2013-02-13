@@ -1,29 +1,33 @@
 #!/usr/bin/env python
 
 from . import ExternalSoftware
+from ..utils import dpy as utils_dpy, fileIO
 from ..errors import FileError, filecheck_and_raise
-from ..utils import dpy, fileIO
 from treeCl.tree import Tree, Manipulations
 import re
 
 local_dir = fileIO.path_to(__file__)
 
-class Result(object):
 
-    def __init__(self, output, score, tree, name, program):
-        self.output  = output
-        self.score   = score
-        self.tree    = tree
-        self.name    = name
-        self.program = program
+class TreeSoftware(ExternalSoftware):
 
-    def __str__(self):
-        return self.output
+    def __init__(self, record=None, supplied_binary=''):
+        super( TreeSoftware, self ).__init__(supplied_binary)
+        self.record = record
+        self.tmpdir = record.tmpdir or '/tmp'
 
-class Phyml(ExternalSoftware):
+    @property
+    def record(self):
+        return self._record
+
+    @record.setter
+    def record(self, sequence_record):
+        self._record = sequence_record
+
+class Phyml(TreeSoftware):
 
     default_binary = 'phyml'   
-    score_regex = re.compile('(?<=Log-likelihood: ).+') 
+    score_regex = re.compile('(?<=Log-likelihood: ).+')     
 
     def read(self, filename):
         tree_filename = filename + '_phyml_tree.txt'
@@ -34,28 +38,30 @@ class Phyml(ExternalSoftware):
             with open(stats_filename) as statsfile:
                 return (treefile.read(), statsfile.read())
 
-    def run(self, sequence_record):
-        filename = self.write(sequence_record)
+    def run(self, analysis=None):
+        if analysis:
+            self.set_default_flags(analysis)
+        else:
+            analysis = fileIO.basename(self.binary)
+        filename = self.write()
         filecheck_and_raise(filename)
         self.add_flag('-i', filename)
-        print 'Running phyml on', sequence_record.name
+        print 'Running phyml on', self.record.name
         (stdout, stderr) = self.call()
         (tree, stats) = self.read(filename)
-
         score = float(self.score_regex.search(stats).group(0))
         self.clean()
-        return Result(stats, score, tree, sequence_record.name, 
-            fileIO.basename(self.binary))
-
-    def write(self, sequence_record):
-        filename = sequence_record.get_name(default='tmp_phyml_input')
+        return Tree(tree, score, analysis, self.record.name, stats)
+        
+    def write(self):
+        filename = self.record.get_name(default='tmp_phyml_input')
         filename = '{0}/{1}.phy'.format(self.tmpdir, filename)
-        sequence_record.write_phylip(filename)
+        self.record.write_phylip(filename)
         self.add_tempfile(filename)
         return filename
 
-    def get_datatype(self, sequence_record, datatype=None):
-        datatype = datatype or sequence_record.datatype
+    def read_datatype(self, datatype=None):
+        datatype = datatype or self.record.datatype
         if datatype == 'protein':
             return {'-d': 'aa', '-m': 'WAG'}
         elif datatype == 'dna':
@@ -63,12 +69,11 @@ class Phyml(ExternalSoftware):
 
     def set_default_flags(
         self,
-        sequence_record,
         analysis='ml',
         datatype=None,
         ):
 
-        defaults = self.get_datatype(sequence_record, datatype=datatype)
+        defaults = self.read_datatype(datatype=datatype)
         if defaults:
             defaults['-a'] = 'e'
             defaults['-b'] = 0
@@ -83,7 +88,7 @@ class Phyml(ExternalSoftware):
                 self.add_flag(flag, defaults[flag])
 
 
-class TreeCollection(ExternalSoftware):
+class TreeCollection(TreeSoftware):
 
     default_binary = 'TreeCollection'
 
@@ -95,13 +100,12 @@ class TreeCollection(ExternalSoftware):
 
     def run(
         self,
-        sequence_record,
         guidetree=None,
         datatype='protein',
         verbose=False,
         ):
-        guidetree = guidetree or self.write_guidetree(sequence_record, datatype)
-        tmpfiles = self.write(sequence_record)
+        guidetree = guidetree or self.write_guidetree(datatype)
+        tmpfiles = self.write()
         self.add_flag('-D', tmpfiles['dv'])
         self.add_flag('-M', tmpfiles['map'])
         self.add_flag('-L', tmpfiles['lab'])
@@ -111,26 +115,25 @@ class TreeCollection(ExternalSoftware):
         if verbose: 
             print stdout, stderr
         score, tree = self.parse(stdout)
-        tree = Manipulations(tree).pam2sps()
         return Tree(tree, score, fileIO.basename(self.binary),
-                sequence_record.name, stdout)
+                self.record.name, stdout).scale(0.01)
 
-    def write(self, sequence_record):
+    def write(self):
         """ Write the distance-variance (dv) file, the labels file and the map
         file all together, because they share information, and this way we only
         have to look it up once"""
 
         # Look up info
 
-        dv_info = sequence_record.dv
+        dv_info = self.record.dv
         num_matrices = len(dv_info)
         if num_matrices == 0:
             print 'No distance-variance matrix available'
             return
-        all_labels = sequence_record.headers
+        all_labels = self.record.headers
         labels_len = len(all_labels)
 
-        base_filename = sequence_record.get_name(default='tmp_TC')
+        base_filename = self.record.get_name(default='tmp_TC')
         f = {}
         f['dv']  = '{0}/{1}_dv.txt'.format(self.tmpdir, base_filename)
         f['lab'] = '{0}/{1}_labels.txt'.format(self.tmpdir, base_filename)
@@ -164,13 +167,11 @@ class TreeCollection(ExternalSoftware):
 
         return f
 
-    def write_guidetree(self, sequence_record, datatype='protein'):
-        base_filename = sequence_record.get_name(default='tmp_TC')
-        bionj = Phyml()
-        bionj.set_default_flags(sequence_record, analysis='bionj',
-                                datatype=datatype)
-        tree = bionj.run(sequence_record).tree
-        tree = dpy.bifurcate_base(tree)
+    def write_guidetree(self, datatype='protein'):
+        base_filename = self.record.get_name(default='tmp_TC')
+        p = Phyml(self.record)
+        tree = p.run('nj').newick
+        tree = utils_dpy.bifurcate_base(tree)
         filename = '{0}/{1}_tree.nwk'.format(self.tmpdir, base_filename)
         with open(filename, 'w') as tree_file:
             tree_file.write(tree)

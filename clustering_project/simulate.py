@@ -5,16 +5,13 @@ import numpy as np
 import argparse
 import os
 
+# TO DO
+# Refactoring - need to decouple the intricate simulation parameters from
+# the code used to run simulations, so: -
+#     Put the code to run set the parameters and arrange the output HERE
+#     Have a simple interface with the simulator in `externals` package
 
-def fpath(s):
-    """
-    Helper function used when passing filepath arguments with argparse module.
-        Trims all '/' characters from the end of the path string.
-    """
 
-    while s.endswith('/'):
-        s = s[:-1]
-    return s
 
 
 help_regime = \
@@ -159,13 +156,13 @@ parser.add_argument('-c', '--class_permuter', help=help_permuter,
 parser.add_argument('-p', '--permutations', help=help_permutations,
                     type=int, default=1)
 parser.add_argument('-d', '--directory', help='Base output directory\n'
-                    , type=fpath, default='.')
+                    , type=str, default='.')
 parser.add_argument('-g', '--geodesic',
                     help='path to gtp.jar, used to calculate geodesic distance\n'
-                    , type=fpath, default='./class_files')
+                    , type=str, default='./class_files')
 parser.add_argument('-tmp', '--temp-directory',
                     help='Directory to use for temp files\n',
-                    type=fpath, default='/tmp')
+                    type=str, default='/tmp')
 parser.add_argument('-i', '--indels',
                     help='Simulate indels (default=no)\n',
                     action='store_true')
@@ -194,15 +191,15 @@ regime = args['regime']
 permutation_strength = args['permutations']
 permutation_type = args['class_permuter']
 master_tree_generator = args['master']
-filepath = args['directory']
+filepath = args['directory'].rstrip('/')
 if 'TEMPORARY_DIRECTORY' in os.environ:
     tmpdir = os.environ['TEMPORARY_DIRECTORY']
 else:
-    tmpdir = args['temp_directory']
+    tmpdir = args['temp_directory'].rstrip('/')
 indels = args['indels']
 ratevar = args['ratevar']
 quiet = args['quiet']
-gtp_path = args['geodesic']
+gtp_path = args['geodesic'].rstrip('/')
 
 sim = SeqSim('base')
 

@@ -1,34 +1,14 @@
 #!/usr/bin/env python
 
-import_debugging = False
-if import_debugging:
-    print 'clustering.py imports:'
 import numpy as np
-if import_debugging:
-    print '  numpy (cl)'
 np.set_printoptions(threshold='nan', precision=3)
-import sys
-if import_debugging:
-    print '  sys (cl)'
+
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
-if import_debugging:
-    print '  scipy.cluster.hierarchy::linkage, fcluster, dendrogram (cl)'
 from Bio.Cluster import kmedoids
-if import_debugging:
-    print '  Bio.Cluster::kmedoids (cl)'
 import matplotlib.pyplot as plt
-if import_debugging:
-    print '  matplotlib.pyplot (cl)'
 from sklearn.cluster import KMeans
-if import_debugging:
-    print '  sklearn.cluster::KMeans (cl)'
 from collections import defaultdict
-if import_debugging:
-    print '  collections::defaultdict (cl)'
 import evrot
-if import_debugging:
-    print '  evrot (cl)'
-import cPickle
 
 class Clustering(object):
 
@@ -423,24 +403,7 @@ class Clustering(object):
 
     # ## Methods for eigen decomposition
 
-    def get_eigen(self, matrix, standardize=False):
-        """
-        Calculates the eigenvalues and eigenvectors from the double-
-        centred matrix
-        Returns a tuple of (eigenvalues, eigenvectors, cumulative
-        percentage of variance explained)
-        eigenvalues and eigenvectors are sorted in order of eigenvalue
-        magnitude, high to low 
-        """
-
-        (vals, vecs) = np.linalg.eigh(matrix)
-        ind = vals.argsort()[::-1]
-        vals = vals[ind]
-        vecs = vecs[:, ind]
-        cum_var_exp = np.cumsum(100 * abs(vals) / sum(abs(vals)))
-        if standardize:
-            vecs = vecs * np.sqrt(abs(vals))
-        return (vals, vecs, cum_var_exp)
+    
 
     def get_coords_by_cutoff(
         self,

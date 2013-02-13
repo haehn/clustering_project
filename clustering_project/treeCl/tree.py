@@ -4,116 +4,121 @@ import re
 import dendropy as dpy
 from dendropy import treesim
 from numpy.random import gamma
-import ete2
 import random
 from errors import FileError, filecheck_and_raise
-import taxonnames
 import utils.dpy
+from externals import GTP
 
 
 class Manipulations(object):
 
-    def __init__(self, newick):
-        self.newick = newick
+    def __init__(self, tree):
+        if not isinstance(tree, Tree):
+            raise TypeError('Manipulations class should be initialised with \'Tree\' object. Got'
+                            , type(tree))
+        self.tree = tree.copy()
+
+    def __str__(self):
+        return 'Manipulations object with tree:\n' + str(self.tree)
+
+    def convert_to_dendropy_tree(self):
+        """Takes Treee object, returns dendropy.Tree object"""
+
+        return utils.dpy.convert_to_dendropy_tree(self.tree)
+
+    def dendropy_as_newick(self, dpy_tree):
+        return utils.dpy.convert_dendropy_to_newick(dpy_tree)
+
+    def randomise_labels(self):
+        t = self.convert_to_dendropy_tree()
+        names = [l.taxon.label for l in t.leaf_iter()]
+        names_copy = names[:]
+        random.shuffle(names_copy)
+        for l in t.leaf_iter():
+            l.taxon.label = names_copy.pop()
+        tree_copy = self.tree.copy()
+        tree_copy.newick = self.dendropy_as_newick(t)
+        self.tree = tree_copy
+        return self.tree
 
     def randomise_branch_lengths(
         self,
-        inner_edges,
-        leaves,
+        i=(1, 1),
+        l=(1, 1),
         distribution_func=gamma,
         output_format=5,
         ):
-        """ inner_edges and leaves are tuples describing the parameters of the
-        distribution function distribution_func is a function generating samples
-        from a probability distribution (eg gamma, normal ...) """
+        """ i and l are tuples describing the parameters of the distribution
+        function for inner edges and leaves, respectively. distribution_func is
+        a function generating samples from a probability distribution (eg gamma,
+        normal ...) """
 
-        t = ete2.Tree(self.newick)
-
-        for node in t.iter_descendants():
-            if node.children:
-                node.dist = max(0, distribution_func(*inner_edges))  # 0 length or greater
+        t = self.convert_to_dendropy_tree()
+        for n in t.preorder_node_iter():
+            if n.is_internal():
+                n.edge.length = max(0, distribution_func(*i))
             else:
-                node.dist = max(0, distribution_func(*leaves))
-
-        t_as_newick = t.write(format=output_format)
-        return Tree(t_as_newick, name='random tree')
+                n.edge.length = max(0, distribution_func(*l))
+        tree_copy = self.tree.copy()
+        tree_copy.newick = self.dendropy_as_newick(t)
+        self.tree = tree_copy
+        return self.tree
 
     def scale(self, scaling_factor):
 
-        return self.pam2sps(scaling_factor)
+        t = self.convert_to_dendropy_tree()
+        for e in t.preorder_edge_iter():
+            if e.length:
+                e.length *= scaling_factor
+        tree_copy = self.tree.copy()
+        tree_copy.newick = self.dendropy_as_newick(t)
+        self.tree = tree_copy
+        return self.tree
 
-    def pam2sps(self, multiplier=0.01):
-        """ Scales branch lengths by an order of `multiplier`. Default is 0.01,
-        converting PAM units to substitutions per site. multiplier = 'sps2pam'
-        scales by 100, performing the opposite operation. multiplier = 'strip'
-        removes branch lengths entirely """
+    def strip(self):
 
-        reg_ex = re.compile('(?<=:)[0-9.]+')
-
-        converter = lambda a: str(multiplier * float(a.group()))
-        strip_lengths = lambda d: ''
-
-        input_string = self.newick
-
-        if multiplier == 'pam2sps':
-            multiplier = 0.01
-        elif multiplier == 'sps2pam':
-            multiplier = 100
-
-        # Set the output string according to selection
-
-        if multiplier == 'strip':
-            output_string = reg_ex.sub(strip_lengths, input_string).replace(':'
-                    , '')
-        else:
-
-            output_string = reg_ex.sub(converter, input_string)
-
-        return output_string
+        t = self.convert_to_dendropy_tree()
+        for e in t.preorder_edge_iter():
+            e.length = None
+        tree_copy = self.tree.copy()
+        tree_copy.newick = self.dendropy_as_newick(t)
+        self.tree = tree_copy
+        return self.tree
 
     def nni(self):
+        """Function to perform a random nearest-neighbour interchange on a tree
+        using Dendropy
+        
+        The dendropy representation of a tree is as if rooted (even when it's
+        not) The node which acts like the root is called the seed node, and this
+        can sit in the middle of an edge which would be a leaf edge in the
+        unrooted tree. NNI moves are only eligible on internal edges, so we need
+        to check if the seed node is sat on a real internal edge, or a fake
+        one."""
 
-        # Function to perform a random nearest-neighbour interchange on a tree
-        # using Dendropy
-
-        # The dendropy representation of a tree is as if rooted (even when it's
-        # not) The node which acts like the root is called the seed node, and this
-        # can sit in the middle of an edge which would be a leaf edge in the
-        # unrooted tree. NNI moves are only eligible on internal edges, so we
-        # need to check if the seed node is sat on a real internal edge, or
-        # a fake one.
-
-        # Make a dendropy representation of the tree
-
-        tree = dpy.Tree()
-        tree.read_from_string(self.newick, 'newick')
+        tree = self.convert_to_dendropy_tree()
         seed = tree.seed_node
-        resolved = False
-        if len(seed.child_nodes()) > 2:
-            print 'Resolve root trisomy'
-            tree.resolve_polytomies()
-            resolved = True
+        resolved = False                    
+        if len(seed.child_nodes()) > 2:     # If root is multifurcating we
+            print 'Resolve root trisomy'    # need to force it to bifurcate,
+            tree.resolve_polytomies()       # and re-establish multifurcation
+            resolved = true                 # later
 
         # Make a list of internal edges not including the root edge
-
         edge_list = list(tree.preorder_edge_iter(lambda edge: \
                          (True if edge.is_internal() and edge.head_node != seed
                          and edge.tail_node != seed else False)))
 
         # Test whether root edge is eligible (i.e., the edge is not a
         # leaf when the tree is unrooted). If the test passes, add 'root'
-        # tp the list of eligible edges
-
+        # to the list of eligible edges
         if not any([x.is_leaf() for x in seed.child_nodes()]):
             edge_list += ['root']
 
-        chosen_edge = random.choice(edge_list)
-        print chosen_edge
+        chosen_edge = random.choice(edge_list)  # Choose the edge around which
+        print chosen_edge                       # to do the NNI
 
-        # The NNI is done with the chosen edge as root. This will
-        # involve rerooting the tree if we choose an edge that isn't
-        # the root
-
+        # Reroot at chosen edge, if necessary
         if chosen_edge != 'root':
             tree.reroot_at_edge(chosen_edge, length1=chosen_edge.length / 2,
                                 length2=chosen_edge.length / 2,
@@ -123,17 +128,14 @@ class Manipulations(object):
             root = seed
 
         # To do the swap: find the nodes on either side of root
-
         (child_left, child_right) = root.child_nodes()
 
         # Pick a child node from each of these
-
         neighbour1 = random.choice(child_left.child_nodes())
         neighbour2 = random.choice(child_right.child_nodes())
 
         # Prune the chosen nearest neighbours - but don't
         # do any tree structure updates
-
         tree.prune_subtree(neighbour1, update_splits=False,
                            delete_outdegree_one=False)
         tree.prune_subtree(neighbour2, update_splits=False,
@@ -141,13 +143,11 @@ class Manipulations(object):
 
         # Reattach the pruned neighbours to the opposite side
         # of the tree
-
         child_left.add_child(neighbour2)
         child_right.add_child(neighbour1)
 
         # Reroot the tree using the original seed node, and
         # update splits
-
         if not chosen_edge == 'root':
             tree.reroot_at_node(seed, update_splits=True)
         else:
@@ -157,13 +157,14 @@ class Manipulations(object):
             print 'Reinstating root trisomy'
             tree.deroot()
 
-        newick = tree.as_newick_string()
-        if not newick.endswith(';'):
-            newick += ';'
+        newick = self.dendropy_as_newick(tree)
         if tree.is_rooted:
             newick = '[&R] ' + newick
 
-        return newick
+        tree_copy = self.tree.copy() 
+        tree_copy.newick = newick
+        self.tree = tree_copy
+        return self.tree
 
     def spr(self, time=None, disallow_sibling_SPRs=False):
 
@@ -276,9 +277,9 @@ class Manipulations(object):
                                   - time)
             return tree
 
-        tree = dpy.Tree()
-        tree.read_from_string(self.newick, 'newick')
-        tree.is_rooted = utils.dpy.check_rooted(self.newick)
+        # MAIN
+        tree = self.convert_to_dendropy_tree()
+        tree.is_rooted = utils.dpy.check_rooted(self.tree.newick)
 
         (blocks, dists) = _get_blocks(tree)
         if not time:
@@ -302,14 +303,14 @@ class Manipulations(object):
         tree.reindex_subcomponent_taxa()
         tree.update_splits()
 
-        newick = tree.as_newick_string()
-        if not newick.endswith(';'):
-            newick += ';'
-
+        newick = self.dendropy_as_newick(tree)
         if tree.is_rooted:
             newick = '[&R] ' + newick
 
-        return newick
+        tree_copy = self.tree.copy() 
+        tree_copy.newick = newick
+        self.tree = tree_copy
+        return self.tree
 
 
 class Tree(object):
@@ -317,6 +318,7 @@ class Tree(object):
     """ Class for storing the results of phylogenetic inference """
 
     name_regex = re.compile('([A-Za-z0-9\-_]+).([A-Za-z0-9\-_]+)(?=_phyml_)')
+    score_regex = re.compile('(?<=Log-likelihood: ).+')
 
     def __init__(
         self,
@@ -363,6 +365,11 @@ class Tree(object):
         if not self.output == other.output:
             return False
         return equal
+
+    def copy(self):
+        copy = self.__new__(type(self))
+        copy.__dict__ = {key: value for (key, value) in self.__dict__.items()}
+        return copy
 
     def read_from_file(self, infile, name=None):
         """ This and the write_to_file function allow the class to be easily
@@ -482,172 +489,100 @@ class Tree(object):
         new_tree.load_phyml_strings(tree, stats, program=program)
         return new_tree
 
-    def extract_gamma_parameter(self):
-        gamma_regex = re.compile(r'(?<=Gamma shape parameter: \t\t)[.\d+]+')
-        try:
-            gamma = float(gamma_regex.search(self.output).group())
-        except AttributeError:
-            print 'Couldn\'t extract parameters'
-            return
-        return gamma
+    def scale(self, scale_factor):
+        return Manipulations(self).scale(scale_factor)
 
-    def extract_GTR_parameters(self):
-        Afreq_regex = re.compile(r'(?<=f\(A\)= )[.\d+]+')
-        Cfreq_regex = re.compile(r'(?<=f\(C\)= )[.\d+]+')
-        Gfreq_regex = re.compile(r'(?<=f\(G\)= )[.\d+]+')
-        Tfreq_regex = re.compile(r'(?<=f\(T\)= )[.\d+]+')
-        AtoC_regex = re.compile(r'(?<=A <-> C    )[.\d+]+')
-        AtoG_regex = re.compile(r'(?<=A <-> G    )[.\d+]+')
-        AtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
-        CtoG_regex = re.compile(r'(?<=A <-> G    )[.\d+]+')
-        CtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
-        GtoT_regex = re.compile(r'(?<=A <-> T    )[.\d+]+')
+    def strip(self):
+        return Manipulations(self).strip()
 
-        try:
-            Afreq = float(Afreq_regex.search(self.output).group())
-            Cfreq = float(Cfreq_regex.search(self.output).group())
-            Gfreq = float(Gfreq_regex.search(self.output).group())
-            Tfreq = float(Tfreq_regex.search(self.output).group())
-            AtoC = float(AtoC_regex.search(self.output).group())
-            AtoG = float(AtoG_regex.search(self.output).group())
-            AtoT = float(AtoT_regex.search(self.output).group())
-            CtoG = float(CtoG_regex.search(self.output).group())
-            CtoT = float(CtoT_regex.search(self.output).group())
-            GtoT = float(GtoT_regex.search(self.output).group())
-        except AttributeError:
-            print 'Couldn\'t extract parameters'
-            return
+    def print_plot(self):
+        utils.dpy.print_plot(self)
 
-        d = dict(
-            Afreq=Afreq,
-            Cfreq=Cfreq,
-            Gfreq=Gfreq,
-            Tfreq=Tfreq,
-            AtoC=AtoC,
-            AtoG=AtoG,
-            AtoT=AtoT,
-            CtoG=CtoG,
-            CtoT=CtoT,
-            GtoT=GtoT,
-            )
+    def rfdist(self, other):
+        s = utils.dpy.convert_to_dendropy_tree(self)
+        o = utils.dpy.convert_to_dendropy_tree(other)
+        return utils.dpy.get_rf_distance(s, o)
 
-        return d
+    def wrfdist(self, other):
+        s = utils.dpy.convert_to_dendropy_tree(self)
+        o = utils.dpy.convert_to_dendropy_tree(other)
+        return utils.dpy.get_wrf_distance(s, o)
+
+    def eucdist(self, other):
+        s = utils.dpy.convert_to_dendropy_tree(self)
+        o = utils.dpy.convert_to_dendropy_tree(other)
+        return utils.dpy.get_euc_distance(s, o)
+
+    def geodist(self, other):
+        gtp = GTP()
+        return gtp.pairwise(self, other)
 
     @classmethod
-    def new_random_topology(
-        cls,
-        nspecies,
-        names=None,
-        rooted=False,
-        ):
-        """ GET RID OF THIS """
-
-        new_tree = cls()
-        names = names or taxonnames.names
-        return new_tree.random_topology(nspecies, names[:nspecies], rooted)
-
-    def random_topology(
+    def new_yule(
         self,
         nspecies,
         names=None,
-        rooted=False,
+        cf=False,
         ):
-        """ GET RID OF THIS """
+        g = Generator(nspecies, names, cf=cf)
+        return g.yule()
 
-        if names:
-            random.shuffle(names)
-        t = ete2.Tree()
-        t.populate(nspecies, names_library=names)
-        if rooted:
-            t.set_outgroup(t.children[0])
+    @classmethod
+    def new_coal(
+        self,
+        nspecies,
+        names=None,
+        cf=False,
+        ):
+        g = Generator(nspecies, names, cf=cf)
+        return g.coal()
+
+    @classmethod
+    def new_rtree(
+        self,
+        nspecies,
+        names=None,
+        cf=False,
+        ):
+        g = Generator(nspecies, names, cf=cf)
+        return g.rtree()
+
+    def gene_tree(self, scale_to=None):
+        g = Generator(template=self)
+        return g.gene_tree(scale_to)['gene_tree']
+
+
+class Generator(object):
+
+    def __init__(
+        self,
+        nspecies=16,
+        names=None,
+        template=None,
+        cf=False,
+        ):
+
+        self.nspecies = nspecies
+        if cf:
+            self.names = random.sample(cfnames, nspecies)
         else:
-            t.unroot()
+            self.names = names or ['Sp{0}'.format(i) for i in range(1, nspecies
+                                   + 1)]
+        if template and not isinstance(template, Tree):
+            raise TypeError('template should be \'Tree\' object. Got',
+                            type(tree))
+        self.template = template
 
-        t_as_newick = t.write()
-        t_as_newick = t_as_newick.replace(')1', ')')
-        t_as_newick = Manipulations(t_as_newick).pam2sps('strip')
-        return Tree(t_as_newick, name='random tree')
-
-    def randomise_branch_lengths(
-        self,
-        inner_edges,
-        leaves,
-        distribution_func=gamma,
-        output_format=5,
-        ):
-        """ REWRITE THIS WITHOUT ETE2 """
-
-        t = ete2.Tree(self.newick)
-
-        for node in t.iter_descendants():
-            if node.children:
-                node.dist = max(0, distribution_func(*inner_edges))  # 0 length or greater
-            else:
-                node.dist = max(0, distribution_func(*leaves))
-
-        t_as_newick = t.write(format=output_format)
-        return Tree(t_as_newick, name='random tree')
-
-    @classmethod
-    def new_random_yule(cls, nspecies=None, names=None):
-        new_tree = cls()
-        return new_tree.random_yule(nspecies, names)
-
-    def random_yule(self, nspecies=None, names=None):
-        if names and nspecies:
-            if not nspecies == len(names):
-                nspecies = len(names)
-        elif names and not nspecies:
-            nspecies = len(names)
-        elif not names:
-            if not nspecies:
-                nspecies = 16
-            names = taxonnames.names[:nspecies]
-            if nspecies > len(taxonnames.names):
-                names.extend(['Sp{0}'.format(i) for i in
-                             range(len(taxonnames.names) + 1, nspecies + 1)])
-
-        taxon_set = dpy.TaxonSet(names)
-        tree = treesim.uniform_pure_birth(taxon_set)
-
-        newick = '[&R] ' + tree.as_newick_string()
-        if not newick.endswith(';'):
-            newick += ';'
-
-        return Tree(newick)
-
-    @classmethod
-    def new_random_coal(cls, nspecies=None, names=None):
-        new_tree = cls()
-        return new_tree.random_coal(nspecies, names)
-
-    def random_coal(self, nspecies=None, names=None):
-        if names and nspecies:
-            if not nspecies == len(names):
-                nspecies = len(names)
-        elif names and not nspecies:
-            nspecies = len(names)
-        elif not names:
-            if not nspecies:
-                nspecies = 16
-            names = taxonnames.names[:nspecies]
-            if nspecies > len(taxonnames.names):
-                names.extend(['Sp{0}'.format(i) for i in
-                             range(len(taxonnames.names) + 1, nspecies + 1)])
-
-        taxon_set = dpy.TaxonSet(names)
+    def coal(self):
+        taxon_set = dpy.TaxonSet(self.names)
         tree = treesim.pure_kingman(taxon_set)
-
-        newick = '[&R] ' + tree.as_newick_string()
-        if not newick.endswith(';'):
-            newick += ';'
-
+        newick = '[&R] ' + utils.dpy.convert_dendropy_to_newick(tree)
         return Tree(newick)
 
-    def get_constrained_gene_tree(
+    def gene_tree(
         self,
         scale_to=None,
-        population_size=None,
+        population_size=1,
         trim_names=True,
         ):
         """ Using the current tree object as a species tree, generate a gene
@@ -661,8 +596,8 @@ class Tree(object):
         to true, trims off the number which dendropy appends to the sequence
         name """
 
-        tree = dpy.Tree()
-        tree.read_from_string(self.newick, 'newick')
+        t = self.template or self.yule()
+        tree = utils.dpy.convert_to_dendropy_tree(t)
 
         for leaf in tree.leaf_iter():
             leaf.num_genes = 1
@@ -683,8 +618,65 @@ class Tree(object):
                 leaf.taxon.label = leaf.taxon.label.replace('\'', '').split('_'
                         )[0]
 
-        newick = '[&R] ' + gene_tree.as_newick_string()
-        if not newick.endswith(';'):
-            newick += ';'
+        newick = '[&R] ' + utils.dpy.convert_dendropy_to_newick(gene_tree)
 
+        return {'gene_tree': Tree(newick), 'species_tree': t}
+
+    def rtree(self):
+        m = Manipulations(self.yule())
+        m.randomise_labels()
+        return m.randomise_branch_lengths()
+
+    def yule(self):
+        taxon_set = dpy.TaxonSet(self.names)
+        tree = treesim.uniform_pure_birth(taxon_set)
+        newick = '[&R] ' + utils.dpy.convert_dendropy_to_newick(tree)
         return Tree(newick)
+
+
+cfnames = [
+    'Jools', 'Jops', 'Stoo', 'Rj', 'Ubik', 'Cj', 'Chris', 'Pete',
+    'Tadger', 'Hector', 'Elroy', 'Softy', 'Mac', 'Bomber', 'Stan', 'Tosh',
+    'Brains', 'Norm', 'Buster', 'Spike', 'Browny', 'Murphy', 'Killer', 'Abdul',
+    'Spotty', 'Goofy', 'Donald', 'Windy', 'Nifta', 'Denzil', 'Cedric', 'Alf',
+    'Marty', 'Cecil', 'Wally', 'Pervy', 'Jason', 'Roy', 'Peewee', 'Arnie',
+    'Lofty', 'Tubby', 'Porky', 'Norris', 'Bugsy', 'Greg', 'Gus', 'Ginger',
+    'Eddy', 'Steve', 'Hugo', 'Zippy', 'Sonny', 'Willy', 'Mario', 'Luigi',
+    'Bo', 'Johan', 'Colin', 'Queeny', 'Morgan', 'Reg', 'Peter', 'Brett',
+    'Matt', 'Vic', 'Hut', 'Bud', 'Brad', 'Ashley', 'Les', 'Rex',
+    'Louis', 'Pedro', 'Marco', 'Leon', 'Ali', 'Tyson', 'Tiger', 'Frank',
+    'Reuben', 'Leyton', 'Josh', 'Judas', 'Aj', 'Lex', 'Butch', 'Bison',
+    'Gary', 'Luther', 'Kermit', 'Brian', 'Ray', 'Freak', 'Leroy', 'Lee',
+    'Banjo', 'Beaker', 'Basil', 'Bonzo', 'Kelvin', 'Ronnie', 'Rupert', 'Roo',
+    'Dan', 'Jimmy', 'Bob', 'Don', 'Tommy', 'Eddie', 'Ozzy', 'Paddy',
+    'Arnold', 'Tony', 'Teddy', 'Dom', 'Theo', 'Martin', 'Chunky', 'Jon',
+    'Ben', 'Girly', 'Julian', 'Pizza', 'Ciaran', 'Jock', 'Gravy', 'Trendy',
+    'Neil', 'Derek', 'Ed', 'Biff', 'Paul', 'Stuart', 'Randy', 'Loreta',
+    'Suzie', 'Pumpy', 'Urmer', 'Roger', 'Pussy', 'Meat', 'Beefy', 'Harry',
+    'Tiny', 'Howard', 'Morris', 'Thor', 'Rev', 'Duke', 'Micky', 'Chas',
+    'Melony', 'Craig', 'Sidney', 'Parson', 'Rowan', 'Smelly', 'Dok', 'Stew',
+    'Adrian', 'Pat', 'Iceman', 'Goose', 'Dippy', 'Viv', 'Fags', 'Bunty',
+    'Noel', 'Bono', 'Edge', 'Robbie', 'Sean', 'Miles', 'Jimi', 'Gordon',
+    'Val', 'Hobo', 'Fungus', 'Toilet', 'Lampy', 'Marcus', 'Pele', 'Hubert',
+    'James', 'Tim', 'Saul', 'Andy', 'Silky', 'Simon', 'Handy', 'Sid',
+    'George', 'Joff', 'Barry', 'Dick', 'Gil', 'Nick', 'Ted', 'Phil',
+    'Woody', 'Wynn', 'Alan', 'Pip', 'Mickey', 'Justin', 'Karl', 'Maddog',
+    'Horace', 'Harold', 'Gazza', 'Spiv', 'Foxy', 'Ned', 'Bazil', 'Oliver',
+    'Rett', 'Scot', 'Darren', 'Moses', 'Noah', 'Seth', 'Buddah', 'Mary',
+    'Pilot', 'Mcbeth', 'Mcduff', 'Belly', 'Mathew', 'Mark', 'Luke', 'John',
+    'Aslam', 'Ham', 'Shem', 'Joshua', 'Jacob', 'Esaw', 'Omar', 'Enoch',
+    'Obadia', 'Daniel', 'Samuel', 'Robbo', 'Joebed', 'Ismael', 'Isreal', 'Isabel',
+    'Isarat', 'Monk', 'Blip', 'Bacon', 'Danube', 'Friend', 'Darryl', 'Izzy',
+    'Crosby', 'Stills', 'Nash', 'Young', 'Cheese', 'Salami', 'Prawn', 'Radish',
+    'Egbert', 'Edwy', 'Edgar', 'Edwin', 'Edred', 'Eggpie', 'Bros', 'Sonic',
+    'Ziggy', 'Alfred', 'Siggy', 'Hilda', 'Snell', 'Sparks', 'Spook', 'Topcat',
+    'Benny', 'Dibble', 'Benker', 'Dosey', 'Beaky', 'Joist', 'Pivot', 'Tree',
+    'Bush', 'Grass', 'Seedy', 'Tin', 'Rollo', 'Zippo', 'Nancy', 'Larry',
+    'Iggy', 'Nigel', 'Jamie', 'Jesse', 'Leo', 'Virgo', 'Garth', 'Fidel',
+    'Idi', 'Che', 'Kirk', 'Spock', 'Maccoy', 'Chekov', 'Uhura', 'Bones',
+    'Vulcan', 'Fester', 'Jethro', 'Jimbob', 'Declan', 'Dalek', 'Hickey', 'Chocco',
+    'Goch', 'Pablo', 'Renoir', 'Rolf', 'Dali', 'Monet', 'Manet', 'Gaugin',
+    'Chagal', 'Kid', 'Hully', 'Robert', 'Piers', 'Raith', 'Jeeves', 'Paster',
+    'Adolf', 'Deiter', 'Deni', 'Zark', 'Wizkid', 'Wizard', 'Iain', 'Kitten',
+    'Gonner', 'Waster', 'Loser', 'Fodder',
+]
